@@ -236,24 +236,17 @@ genbin_definespecialattributes(Symbol* var)
                                  NULL);
         check_err(stat,__LINE__,__FILE__);
     }
-    if(special->flags & _SHUFFLE_FLAG) {
-        stat = nc_def_var_shuffle(var->container->ncid,
-                                 var->ncid,
-		                 (special->_Shuffle?NC_SHUFFLE:NC_NOSHUFFLE));
-        check_err(stat,__LINE__,__FILE__);
-    }
     if(special->flags & (_COMPRESSION_FLAG) && (special->_Algorithm > 0)) {
-	int nparams = NC_COMPRESSION_MAX_PARAMS;
 	nc_compression_t parms;
 	const char* algorithm;
-	parms.zip.level = special->_DeflateLevel;
+	parms.level = special->_DeflateLevel;
 	algorithm = special->_Algorithm;
 	if(strlen(algorithm)==0) algorithm = NULL;
         stat = nc_def_var_compress(var->container->ncid,
                                   var->ncid,
+                                  (special->_Shuffle == 1?1:0),
                                   algorithm,
-				  nparams,
-				  parms.params);
+				  &parms);
         check_err(stat,__LINE__,__FILE__);
     }
 }

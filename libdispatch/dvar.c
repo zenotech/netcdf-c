@@ -6,9 +6,6 @@ Research/Unidata. See COPYRIGHT file for more info.
 */
 
 #include "ncdispatch.h"
-#ifdef USE_NETCDF4
-#include "nc4compress.h"
-#endif
 #include "netcdf_f.h"
 
 /** \defgroup variables Variables
@@ -542,78 +539,20 @@ int
 nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_level)
 {
     NC* ncp;
-    nc_compression_t nct;
-    int nparams;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    stat = ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,
-		&shuffle,NULL,NULL);
-    if(stat != NC_NOERR) return stat;
-    if(deflate) {
-        nct.zip.level = deflate_level;
-        nparams = 1;
-        stat = ncp->dispatch->def_var_extra(ncid,varid,
-		"zip",&nparams,nct.params,
-		NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,NULL);
-    }
-    return stat;
+    return ncp->dispatch->def_var_deflate(ncid,varid,shuffle,deflate,deflate_level);
 }
 
-/** \ingroup variables
-Enable/Disable fletcher32 checksums for a variable.
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param fletcher32 1 to turn on, 0 to turn off.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTVAR Invalid variable ID.
-\returns ::NC_ENOTINDEFINE Not in define mode. 
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-*/
 int
 nc_def_var_fletcher32(int ncid, int varid, int fletcher32)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,
-		NULL,&fletcher32,NULL);
+    return ncp->dispatch->def_var_fletcher32(ncid,varid,fletcher32);
 }
 
-/** \ingroup variables
-Enable/Disable chunking for a variable.
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param storage either NC_CONTIGOUOUS or NC_CHUNKING.
-
-\param chunksizesp Only valid if storage is NC_CHUNKING.
-Specifies the chunksizes for each dimension of the variable.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTVAR Invalid variable ID.
-\returns ::NC_ENOTINDEFINE Not in define mode. 
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-*/
 int
 nc_def_var_chunking(int ncid, int varid, int storage, 
 		    const size_t *chunksizesp)
@@ -621,143 +560,35 @@ nc_def_var_chunking(int ncid, int varid, int storage,
     NC* ncp;
     int stat = NC_check_id(ncid, &ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
-		&storage,chunksizesp,
-		NULL,NULL,
-		NULL,NULL,NULL);
+    return ncp->dispatch->def_var_chunking(ncid, varid, storage, 
+					   chunksizesp);
 }
 
-/** \ingroup variables
-Enable/Disable fill value for a variable.
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param no_fill either NC_FILL or NC_NOFILL
-
-\param fill_value Only valid if no_fill is NC_FILL
-Specifies the fill value for a variable.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTVAR Invalid variable ID.
-\returns ::NC_ENOTINDEFINE Not in define mode. 
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-*/
 int
 nc_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
-		NULL,NULL,
-		&no_fill,fill_value,
-		NULL,NULL,NULL);
+    return ncp->dispatch->def_var_fill(ncid,varid,no_fill,fill_value);
 }
 
-/** \ingroup variables
-Set the endian-ness of a variable: big-endian or little-endian.
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param endianness one of three constants from netcdf.h:
-NC_ENDIAN_NATIVE, NC_ENDIAN_LITTLE, NC_ENDIAN_BIG.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTVAR Invalid variable ID.
-\returns ::NC_ENOTINDEFINE Not in define mode. 
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-\returns ::NC_EINVAL Invalid endian value.
-*/
 int
-nc_def_var_endian(int ncid, int varid, int endianness)
+nc_def_var_endian(int ncid, int varid, int endian)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,&endianness);
+    return ncp->dispatch->def_var_endian(ncid,varid,endian);
 }
 
-/** \ingroup variables
-Set the shuffle mode of a variable.
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param shuffle 1 to turn on shuffle, 0 to turn it off.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTVAR Invalid variable ID.
-\returns ::NC_ENOTINDEFINE Not in define mode. 
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-*/
 int
-nc_def_var_shuffle(int ncid, int varid, int shuffle)
+nc_def_var_compress(int ncid, int varid, int useshuffle, const char* algorithm, nc_compression_t* params)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,
-		&shuffle,NULL,NULL);
-}
-
-/** \ingroup variables
-Set the compression settings for a variable.
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param algorithm This specifies the name of the compression
-algorithm to use (e.g. "zip", "bzip2", etc).
-
-\param nparams This specifies the number of valid paramters
-in the params vector.
-
-\param params This specifies the parameters for the specified
-compression algorithm.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTVAR Invalid variable ID.
-\returns ::NC_ECOMPRESS Invalid compression parameters.
-*/
-int
-nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params)
-{
-    NC* ncp;
-    int stat = NC_check_id(ncid,&ncp);
-    if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_extra(ncid,varid,
-		algorithm,&nparams,params,
-		NULL,NULL,
-		NULL,NULL,
-		NULL,NULL,NULL);
+    return ncp->dispatch->def_var_compress(ncid,varid,useshuffle,algorithm,params);
 }
 
 #endif /* USE_NETCDF4 */

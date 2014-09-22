@@ -5,10 +5,7 @@ Copyright 2010 University Corporation for Atmospheric
 Research/Unidata. See COPYRIGHT file for more info.
 */
 
-#include "config.h"
-#include "netcdf.h"
 #include "ncdispatch.h"
-#include "nc4compress.h"
 
 /** \name Learning about Variables
 
@@ -124,8 +121,7 @@ nc_inq_var(int ncid, int varid, char *name, nc_type *xtypep,
    if(stat != NC_NOERR) return stat;
    return ncp->dispatch->inq_var_all(ncid, varid, name, xtypep, ndimsp, 
 				     dimidsp, nattsp, NULL, NULL, NULL, 
-				     NULL, NULL, NULL, NULL, NULL, NULL,
-				     NULL);
+				     NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 /** 
@@ -281,7 +277,6 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
 {
    NC* ncp;
    char* algorithm;
-   int nparams;
    nc_compression_t params;
    int stat = NC_check_id(ncid,&ncp);
    if(stat != NC_NOERR) return stat;
@@ -293,9 +288,8 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
       NULL, /*dimidsp*/
       NULL, /*nattsp*/
       shufflep, /*shufflep*/
-      &algorithm, /*compressor*/
-      &nparams,       /* nparamsp*/
-      params.params, /*paramsp*/
+      &algorithm, /*deflatep*/
+      &params, /*deflateparamsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -307,7 +301,7 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
       if(deflatep != NULL)
 	  *deflatep = (strcmp(algorithm,"zip")==0?1:0);
       if(deflate_levelp != NULL)
-          *deflate_levelp = params.zip.level;
+          *deflate_levelp = params.level;
    }
    return stat;
 }
@@ -354,9 +348,8 @@ nc_inq_var_szip(int ncid, int varid, int *options_maskp, int *pixels_per_blockp)
       NULL, /*dimidsp*/
       NULL, /*nattsp*/
       NULL, /*shufflep*/
-      NULL, /*compressor*/
-      NULL, /*nparamsp*/
-      NULL, /*paramsp*/
+      NULL, /*deflatep*/
+      NULL, /*deflatelevelp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -405,9 +398,8 @@ nc_inq_var_fletcher32(int ncid, int varid, int *fletcher32p)
       NULL, /*dimidsp*/
       NULL, /*nattsp*/
       NULL, /*shufflep*/
-      NULL, /*compressor*/
-      NULL, /* nparamsp*/
-      NULL, /*paramsp*/
+      NULL, /*deflatep*/
+      NULL, /*deflatelevelp*/
       fletcher32p, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -446,8 +438,8 @@ nc_inq_var_chunking(int ncid, int varid, int *storagep, size_t *chunksizesp)
    int stat = NC_check_id(ncid, &ncp);
    if(stat != NC_NOERR) return stat;
    return ncp->dispatch->inq_var_all(ncid, varid, NULL, NULL, NULL, NULL, 
-				     NULL, NULL, NULL, NULL, NULL, NULL,
-				     storagep, chunksizesp, NULL, NULL, NULL);
+				     NULL, NULL, NULL, NULL, NULL, storagep, 
+				     chunksizesp, NULL, NULL, NULL);
 }
 
 /** \ingroup variables
@@ -487,9 +479,8 @@ nc_inq_var_fill(int ncid, int varid, int *no_fill, void *fill_valuep)
       NULL, /*dimidsp*/
       NULL, /*nattsp*/
       NULL, /*shufflep*/
-      NULL, /*compressor*/
-      NULL, /*nparamsp*/
-      NULL, /*paramsp*/
+      NULL, /*deflatep*/
+      NULL, /*deflatelevelp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -534,9 +525,8 @@ nc_inq_var_endian(int ncid, int varid, int *endianp)
       NULL, /*dimidsp*/
       NULL, /*nattsp*/
       NULL, /*shufflep*/
-      NULL, /*algorithmp*/
-      NULL, /*nparamsp*/
-      NULL, /*paramsp*/
+      NULL, /*deflatep*/
+      NULL, /*deflatelevelp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -587,52 +577,6 @@ nc_inq_unlimdims(int ncid, int *nunlimdimsp, int *unlimdimidsp)
 }
 
 /** \ingroup variables
-Learn the shuffle settings for a variable. 
-
-This is a wrapper for nc_inq_var_all().
-
-\param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
-nc_inq_ncid().
-
-\param varid Variable ID
-
-\param shufflep Will be set to ::NC_SHUFFLE if shuffle mode
-is turned on for this variable, and ::NC_NOSHUFFLE if
-it is not. \ref ignored_if_null.
-
-\returns ::NC_NOERR No error.
-\returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
-\returns ::NC_ENOTVAR Invalid variable ID.
-*/
-int
-nc_inq_var_shuffle(int ncid, int varid, int *shufflep)
-{
-   NC* ncp;
-   int stat = NC_check_id(ncid,&ncp);
-   if(stat != NC_NOERR) return stat;
-   return ncp->dispatch->inq_var_all(
-      ncid, varid,
-      NULL, /*name*/
-      NULL, /*xtypep*/
-      NULL, /*ndimsp*/
-      NULL, /*dimidsp*/
-      NULL, /*nattsp*/
-      shufflep, /*shufflep*/
-      NULL, /*compressor*/
-      NULL, /* nparamsp*/
-      NULL, /*paramsp*/
-      NULL, /*fletcher32p*/
-      NULL, /*contiguousp*/
-      NULL, /*chunksizep*/
-      NULL, /*nofillp*/
-      NULL, /*fillvaluep*/
-      NULL /*endianp*/
-      );
-}
-
-/** \ingroup variables
 Learn the shuffle and compression settings for a variable.
 
 This is a wrapper for nc_inq_var_all().
@@ -662,7 +606,7 @@ variable, the algorithm dependent parameters will be writen here.
 \returns ::NC_EHDF Invalid/unknown compression algorithm.
 */
 int
-nc_inq_var_compress(int ncid, int varid, char** algorithmp, int* nparamsp, unsigned int* paramsp)
+nc_inq_var_compress(int ncid, int varid, int* useshufflep, char** algorithmp, nc_compression_t* params)
 {
    NC* ncp;
    int stat = NC_check_id(ncid,&ncp);
@@ -674,10 +618,9 @@ nc_inq_var_compress(int ncid, int varid, char** algorithmp, int* nparamsp, unsig
       NULL, /*ndimsp*/
       NULL, /*dimidsp*/
       NULL, /*nattsp*/
-      NULL, /*shufflep*/
+      useshufflep, /*shufflep*/
       algorithmp, /*algorithmp*/
-      nparamsp, /*nparamsp*/
-      paramsp, /*paramsp*/
+      params, /*paramsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/

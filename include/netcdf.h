@@ -416,10 +416,7 @@ by the desired type. */
 #define NC_ECANTEXTEND   (-130)    /**< Attempt to extend dataset during ind. I/O operation. */
 #define NC_EMPI          (-131)    /**< MPI operation failed. */
 
-/* Compression related operations */
-#define NC_ECOMPRESS     (-132)    /**< Generic Compression operation failure. */
-
-#define NC4_LAST_ERROR   (-132)
+#define NC4_LAST_ERROR   (-131)
 
 /* This is used in netCDF-4 files for dimensions without coordinate
  * vars. */
@@ -790,7 +787,7 @@ EXTERNL int
 nc_inq_var_deflate(int ncid, int varid, int *shufflep,
 		   int *deflatep, int *deflate_levelp);
 
-/* Find out szip settings of a var. (options mask and pixels per block really should be unsigned*/
+/* Find out szip settings of a var. */
 EXTERNL int
 nc_inq_var_szip(int ncid, int varid, int *options_maskp, int *pixels_per_blockp);
 
@@ -1935,44 +1932,36 @@ ncrecput(int ncid, long recnum, void *const *datap);
 
 /* Compression API */
 
-/* Define the max size of a compression alg name; 16 - 1 for trailing null */
-#define NC_COMPRESSION_MAX_NAME 15
-/* This must be the max of the NC_NELEMS_XXX in nc4compress.h */
-#define NC_COMPRESSION_MAX_PARAMS 64
-/* Define the max number of dimensions that can be handled by
-   some of the compressors */
-#define NC_COMPRESSION_MAX_DIMS 16
-/* Compression max/min for simple deflates */
-#define NC_DEFLATE_LEVEL_MIN 0
-#define NC_DEFLATE_LEVEL_MAX 9
-
-/** 
-The compression parameters are stored in an
-array of unsigned ints. For the current set of algorithms,
-the array conforms to the union defined in nc4compress.h.
-*/
+/** This is the type for compression parameters */
+typedef struct {
+    int level; /* e.g zip, bzip2 */
+    struct {
+        int options_mask;
+        int pixels_per_block;
+    } szip;
+    struct {
+	int isdouble; /* 0=> double precision 1=> single precision */
+        int ny;
+        int nz;
+        int minbits;
+        int maxbits;
+        int maxprec;
+        int minexp;
+    } zfpzip;
+} nc_compression_t;
 
 /* Set compression settings for a variable.
    Must be called after nc_def_var and before nc_enddef.
    The form of the parameters is algorithm dependent.
 */
 EXTERNL int
-nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params);
+nc_def_var_compress(int ncid, int varid, int useshuffle, const char* algorithm, nc_compression_t *params);
 
 /* Find out compression settings of a var. */
 EXTERNL int
-nc_inq_var_compress(int ncid, int varid,
-		    char**algorithmp, int* nparamsp, unsigned int* paramsp);
-
-/* Define the shuffle of a variable. */
-EXTERNL int
-nc_def_var_shuffle(int ncid, int varid, int shuffle);
-
-/* Learn about the shuffle of a variable. */
-EXTERNL int
-nc_inq_var_shuffle(int ncid, int varid, int *shufflep);
+nc_inq_var_compress(int ncid, int varid, int *useshufflep, 
+		    char**algorithmp, nc_compression_t* paramsp);
 
 #define NC_HAVE_META_H
-
 
 #endif /* _NETCDF_ */

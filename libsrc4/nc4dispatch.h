@@ -130,17 +130,9 @@ NC4_def_var(int ncid, const char *name,
 EXTERNL int
 NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
                int *ndimsp, int *dimidsp, int *nattsp, 
-               int *shufflep, char** algorithmp,
-	       int *nparamsp, unsigned int* paramsp,
+               int *shufflep, char* *algorithmp, nc_compression_t *params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp);
-
-EXTERNL int
-NC4_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
-		    int *contiguous, const size_t *chunksizes,
-                    int *no_fill, const void *fill_value,
-                    int *shuffle, int *fletcher32, int *endianness);
 
 EXTERNL int
 NC4_inq_varid(int ncid, const char *name, int *varidp);
@@ -276,7 +268,7 @@ EXTERNL int
 NC4_show_metadata(int);
 
 EXTERNL int
-NC4_def_var_compress(int, int, int, const char*, int, unsigned int*);
+NC4_def_var_compress(int, int, int, const char*, nc_compression_t*);
 
 EXTERNL int 
 NC4_initialize(void);

@@ -408,7 +408,7 @@ static int
 NCSUB_inq_var_all(int ncid, int varid, char* name, nc_type* xtypep, 
                int* ndimsp, int* dimidsp, int* nattsp, 
                int* shufflep, char** algorithmp,
-	       int* nparamsp, unsigned int* paramsp, 
+	       nc_compression_t* paramsp, 
                int* fletcher32p, int* contiguousp, size_t* chunksizesp, 
                int* no_fill, void* fill_valuep, int* endiannessp
 	       )
@@ -420,29 +420,10 @@ NCSUB_inq_var_all(int ncid, int varid, char* name, nc_type* xtypep,
    if(ncstat != NC_NOERR) return ncstat;
    return ncsub->dispatch->inq_var_all(nc->substrate,varid,name,xtypep,
                                      ndimsp,dimidsp,nattsp,shufflep,
-                                     algorithmp,nparamsp, paramsp,
-				     fletcher32p,contiguousp,chunksizesp,
+                                     algorithmp,paramsp,fletcher32p,
+                                     contiguousp,chunksizesp,
                                      no_fill,fill_valuep,
                                      endiannessp);
-}
-
-static int
-NCSUB_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
-		    int *contiguous, const size_t *chunksizes,
-                    int *no_fill, const void *fill_value,
-                    int *shuffle, int *fletcher32, int *endianness)
-{
-   NC *nc, *ncsub;
-   int ncstat = NC_check_id(ncid, &nc);
-   if(ncstat != NC_NOERR) return ncstat;
-   ncstat = NC_check_id(nc->substrate, &ncsub);
-   if(ncstat != NC_NOERR) return ncstat;
-   return ncsub->dispatch->def_var_extra(nc->substrate, varid,
-		    algorithm, nparams, params,
-		    contiguous, chunksizes,
-                    no_fill, fill_value,
-		    shuffle, fletcher32, endianness);
 }
 
 static int
@@ -777,7 +758,6 @@ NCSUB_def_opaque(int ncid, size_t a1, const char* a2, nc_type* a3)
     return ncsub->dispatch->def_opaque(nc->substrate,a1,a2,a3);
 }
 
-#if 0
 static int
 NCSUB_def_var_deflate(int ncid, int a1, int a2, int a3, int a4)
 {
@@ -834,19 +814,6 @@ NCSUB_def_var_endian(int ncid, int a1, int a2)
 }
 
 static int
-NCSUB_def_var_compress(int ncid, int a1, int a2, const char* a3, int nparams, unsigned int* params)
-{
-    NC *nc, *ncsub;
-    int ncstat = NC_check_id(ncid, &nc);
-    if(ncstat != NC_NOERR) return ncstat;
-    ncstat = NC_check_id(nc->substrate, &ncsub);
-    if(ncstat != NC_NOERR) return ncstat;
-    return ncsub->dispatch->def_var_compress(nc->substrate,a1,a2,a3,nparams,params);
-}
-
-#endif
-
-static int
 NCSUB_set_var_chunk_cache(int ncid, int a1, size_t a2, size_t a3, float a4)
 {
     NC *nc, *ncsub;
@@ -866,6 +833,17 @@ NCSUB_get_var_chunk_cache(int ncid, int a1, size_t* a2, size_t* a3, float* a4)
     ncstat = NC_check_id(nc->substrate, &ncsub);
     if(ncstat != NC_NOERR) return ncstat;
     return ncsub->dispatch->get_var_chunk_cache(nc->substrate,a1,a2,a3,a4);
+}
+
+static int
+NCSUB_def_var_compress(int ncid, int a1, int a2, const char* a3, nc_compression_t* a4)
+{
+    NC *nc, *ncsub;
+    int ncstat = NC_check_id(ncid, &nc);
+    if(ncstat != NC_NOERR) return ncstat;
+    ncstat = NC_check_id(nc->substrate, &ncsub);
+    if(ncstat != NC_NOERR) return ncstat;
+    return ncsub->dispatch->def_var_compress(nc->substrate,a1,a2,a3,a4);
 }
 
 
@@ -920,7 +898,6 @@ NCSUB_get_varm,
 NCSUB_put_varm,
 
 NCSUB_inq_var_all,
-NCSUB_def_var_extra,
 
 NCSUB_var_par_access,
 
@@ -956,8 +933,14 @@ NCSUB_insert_enum,
 NCSUB_inq_enum_member,
 NCSUB_inq_enum_ident,
 NCSUB_def_opaque,
+NCSUB_def_var_deflate,
+NCSUB_def_var_fletcher32,
+NCSUB_def_var_chunking,
+NCSUB_def_var_fill,
+NCSUB_def_var_endian,
 NCSUB_set_var_chunk_cache,
 NCSUB_get_var_chunk_cache,
+NCSUB_def_var_compress
 
 #endif /*USE_NETCDF4*/
 
