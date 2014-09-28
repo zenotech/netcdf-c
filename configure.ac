@@ -15,12 +15,12 @@ AC_REVISION([$Id: configure.ac,v 1.450 2010/05/28 19:42:47 dmh Exp $])
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.3.3], [support-netcdf@unidata.ucar.edu])
+AC_INIT([netCDF], [4.3.3-rc3], [support-netcdf@unidata.ucar.edu])
 
 AC_SUBST([NC_VERSION_MAJOR]) NC_VERSION_MAJOR=4
 AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=3
 AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=3
-AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE=""
+AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-rc3"
 
 #####
 # Set some variables used to generate a libnetcdf.settings file,
@@ -50,7 +50,6 @@ AC_CONFIG_HEADERS([config.h])
 
 # This call is required by automake.
 AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects])
-
 
 # Check for the existence of this file before proceeding.
 AC_CONFIG_SRCDIR([include/netcdf.h])
@@ -813,91 +812,45 @@ if test "x$enable_netcdf_4" = xyes || test "x$enable_dap" = xyes; then
      opendap with --disable-netcdf-4 --disable-dap, or see config.log for errors.])])
 fi
 
-  # Check for compression algorithms
-  # Start by constructing the set of enabled compression filters
-
-  # Set of all known filters; must match arms of the case...esac below
-  ALLFILTERS="ZLIB,SZIP,BZIP2,FPZIP,ZFP"
-
-  AC_MSG_CHECKING([which compression filters to enable])
-  AC_ARG_WITH([compression],
-              [AS_HELP_STRING([--with-compression=filter,filter,...],
-                              [Specify filters to look for.])],
-              [ENABLEDFILTERS=$with_compression],
-              [ENABLEDFILTERS="$ALLFILTERS"])
-  AC_MSG_RESULT([$ENABLEDFILTERS])
-  ENABLEDFILTERS=`echo $ENABLEDFILTERS | tr ',' ' '`
-  ENABLEDFILTERS="zip $ENABLEDFILTERS"
-  # Iterate over enabled filters
-  ACTIVEFILTERS=""      
-  for f in ${ENABLEDFILTERS} ; do
-      DUP=0
-      for a in ${ACTIVEFILTERS} ; do
-        if test "x$a" = "x$f" ; then
-          DUP=1;
-          break;
-        fi
-      done
-      if test $DUP = 1 ; then
-        continue;
-      fi
-      case "$f" in
-      zip)
-	# Check to see if it is enabled in hdf5
-	AC_SEARCH_LIBS([H5Pset_deflate],[hdf5 hdf5_hl],
-                       [havefilter=yes],[havefilter=no])	
-        if test "x$havefilter" = xyes ; then
-          AC_DEFINE([ZIP_FILTER], [1], [if true, support zip compression])
-        fi
-	;;
-
-      szip)
-	# Check to see if it is enabled in hdf5
-	AC_SEARCH_LIBS([H5Z_SZIP],[hdf5 hdf5_hl],
-                       [havefilter=yes],[havefilter=no])	
-        if test "x$havefilter" = xyes; then
-          AC_DEFINE([SZIP_FILTER], [1], [if true, support szip compression])
-	fi
-        ;;
-
-      bzip2)
-	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([BZ2_bzCompress],[bz2],
-                     [havefilter=yes],[havefilter=no])	
-        if test "x$havefilter" = xyes; then
-          AC_DEFINE([BZIP2_FILTER], [1], [if true, support bzip2 compression])
-	fi
-        ;;
-
-      fpzip)
-	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([fpzip_read],[fpzip],
-			[havefilter=yes],[havefilter=no])
-        if test "x$havefilter" = xyes; then
-          AC_DEFINE([FPZIP_FILTER], [1], [if true, support fpzip compression])
-	fi
-        ;;
-
-      zfp)
-	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([zfp_compress],[zfp],
-			[havefilter=yes],[havefilter=no])
-        if test "x$havefilter" = xyes; then
-          AC_DEFINE([ZFP_FILTER], [1], [if true, support zfp compression])
-	fi
-        ;;
-      *) AC_MSG_NOTICE([Unknown filter: $f ; ignored])
-         havefilter=no
-         ;;
-      esac
-      if test "x$havefilter" = xyes ; then
-        ACTIVEFILTERS="${ACTIVEFILTERS} $f"
-        AC_MSG_NOTICE([$f library located])
-      else
-        AC_MSG_NOTICE([$f support required but cannot locate library.])
-      fi
+# Check for compression algorithms
+AC_MSG_CHECKING([which compression algorithms will be available])
+AC_ARG_WITH([compression],
+            [AS_HELP_STRING([--with-compression=<comma or blank separated list of algorithms>],
+                            [specify available compression algorithms])],
+            [ALGORITHMS=$with_compression])
+if test "x$enable_netcdf_4" = xyes ; then 
+AC_MSG_RESULT($ALGORITHMS)
+else
+AC_MSG_RESULT(none)
+fi
+ALGORITHMS=`echo "$ALGORITHMS"|sed -e "s/[,]/ /g" | tr [A-Z] [a-z]`
+# Compute a singular list of algorithms
+ALGORITHM_LIST="zip"
+if test "x$enable_netcdf_4" = xyes ; then 
+for a in $ALGORITHMS ; do
+  ALG_DUP=0
+  for al in $ALGORITHM_LIST ; do
+    if test "x$al" = "x$a" ; then ALG_DUP=1 ; fi
   done
-  echo "enabled and available filters=$ACTIVEFILTERS"
+  if test "x$ALG_DUP" = "x0" ; then
+      ALGORITHM_LIST="$ALGORITHM_LIST $a"
+      case "$a" in
+      bzip2)
+         AC_DEFINE([BZIP2_COMPRESSION], [1], [if true, allow bzip2 compression])
+         ;;
+      szip)
+         AC_DEFINE([SZIP_COMPRESSION], [1], [if true, allow szip compression])
+         ;;
+      zip)
+        ;; #ignore
+      *)
+        AC_MSG_ERROR([Unknown compression algorithm "$a"])
+       ;;
+      esac
+  fi
+done
+fi
+
 
 # We need the math library
 AC_CHECK_LIB([m], [floor], [],
@@ -926,7 +879,7 @@ if test "x$enable_netcdf_4" = xyes; then
    [AC_MSG_ERROR([Can't find or link to the hdf5 high-level. Use --disable-netcdf-4, or see config.log for errors.])])
 
    AC_CHECK_HEADERS([hdf5.h], [], [AC_MSG_ERROR([Compiling a test with HDF5 failed.  Either hdf5.h cannot be found, or config.log should be checked for other reason.])])
-   AC_CHECK_FUNCS([H5Pget_fapl_mpiposix H5Pget_fapl_mpio])
+   AC_CHECK_FUNCS([H5Pget_fapl_mpiposix H5Pget_fapl_mpio H5Pset_deflate H5Z_SZIP])
 
    # The user may have parallel HDF5 based on MPI POSIX.
    if test "x$ac_cv_func_H5Pget_fapl_mpiposix" = xyes; then
@@ -947,6 +900,19 @@ if test "x$enable_netcdf_4" = xyes; then
 
    AC_MSG_CHECKING([whether parallel I/O features are to be included])
    AC_MSG_RESULT([$enable_parallel])
+
+   # The user must have built HDF5 with the ZLIB library.
+   if test "x$ac_cv_func_H5Pset_deflate" = xyes; then
+      AC_DEFINE([USE_ZLIB], [1], [if true, compile in zlib compression in netCDF-4 variables])
+   else
+      AC_MSG_ERROR([HDF5 must be built with zlib for netCDF-4])
+   fi
+
+   # The user may have built HDF5 with the SZLIB library.
+   if test "x$ac_cv_func_H5Z_SZIP" = xyes; then
+   	AC_SEARCH_LIBS([SZ_Compress], [szip sz], [], [])
+  	AC_DEFINE([USE_SZIP], [1], [if true, compile in szip compression in netCDF-4 variables])
+   fi
 
    # If the user wants hdf4 built in, check it out.
    if test "x$enable_hdf4" = xyes; then
@@ -1164,7 +1130,6 @@ AC_SUBST([LDFLAGS])
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_LDFLAGS])
-AC_SUBST([ACTIVEFILTERS])
 
 # Args:
 # 1. netcdf_meta.h variable
@@ -1238,7 +1203,6 @@ AC_CONFIG_FILES([Makefile
                  ncdap_test/expectremote4/Makefile
 		 ],
                  [test -f  nc-config && chmod 755 nc-config])
-
 AC_OUTPUT()
 
 cat libnetcdf.settings
