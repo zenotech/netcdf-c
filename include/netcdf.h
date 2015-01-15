@@ -1930,32 +1930,37 @@ ncrecput(int ncid, long recnum, void *const *datap);
 #define NC_HAVE_INQ_FORMAT_EXTENDED /*!< inq_format_extended() support. */
 #endif
 
-/* Compression API */
+/* Filter API */
 
-#define NC_COMPRESSION_MAX_NAME 64
-/* This must be the max of the NC_NELEMS_XXX in nc4compress.h */
-#define NC_COMPRESSION_MAX_PARAMS 64
+#define NC_FILTER_MAX_NAME 64
+/* This must be the max of the NC_NELEMS_XXX in nc4filter.h */
+#define NC_FILTER_MAX_PARAMS 64
 /* Define the max number of dimensions that can be handled by
-   some of the compressors */
-#define NC_COMPRESSION_MAX_DIMS 16
+   some of the filters */
+#define NC_FILTER_MAX_DIMS 16
 
 /** 
-The compression parameters are stored in an
-array of unsigned ints. For the current set of algorithms,
-the array conforms to the union defined in nc4compress.h.
+The filter parameters are stored in an
+array of unsigned ints. For the current set of algorithms.
 */
 
-/* Set compression settings for a variable.
+/* Set filter settings for a variable.
    Must be called after nc_def_var and before nc_enddef.
    The form of the parameters is algorithm dependent.
+   May be used multiple times for different filters.
 */
 EXTERNL int
-nc_def_var_compress(int ncid, int varid, int useshuffle, const char* algorithm, int nparams, unsigned int* params);
+nc_def_var_filter(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params);
 
-/* Find out compression settings of a var. */
+/* Find out filter settings of a var. Since there may be multiple
+   filters, there must be a way to iterate over the set of filters;
+   in this case, we use an integer index starting at 0.
+*/
 EXTERNL int
-nc_inq_var_compress(int ncid, int varid, int *useshufflep, 
-		    char**algorithmp, int* nparamsp, unsigned int* paramsp);
+nc_inq_var_filters(int ncid, int varid, int* index,
+		   char**algorithmp,
+		   int* nparamsp,
+		   unsigned int* paramsp);
 
 #define NC_HAVE_META_H
 

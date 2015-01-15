@@ -282,7 +282,6 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
    NC* ncp;
    char* algorithm;
    int nparams;
-   nc_compression_t params;
    int stat = NC_check_id(ncid,&ncp);
    if(stat != NC_NOERR) return stat;
    stat =  ncp->dispatch->inq_var_all(
