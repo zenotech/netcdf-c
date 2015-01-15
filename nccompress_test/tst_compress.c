@@ -36,7 +36,7 @@
 
 #define DEFLATE_LEVEL 9
 
-#if 0
+#if 1
 #define RATE 32
 #define TOLERANCE (1e-9)
 #else
