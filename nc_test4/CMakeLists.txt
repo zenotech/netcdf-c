@@ -14,6 +14,10 @@ SET(NC4_TESTS tst_dims tst_dims2 tst_dims3 tst_files tst_files4 tst_vars
 build_bin_test(renamegroup)
 add_sh_test(nc_test4 run_grp_rename)
 
+# Note, tst_compress needs to be compiled before run_compress
+build_bin_test(tst_compress)
+add_sh_test(nc_test4 run_compress)
+
 IF(NOT MSVC)
   SET(NC4_TESTS ${NC4_TESTS} tst_interops5 tst_camrun)
 ENDIF()
@@ -30,10 +34,6 @@ ENDIF()
 IF(USE_HDF4)
   SET(NC4_TESTS ${NC4_TESTS} tst_interops2)
 ENDIF()
-
-# Note, tst_compress needs to be compiled before run_compress.sh
-build_bin_test(tst_compress)
-add_sh_test(nc_test4 run_compress)
 
 IF(BUILD_BENCHMARKS)
   add_sh_test(nc_test4 run_bm_test1)

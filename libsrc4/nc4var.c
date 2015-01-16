@@ -11,7 +11,7 @@ conditions.
 
 #include "config.h"
 #include <math.h>
-#ifdef SZIP_COMPRESSION
+#ifdef SZIP_FILTER
 #include <szlib.h>
 #else
 #define SZ_MAX_PIXELS_PER_BLOCK 0

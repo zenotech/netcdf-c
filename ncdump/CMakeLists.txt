@@ -75,7 +75,7 @@ IF(ENABLE_TESTS)
     #add_bin_test(ncdump tst_special_atts)
     # Add this test by hand, as it is also called from a script.
     # Editing the script would break autotools compatibility.
-    set(MANUAL_TESTS tst_special_atts tst_compress tst_chunking)
+    set(MANUAL_TESTS tst_special_atts tst_compression tst_chunking)
     FOREACH (MTEST ${MANUAL_TESTS})
       ADD_EXECUTABLE(${MTEST} ${MTEST}.c)
       TARGET_LINK_LIBRARIES(${MTEST} netcdf)

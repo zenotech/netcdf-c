@@ -1,5 +1,5 @@
-#ifndef NCCOMPRESS_H
-#define NCCOMPRESS_H
+#ifndef NC4COMPRESS_H
+#define NC4COMPRESS_H
 
 #include <hdf5.h>
 #include <fpzip.h>
@@ -77,4 +77,4 @@ extern const NC_compressor_info* nc_compressor_by_index(NC_compress_enum index);
 /* Index by name */
 extern NC_compress_enum nc_compressor_by_name(const char* name);
 
-#endif /*NCCOMPRESS_H*/
+#endif /*NC4COMPRESS_H*/
