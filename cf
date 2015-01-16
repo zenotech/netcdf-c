@@ -171,22 +171,8 @@ fi
 if test "x$FPZIP" = x1 ; then
 COMP="$COMP,fpzip"
 fi
-FLAGS="$FLAGS --with-compression=${COMP}"
+#FLAGS="$FLAGS --with-compression=${COMP}"
 
-COMP="zip"
-if test "x$SZIP" = x1 ; then
-COMP="$COMP,szip"
-fi
-if test "x$BZIP2" = x1 ; then
-COMP="$COMP,bzip2"
-fi
-if test "x$FPZIP" = x1 ; then
-COMP="$COMP,fpzip"
-fi
-if test "x$ZFP" = x1 ; then
-COMP="$COMP,zfp"
-fi
-FLAGS="$FLAGS --with-compression=${COMP}"
 
 if test "x${DB}" = x1 ; then
 FLAGS="$FLAGS --disable-shared"

@@ -28,10 +28,6 @@ IF(NOT HAVE_BASH)
   SET(TESTS ${TESTS} tst_atts3)
 ENDIF()
 
-IF(USE_NETCDF4)
-  SET(TESTS ${TESTS} tst_atts)
-ENDIF()
-
 IF(USE_PNETCDF)
   build_bin_test_no_prefix(tst_pnetcdf)
   build_bin_test_no_prefix(tst_parallel2)
@@ -87,5 +83,5 @@ ENDIF()
 ## Specify files to be distributed by 'make dist'
 FILE(GLOB CUR_EXTRA_DIST RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.sh)
 SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} CMakeLists.txt Makefile.am)
-SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} test_get.m4 test_put.m4 ref_tst_diskless2.cdl)
+SET(CUR_EXTRA_DIST ${CUR_EXTRA_DIST} test_get.m4 test_put.m4 ref_tst_diskless2.cdl compress.cdl)
 ADD_EXTRA_DIST("${CUR_EXTRA_DIST}")

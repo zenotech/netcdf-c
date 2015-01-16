@@ -2,16 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef BZIP2_COMPRESSION
+#ifdef BZIP2_FILTER
 #include <bzlib.h>
 #endif
-#ifdef SZIP_COMPRESSION
+#ifdef SZIP_FILTER
 #include <szlib.h>
 #endif
-#ifdef FPZIP_COMPRESSION
+#ifdef FPZIP_FILTER
 #include <fpzip.h>
 #endif
-#ifdef ZFP_COMPRESSION
+#ifdef ZFP_FILTER
 #include <zfp.h>
 #endif
 #include "netcdf.h"
@@ -45,7 +45,7 @@ static int checkerr(int e, const char* file, int line)
 
 /* Forward */
 static int validate(const NC_COMPRESSOR* info);
-static const NC_COMPRESSOR compressors[NC_COMPRESSORS];
+static const NC_COMPRESSOR compressors[NC_COMPRESSORS+1];
 
 /* get compressor info by enum */
 const NC_compressor_info*
@@ -77,11 +77,11 @@ nccompress_set(const char*algorithm, hid_t plistid, int nparams, unsigned int* p
     for(cmp=compressors;cmp->info.name != NULL;cmp++) {
         if(strcmp(cmp->info.name,algorithm)==0) {
             if(cmp->_attach(cmp,uparams,plistid) != NC_NOERR)
-                return THROW(NC_EHDFERR);
+                return THROW(NC_EFILTER);
             return THROW(NC_NOERR);
         }
     }
-    return THROW(NC_EHDFERR);
+    return THROW(NC_EFILTER);
 }
 
 /* 
@@ -94,9 +94,9 @@ nccompress_register_all(void)
 
     for(cmp=compressors;cmp->info.name != NULL;cmp++) {
 	if(cmp->_register != NULL && cmp->_register(cmp) != NC_NOERR)
-            return THROW(NC_EHDFERR);
+            return THROW(NC_EFILTER);
         if(validate(cmp) != NC_NOERR)
-            return THROW(NC_EHDFERR);
+            return THROW(NC_EFILTER);
     }
     return THROW(NC_NOERR);
 }
@@ -142,12 +142,12 @@ nccompress_inq_parameters(H5Z_filter_t filter,
 		return THROW(NC_EINVAL);
 	    *nparamsp = argc;
             if(cmp->_inq(cmp,propid,nparamsp,argv,uparams) != NC_NOERR)
-                return THROW(NC_EHDFERR);
+                return THROW(NC_EFILTER);
             strncpy(name,cmp->info.name,NC_COMPRESSION_MAX_NAME);
             return THROW(NC_NOERR);
         }
     }
-    return THROW(NC_EHDFERR);
+    return THROW(NC_EFILTER);
 }
 
 /*
@@ -167,13 +167,13 @@ validate(const NC_COMPRESSOR* info)
     avail = H5Zfilter_avail(info->h5info->id);
     if(!avail) {
         fprintf(stderr,"Filter not available: %s.\n",info->info.name);
-        return THROW(NC_EHDFERR);
+        return THROW(NC_EFILTER);
     }
     status = H5Zget_filter_info(info->h5info->id, &filter_info);
     if(!(filter_info & H5Z_FILTER_CONFIG_ENCODE_ENABLED) ||
         !(filter_info & H5Z_FILTER_CONFIG_DECODE_ENABLED) ) {
         fprintf(stderr,"Filter not available for encoding and decoding: %s.\n",info->info.name);
-        return THROW(NC_EHDFERR);
+        return THROW(NC_EFILTER);
     }
     return THROW(NC_NOERR);
 }
@@ -221,11 +221,11 @@ static int
 zip_attach(const NC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
 {
     int status = H5Pset_deflate(plistid, parms->zip.level);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
 
 /**************************************************/
-#ifdef SZIP_COMPRESSION
+#ifdef SZIP_FILTER
 
 /* declare a filter function's info */
 static const H5Z_class2_t H5Z_SZIP = {
@@ -257,9 +257,9 @@ szip_attach(const NC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
         status = H5Pset_szip(plistid, parms->szip.options_mask, parms->szip.pixels_per_block);
     } else {
         fprintf(stderr,"szip compression not available\n");
-        return NC_EHDFERR;
+        return NC_EFILTER;
     }
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
 
 static int
@@ -279,10 +279,10 @@ szip_inq(const NC_COMPRESSOR* info, hid_t propid, int* argc, unsigned int* argv,
 
 /* end H5Z_set_local_szip() */
 
-#endif /*SZIP_COMPRESSION*/
+#endif /*SZIP_FILTER*/
 
 /**************************************************/
-#ifdef BZIP2_COMPRESSION
+#ifdef BZIP2_FILTER
 
 #define H5Z_FILTER_BZIP2 307
 
@@ -307,14 +307,14 @@ bzip2_register(const NC_COMPRESSOR* info)
 {
     herr_t status;
     status = H5Zregister(info->h5info);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
 
 static int
 bzip2_attach(const NC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
 {
     int status = H5Pset_filter(plistid, info->h5info->id, H5Z_FLAG_MANDATORY, (size_t)NC_NELEMS_BZIP2,parms->params);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
 
 static size_t
@@ -449,10 +449,10 @@ cleanupAndFail:
     return 0;
 }
     
-#endif /*BZIP2_COMPRESSION*/
+#endif /*BZIP2_FILTER*/
     
 /**************************************************/
-#ifdef FPZIP_COMPRESSION
+#ifdef FPZIP_FILTER
     
 /* prec */
 #define H5Z_FILTER_FPZIP 256
@@ -479,14 +479,14 @@ fpzip_register(const NC_COMPRESSOR* info)
 {
     herr_t status;
     status = H5Zregister(info->h5info);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
     
 static int
 fpzip_attach(const NC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
 {
     int status = H5Pset_filter(plistid, info->h5info->id, H5Z_FLAG_MANDATORY, (size_t)NC_NELEMS_FPZIP, parms->params);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
     
 /**
@@ -636,9 +636,9 @@ cleanupAndFail:
     return 0;
 }
 
-#endif /*FPZIP_COMPRESSION*/
+#endif /*FPZIP_FILTER*/
 
-#ifdef ZFP_COMPRESSION
+#ifdef ZFP_FILTER
     
 /* prec */
 #define H5Z_FILTER_ZFP 257
@@ -665,7 +665,7 @@ zfp_register(const NC_COMPRESSOR* info)
 {
     herr_t status;
     status = H5Zregister(info->h5info);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
     
 static int
@@ -677,8 +677,8 @@ zfp_attach(const NC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
     unsigned int flags = H5Z_FLAG_MANDATORY;
     size_t sn = (size_t)n;
     unsigned int* params = parms->params;
-    int status = H5Pset_filter(h,id,flags,n,params);
-    return THROW((status ? NC_EHDFERR : NC_NOERR));
+    int status = H5Pset_filter(h,id,flags,sn,params);
+    return THROW((status ? NC_EFILTER : NC_NOERR));
 }
     
 /**
@@ -808,23 +808,23 @@ cleanupAndFail:
     return 0;
 }
 
-#endif /*ZFP_COMPRESSION*/
+#endif /*ZFP_FILTER*/
 
 /**************************************************/
 
 /* Provide access to all the compressors */
-static const NC_COMPRESSOR compressors[NC_COMPRESSORS] = {
+static const NC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
     {{"zip", NC_NELEMS_ZIP}, &H5Z_ZIP, zip_register, zip_attach, generic_inq},
-#ifdef FPZIP_COMPRESSION
+#ifdef FPZIP_FILTER
     {{"zfp", NC_NELEMS_ZFP}, &H5Z_ZFP, zfp_register, zfp_attach, generic_inq},
 #endif
-#ifdef FPZIP_COMPRESSION
+#ifdef FPZIP_FILTER
     {{"fpzip", NC_NELEMS_FPZIP}, &H5Z_FPZIP, fpzip_register, fpzip_attach, generic_inq},
 #endif
-#ifdef BZIP2_COMPRESSION
+#ifdef BZIP2_FILTER
     {{"bzip2", NC_NELEMS_BZIP2}, &H5Z_BZIP2, bzip2_register, bzip2_attach, generic_inq},
 #endif
-#ifdef SZIP_COMPRESSION
+#ifdef SZIP_FILTER
     {{"szip", NC_NELEMS_SZIP}, &H5Z_SZIP, szip_register, szip_attach, szip_inq},
 #endif
     {{NULL, NC_NOZIP}, NULL, NULL, NULL}

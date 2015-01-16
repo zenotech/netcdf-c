@@ -94,9 +94,6 @@ are set when opening a binary file on Windows. */
 #cmakedefine TEST_PARALLEL ${TEST_PARALLEL}
 #cmakedefine BUILD_RPC 1
 #cmakedefine USE_DISKLESS 1
-#cmakedefine USE_SZIP 1
-#cmakedefine USE_ZLIB 1
-#cmakedefine BZIP2_COMPRESSION 1
 #cmakedefine USE_X_GETOPT 1
 #cmakedefine LARGE_FILE_TESTS 1
 #cmakedefine HAVE_DECL_ISFINITE 1
@@ -284,6 +281,14 @@ are set when opening a binary file on Windows. */
 #cmakedefine CRAY_STACKSEG_END
 #cmakedefine DLL_EXPORT
 #cmakedefine DLL_NETCDF
+
+#cmakedefine USE_SZIP 1
+#cmakedefine USE_ZLIB 1
+#cmakedefine SZIP_FILTER 1
+#cmakedefine BZIP2_FILTER 1
+#cmakedefine FPZIP_FILTER 1
+#cmakedefine ZFP_FILTER 1
+
 
 #include <ncconfigure.h>
 #endif
