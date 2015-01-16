@@ -257,8 +257,8 @@ const char *nc_strerror(int ncerr1)
 	 return "NetCDF: Error in using diskless access";
       case NC_EMPI:
 	 return "NetCDF: MPI operation failed.";
-      case NC_ECOMPRESS:
-	return "NetCDF: Generic Compression operation failure.";
+      case NC_EFILTER:
+	return "NetCDF: Generic Filter operation failure.";
       default:
 	 return "Unknown Error";
    }

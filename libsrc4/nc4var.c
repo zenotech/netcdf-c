@@ -10,7 +10,7 @@ conditions.
 */
 
 #include <math.h>
-#ifdef SZIP_COMPRESSION
+#ifdef SZIP_FILTER
 #include <szlib.h>
 #endif
 #include "netcdf.h"
