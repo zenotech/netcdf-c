@@ -659,8 +659,12 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   # Locate compression filter libraries (except zlib and szip)
   SET(ALLFILTERS BZIP2 FPZIP ZFP)
   FIND_PACKAGE(BZIP2 COMPONENTS C BZ2 NO_MODULE)
+
   FIND_PACKAGE(FPZIP COMPONENTS C FPZIP NO_MODULE)
+
   FIND_PACKAGE(ZFP COMPONENTS C ZFP NO_MODULE)
+
+
   SET(FILTERS)
   FOREACH(A ${ALLFILTERS})
     IF(${A}_FOUND)
@@ -670,7 +674,14 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       SET(TLL_LIBS ${TLL_LIBS} ${${A}_LIBRARIES})
       SET(${A}_FILTER ON)
     ELSE()
-      MESSAGE(STATUS "${A} library not found.")
+      IF(NOT ${A}_LIB AND NOT ${A}_INCLUDE_DIR)
+            MESSAGE(STATUS "${A} library not found with FIND_PACKAGE.  Specify ${A}_LIB and ${A}_INCLUDE_DIR manually.")
+
+      ELSE()
+        MESSAGE(STATUS "Found ${A}_LIB: ${${A}_LIB}")
+      ENDIF()
+      SET(TLL_LIBS ${TLL_LIBS} ${${A}_LIB}})
+      INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
     ENDIF()
   ENDFOREACH()
 >>>>>>> 1. move the tests in nccompress_tests to nc_test4
