@@ -657,31 +657,25 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     SET(SZIP_FILTER ON)
   ENDIF()
   # Locate compression filter libraries (except zlib and szip)
+
+  FIND_LIBRARY(HAVE_BZIP2 NAMES bzip2)
+  FIND_LIBRARY(HAVE_FPZIP NAMES fpzip)
+  FIND_LIBRARY(HAVE_ZFP NAMES ZFP)
+
+  FIND_PATH(BZIP2_INCLUDE_DIR bzlib.h)
+  FIND_PATH(FPZIP_INCLUDE_DIR fpzip.h)
+  FIND_PATH(ZFP_INCLUDE_DIR zfp.h)
+
   SET(ALLFILTERS BZIP2 FPZIP ZFP)
-  FIND_PACKAGE(BZIP2 COMPONENTS C BZ2 NO_MODULE)
 
-  FIND_PACKAGE(FPZIP COMPONENTS C FPZIP NO_MODULE)
-
-  FIND_PACKAGE(ZFP COMPONENTS C ZFP NO_MODULE)
-
-
-  SET(FILTERS)
   FOREACH(A ${ALLFILTERS})
-    IF(${A}_FOUND)
-      MESSAGE(STATUS "${A} library found: ${${A}_LIBRARIES}")
-      SET(FILTERS ${FILTERS} " ${A}")
-      INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIRS})
-      SET(TLL_LIBS ${TLL_LIBS} ${${A}_LIBRARIES})
-      SET(${A}_FILTER ON)
+    IF(HAVE_${A})
+      MESSAGE(STATUS "Found ${HAVE_${A}}")
+      IF(${A}_INCLUDE_DIR)
+        INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
+      ENDIF()      
     ELSE()
-      IF(NOT ${A}_LIB AND NOT ${A}_INCLUDE_DIR)
-            MESSAGE(STATUS "${A} library not found with FIND_PACKAGE.  Specify ${A}_LIB and ${A}_INCLUDE_DIR manually.")
-
-      ELSE()
-        MESSAGE(STATUS "Found ${A}_LIB: ${${A}_LIB}")
-      ENDIF()
-      SET(TLL_LIBS ${TLL_LIBS} ${${A}_LIB}})
-      INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
+      MESSAGE(WARNING "Warning: Couldn't find ${A}")
     ENDIF()
   ENDFOREACH()
 >>>>>>> 1. move the tests in nccompress_tests to nc_test4
