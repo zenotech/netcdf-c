@@ -1,6 +1,6 @@
 #!/bin/bash
 #X="-x"
-#NB=1
+NB=1
 DB=1
 
 if test $# != 0 ; then
@@ -14,7 +14,7 @@ DAP=1
 #PAR=1
 
 # Following must be consistent
-#SZIP=1
+SZIP=1
 BZIP2=1
 FPZIP=1
 ZFP=1
@@ -230,6 +230,10 @@ export CXXFLAGS
 
 DISTCHECK_CONFIGURE_FLAGS="$FLAGS"
 export DISTCHECK_CONFIGURE_FLAGS
+
+for f in $cmds ; do
+  if test "x$f" = "xdistcheck" ; then dodistcheck=1 ; else dodistcheck=1 ; fi
+done
 
 if test -z "$NB" ; then
 ${MAKE} maintainer-clean >/dev/null 2>&1

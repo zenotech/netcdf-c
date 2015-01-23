@@ -868,8 +868,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
          if (uparams->bzip2.level > MAX_DEFLATE_LEVEL)
             return NC_EINVAL;
       if (strcmp(algorithm,"szip") == 0)
-         if (uparams->szip.pixels_per_block > SZ_MAX_PIXELS_PER_BLOCK
-             || uparams->szip.pixels_per_scanline > SZ_MAX_PIXELS_PER_SCANLINE)
+         if (uparams->szip.pixels_per_block > SZ_MAX_PIXELS_PER_BLOCK)
             return NC_EINVAL;
 
       /* For scalars, just ignore attempt to deflate. */

@@ -108,6 +108,6 @@ NC4_initialize(void)
 {
     NC4_dispatch_table = &NC4_dispatcher;
     /* Register all known filters */
-    nccompress_register_all();
+    nc_compress_register_all();
     return NC_NOERR;
 }

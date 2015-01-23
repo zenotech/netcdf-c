@@ -1,10 +1,16 @@
 #!/bin/sh
-set -x
+#set -x
 set -e
 #S="-s"
 
 # Compressions to test
-TC="nozip zip bzip2 fpzip"
+TC="nozip zip szip bzip2 fpzip zfp"
+
+#Options
+O="-P -d5 -l9 -p0 -b32 -t1e-9 -r32"
+
+# Known compressions
+C="nozip zip szip bzip2 fpzip zfp"
 
 # if this is part of a distcheck action, then this script
 # will be executed in a different directory
@@ -17,10 +23,7 @@ srcdir=`dirname $0`
 cd $srcdir
 srcdir=`pwd`
 echo "srcdir=${srcdir}"
-cd $buildir
-
-# Known compressions
-C="nozip zip bzip2 szip fpzip zfp"
+cd $builddir
 
 if test -f "${builddir}/tst_compress.exe" ; then
 EXE="${builddir}/tst_compress.exe"
@@ -38,6 +41,7 @@ function compare {
   $builddir/../ncdump/ncdump $S -n compress $1.nc > $1.cdl
   # diff against compress.cdl
   if diff -wBb ${srcdir}/compress.cdl $1.cdl ; then
+#  if test x = x ; then
     CODE=1
   else
     CODE=0
@@ -50,15 +54,23 @@ function compare {
   if test CODE = 0 ; then PASSFAIL=0; fi
 }
 
+function dotest {
+  # Create {zip,bzip2,szip}.nc
+  if ! ${EXE} ${O} $1 ; then
+    echo "***FAIL: tst_compress: $1"
+    PASSFAIL=0
+  else
+    compare $1
+  fi
+}
+
 function baseline {
-  if ! ${EXE} zip ; then
+  if ! ${EXE} ${O} zip ; then
     echo "***FAIL: tst_compress zip"
   else
     rm -f compress.cdl
-    ../ncdump/ncdump $S -n compress zip.nc > zip.cdl
-    mv zip.cdl compress.cdl
+    ../ncdump/ncdump $S -n compress zip.nc > ./compress.cdl
   fi
-  clean
 }
 
 ##################################################
@@ -74,26 +86,16 @@ fi
 if test -f ${srcdir}/compress.cdl ; then
     echo "baseline: ${srcdir}/compress.cdl"
 else
-    echo "baseline: ${srcdir}/compress.cdl"
+  echo "baseline: ${srcdir}/compress.cdl"
   echo "No baseline file exists"
   exit 1
 fi
 
 PASSFAIL=1
 
-# Create {zip,bzip2,szip}.nc
-if ! ${EXE} $TC ; then
-  echo "***FAIL: tst_compress"
-  PASSFAIL=0
-fi
-
-# ncdump both files
-if test -f nozip.nc ;   then compare nozip; fi
-if test -f zip.nc ;   then compare zip; fi
-if test -f szip.nc ;  then compare szip ; fi
-if test -f bzip2.nc ; then compare bzip2; fi
-if test -f fpzip.nc ; then compare fpzip ; fi
-if test -f zfp.nc ; then compare zfp ; fi
+for c in $TC ; do
+  dotest $c
+done
 
 clean
 
