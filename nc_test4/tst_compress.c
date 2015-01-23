@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <stdlib.h>
 
+/* Write using var1_T instead of var_T */
+#undef VAR1
+
 #ifdef SZIP_FILTER
 #include <szlib.h>
 #else
@@ -31,20 +34,29 @@
 #include "nc_tests.h"
 #include "nc4compress.h"
 
-/* Write using var1_T instead of var_T */
-#undef VAR1
-
-#define DEFLATE_LEVEL 9
+#define DEFAULTZIPLEVEL 9
+#define DEFAULTBZIP2LEVEL 9
 
 #if 1
-#define RATE 32
-#define TOLERANCE (1e-9)
+#define SZIP_MASK SZ_NN_OPTION_MASK;
 #else
-#define RATE 0
-#define TOLERANCE (1e-9)
+#define SZIP_MASK SZ_EC_OPTION_MASK;
 #endif
+#define DEFAULTPPB 32
+
+#if 1
+#define DEFAULTRATE 32
+#define DEFAULTTOLERANCE (1e-9)
+#else
+#define DEFAULTRATE 0
+#define DEFAULTTOLERANCE (1e-9)
+#endif
+#define DEFAULTPRECISION 32
 
 #define MAXERRS 8
+
+#define FPZIPCHOOSE 3
+#define ZFPCHOOSE 3
 
 /* Following 3 must be consistent */
 #define T float
@@ -71,32 +83,48 @@ SZIP  = 2,
 BZIP2 = 3,
 FPZIP = 4,
 ZFP   = 5,
-NZIP  = 6,
 } XZIP;
+#define NZIP (ZFP+1)
 
 /* These need to be parallel with XZIP */
-static char* zipnames[NZIP+1] = {"nozip","zip","szip","bzip2","fpzip","zfp",NULL};
+static const char* zipnames[NZIP+1] = {"nozip","zip","szip","bzip2","fpzip","zfp",NULL};
+
+#define MAXDIMS 8
+#define DEFAULTACTUALDIMS 5
+
+#define DEFAULTDIMSIZE 16
+#define DEFAULTCHUNKSIZE 8
 
 static int supported[NZIP];
+
+/* From command line */	
+static char ndimalg = 'p';
+static size_t pattern[MAXDIMS]; /* from command line */
 static int test[NZIP];
+static int precision = DEFAULTPRECISION;
+static double rate = DEFAULTRATE;
+static double tolerance = DEFAULTTOLERANCE;
+static unsigned int ziplevel = DEFAULTZIPLEVEL;
+static unsigned int bzip2level = DEFAULTBZIP2LEVEL;
+static unsigned int pixels_per_block = DEFAULTPPB;
 
-/* Following must be consistent */
-static const int MAXDIMS = 5;
-static size_t DIM[5] = {32,32,32,32,32};
-static size_t CHUNKS[5]
-//= {8,8,8,8,8};
-= {32,32,32,32,32};
+static size_t dimsize = DEFAULTDIMSIZE;
+static size_t chunksize = DEFAULTCHUNKSIZE;
+static size_t actualdims = DEFAULTACTUALDIMS;
 
-/* Actual # dims to use */
-static const int NDIMS = 3;
+static size_t totalproduct = 1; /* x-product over max dims */
+static size_t actualproduct = 1; /* x-product over actualdims */
+static size_t chunkproduct = 1; /* x-product over actual chunks */
+static size_t fpzipproduct = 1; /* x-product over chunks wrt FPZIP_CHOOSE*/
+static size_t zfpproduct = 1; /* x-product over chunks wrt ZFP_CHOOSE*/
 
-static size_t total = 0;
+static size_t dims[MAXDIMS];
+static size_t chunks[MAXDIMS];
+
 static int ncid, varid;
-static int dimids[NC_MAX_VAR_DIMS];
-static int odom[NC_MAX_VAR_DIMS];
+static int dimids[MAXDIMS];
+static size_t odom[MAXDIMS];
 static T* array = NULL;
-
-static int tagndims = 0;
 
 /* Forward */
 static int test_zfp(void);
@@ -112,14 +140,19 @@ static int odom_more(void);
 static int odom_next(void);
 static int odom_offset(void);
 static T expected(void);
-static size_t product(int ndims, size_t* dims);
+
+#define ERRR do { \
+fflush(stdout); /* Make sure our stdout is synced with stderr. */ \
+fprintf(stderr, "Sorry! Unexpected result, %s, line: %d\n", \
+	__FILE__, __LINE__);				    \
+err++; \
+} while (0)
 
 static int
 check(int err,int line)
 {
     if(err != NC_NOERR) {
 	fprintf(stderr,"fail (%d): %s\n",line,nc_strerror(err));
-	ERR;
     }
     return NC_NOERR;
 }
@@ -130,11 +163,8 @@ static char*
 filenamefor(XZIP encoder)
 {
     static char testfile[2048];
-    char* name = zipnames[(int)encoder];
-    if(tagndims)
-        snprintf(testfile,sizeof(testfile),"%s_%d.nc",name,NDIMS);
-    else
-        snprintf(testfile,sizeof(testfile),"%s.nc",name);
+    const char* name = zipnames[(int)encoder];
+    snprintf(testfile,sizeof(testfile),"%s.nc",name);
     return testfile;
 }
 
@@ -150,8 +180,8 @@ verifychunks(void)
 	fprintf(stderr,"bad chunk store\n");
 	return 0;
     }
-    for(i=0;i<NDIMS;i++) {
-        if(chunksizes[i] != CHUNKS[i]) {
+    for(i=0;i<actualdims;i++) {
+        if(chunksizes[i] != chunks[i]) {
 	    fprintf(stderr,"bad chunk size: %d\n",i);
 	    return 0;
 	}
@@ -163,26 +193,17 @@ static int
 create(XZIP encoder)
 {
     int i;
-    int store;
-    size_t chunksizes[NDIMS];
     char* testfile = filenamefor(encoder);
 
     /* Create a file with one big variable. */
     CHECK(nc_create(testfile, NC_NETCDF4|NC_CLOBBER, &ncid));
     CHECK(nc_set_fill(ncid, NC_NOFILL, NULL));
-    for(i=0;i<NDIMS;i++) {
+    for(i=0;i<actualdims;i++) {
 	char dimname[1024];
 	snprintf(dimname,sizeof(dimname),"dim%d",i);
-        CHECK(nc_def_dim(ncid, dimname, DIM[i], &dimids[i]));
+        CHECK(nc_def_dim(ncid, dimname, dims[i], &dimids[i]));
     }
-    CHECK(nc_def_var(ncid, "var", NC_FLOAT, NDIMS, dimids, &varid));
-    /* Force a specific chunking */
-    for(i=0;i<NDIMS;i++)
-	chunksizes[i] = CHUNKS[i];	
-    store = NC_CHUNKED;
-    CHECK(nc_def_var_chunking(ncid,varid,store,chunksizes));
-    if(!verifychunks())
-	return NC_EINVAL;
+    CHECK(nc_def_var(ncid, "var", NC_FLOAT, actualdims, dimids, &varid));
     return NC_NOERR;
 }
 
@@ -198,7 +219,7 @@ open(XZIP encoder)
     CHECK(nc_open(testfile, NC_NOWRITE, &ncid));
     CHECK(nc_inq_varid(ncid, "var", &varid));
 
-    if(strcmp(compressor,"nozip") != 0) {
+    if(encoder != NOZIP) {
 	int nparams = NC_COMPRESSION_MAX_PARAMS;	
         /* Check the compression algorithm */
         CHECK(nc_inq_var_compress(ncid,varid,NULL,&algorithm,&nparams,parms.params));
@@ -206,7 +227,7 @@ open(XZIP encoder)
 	    printf("Compression algorithm mismatch: %s\n",algorithm);
 	    return 0;
         } else	
-	    printf("Compression algorithm verified: %s\n",algorithm);
+	    printf("Using compression algorithm: %s\n",algorithm);
     }
 
     /* Verify chunking */
@@ -214,6 +235,23 @@ open(XZIP encoder)
 	return 0;
     fflush(stderr);
     return 1;
+}
+
+static int
+setchunking(XZIP encoder,size_t *target)
+{
+    int i;
+    int store;
+
+    /* Force a specific chunking */
+    for(i=0;i<actualdims;i++) {
+	if(target != NULL) target[i] = chunks[i];
+    }
+    store = NC_CHUNKED;
+    CHECK(nc_def_var_chunking(ncid,varid,store,chunks));
+    if(!verifychunks())
+	return NC_EINVAL;
+    return NC_NOERR;
 }
 
 static void
@@ -235,8 +273,8 @@ write(void)
 #ifdef VAR1
    odom_reset();
    while(odom_more()) {
-	int offset = odom_offset();
-	NC_PUT_VAR1(ncid,varid,offset,&array[offset]);
+	size_t offset = odom_offset();
+	CHECK(NC_PUT_VAR1(ncid,varid,odom,&array[offset]));
 	odom_next();
    }
 #else
@@ -250,6 +288,7 @@ static int
 compare(void)
 {
    int errs = 0;
+   fprintf(stderr,"data comparison: |array|=%ld\n",actualproduct);
    odom_reset();
    while(odom_more()) {
 	int offset = odom_offset();
@@ -263,28 +302,83 @@ compare(void)
 	}
 	odom_next();
    }
+   if(errs == 0)
+	fprintf(stderr,"no data errors\n");
    return (errs == 0);
+}
+
+static void
+showparameters(XZIP encoding, nc_compression_t* parms)
+{
+    int i;
+    switch (encoding) {
+    case ZFP:
+        fprintf(stderr,"parameters: "
+                   " rank=%d"
+                   " multi=%c"
+                   " precision=%d"
+                   " rate=%g"
+                   " tolerance=%g",
+	parms->zfp.rank,
+	parms->zfp.ndimalg,
+	parms->zfp.prec,
+	parms->zfp.rate,
+	parms->zfp.tolerance);
+	break;
+    case FPZIP:
+        fprintf(stderr,"parameters: "
+                   " rank=%d"
+                   " multi=%c"
+                   " precision=%d",
+	parms->fpzip.rank,
+	parms->fpzip.ndimalg,
+	parms->fpzip.prec);
+	break;
+    case BZIP2:
+        fprintf(stderr,"parameters: rank=%ld level=%u",
+		actualdims,parms->bzip2.level);
+	break;
+    case SZIP:
+        fprintf(stderr,"parameters: rank=%ld mask=%0x pixels-per-block=%d",
+		actualdims,
+                parms->szip.options_mask,
+		parms->szip.pixels_per_block);
+	break;
+    case ZIP:
+        fprintf(stderr,"parameters: rank=%ld level=%u",
+		actualdims,parms->zip.level);
+	break;
+    case NOZIP:
+        fprintf(stderr,"parameters: rank=%ld",actualdims);
+	break;		
+    default: break;
+    }
+
+    for(i=0;i<actualdims;i++)
+	fprintf(stderr,"%s%ld",(i==0?" chunks=":","),chunks[i]);
+    fprintf(stderr,"\n");
 }
 
 static int
 test_zfp(void)
 {
     int ok = 1;
-    int i;
     nc_compression_t parms;
 
     printf("\n*** Testing zfp compression.\n");
 
     /* Use zfp compression */
+    parms.zfp.ndimalg   = ndimalg;
     parms.zfp.isdouble  = 0; /* single (0) or double (1) precision */
-    parms.zfp.prec      = 0; /* number of bits of precision (zero = full) */
-    parms.zfp.rate      = RATE;
-    parms.zfp.tolerance = TOLERANCE;
-    parms.zfp.rank      = NDIMS;
-    for(i=0;i<NDIMS;i++)
-	parms.zfp.chunksizes[i] = CHUNKS[i];
+    parms.zfp.prec      = 0; /* number of bits of precision */
+    parms.zfp.rate      = rate;
+    parms.zfp.tolerance = tolerance;
+    parms.zfp.rank      = actualdims;
 
     create(ZFP);
+    setchunking(ZFP,parms.zfp.chunksizes);
+    showparameters(ZFP,&parms);
+
     CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "zfp", NC_NELEMS_ZFP,parms.params));
     CHECK(nc_enddef(ncid));
 
@@ -296,7 +390,6 @@ test_zfp(void)
 
     reset();
     open(ZFP);
-    memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -306,7 +399,6 @@ test_zfp(void)
 static int
 test_fpzip(void)
 {
-    int i;
     int ok = 1;
     nc_compression_t parms;
 
@@ -314,13 +406,15 @@ test_fpzip(void)
     reset();
 
     /* Use fpzip compression */
+    parms.fpzip.ndimalg    = ndimalg;
     parms.fpzip.isdouble = 0; /* single (0) or double (1) precision */
     parms.fpzip.prec     = 0; /* number of bits of precision (zero = full) */
-    parms.fpzip.rank     = NDIMS;
-    for(i=0;i<NDIMS;i++)
-	parms.fpzip.chunksizes[i] = CHUNKS[i];
+    parms.fpzip.rank     = actualdims;
 
     create(FPZIP);
+    setchunking(FPZIP,parms.fpzip.chunksizes);
+    showparameters(FPZIP,&parms);
+
     CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "fpzip", NC_NELEMS_FPZIP, parms.params));
     CHECK(nc_enddef(ncid));
 
@@ -332,7 +426,6 @@ test_fpzip(void)
 
     reset();
     open(FPZIP);
-    memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -348,9 +441,12 @@ test_bzip2(void)
     printf("\n*** Testing bzip2 compression.\n");
     reset();
 
-    parms.bzip2.level = DEFLATE_LEVEL;
+    parms.bzip2.level = bzip2level;
 
     create(BZIP2);
+    setchunking(BZIP2,NULL);
+    showparameters(BZIP2,&parms);
+
     CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "bzip2", NC_NELEMS_BZIP2, parms.params));
     CHECK(nc_enddef(ncid));
 
@@ -362,7 +458,6 @@ test_bzip2(void)
 
     reset();
     open(BZIP2);
-    memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -379,17 +474,13 @@ test_szip(void)
     reset();
 
     /* Use szip compression */
-    parms.szip.bits_per_pixel = 0;
-    parms.szip.pixels_per_scanline = 0;
-#if 0
-    parms.szip.options_mask = SZ_NN_OPTION_MASK;
-    parms.szip.pixels_per_block = 16;
-#else
-    parms.szip.options_mask = SZ_EC_OPTION_MASK;
+    parms.szip.options_mask = SZIP_MASK;
     parms.szip.pixels_per_block = 32;
-#endif
 
     create(SZIP);
+    setchunking(SZIP,NULL);
+    showparameters(SZIP,&parms);
+
     CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "szip", NC_NELEMS_SZIP, parms.params));
     CHECK(nc_enddef(ncid));
 
@@ -401,7 +492,6 @@ test_szip(void)
 
     reset();
     open(SZIP);
-    memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -418,9 +508,12 @@ test_zip(void)
     reset();
 
     /* Use zip compression */
-    parms.zip.level = DEFLATE_LEVEL;
+    parms.zip.level = ziplevel;
 
     create(ZIP);
+    setchunking(ZIP,NULL);
+    showparameters(ZIP,&parms);
+
     CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "zip", NC_NELEMS_ZIP, parms.params));
     CHECK(nc_enddef(ncid));
 
@@ -432,7 +525,6 @@ test_zip(void)
 
     reset();
     open(ZIP);
-    memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -448,6 +540,9 @@ test_nozip(void)
     reset();
 
     create(NOZIP);
+    setchunking(NOZIP,NULL);
+    showparameters(NOZIP,NULL);
+
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */
@@ -458,7 +553,6 @@ test_nozip(void)
 
     reset();
     open(NOZIP);
-    memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -472,32 +566,32 @@ main(int argc, char **argv)
     init(argc,argv);
 
     if(test[ZFP]) {
-	test_zfp();
+	if(!test_zfp()) ERRR;
 	SUMMARIZE_ERR;
     }
 
     if(test[FPZIP]) {
-	test_fpzip();
+	if(!test_fpzip()) ERRR;
 	SUMMARIZE_ERR;
     }
 
     if(test[BZIP2]) {
-	test_bzip2();
+	if(!test_bzip2()) ERR;
 	SUMMARIZE_ERR;
     }
 
     if(test[SZIP]) {
-	test_szip();
+	if(!test_szip()) ERRR;
 	SUMMARIZE_ERR;
     }
 
     if(test[ZIP]) {
-	test_zip();
+	if(!test_zip()) ERRR;
 	SUMMARIZE_ERR;
     }
 
     if(test[NOZIP]) {
-	test_nozip();
+	if(!test_nozip()) ERRR;
 	SUMMARIZE_ERR;
     }
 
@@ -510,11 +604,101 @@ main(int argc, char **argv)
 static void
 reset()
 {
+    memset(array,0,sizeof(T)*actualproduct);
+}
+
+static void
+odom_reset(void)
+{
+    memset(odom,0,sizeof(odom));
+}
+
+static int
+odom_more(void)
+{
+    return (odom[0] < dims[0]);
+}
+
+static int
+odom_next(void)
+{
+    int i; /* do not make unsigned */
+    for(i=actualdims-1;i>=0;i--) {
+        odom[i] += 1;
+        if(odom[i] < dims[i]) break;
+	if(i == 0) return 0; /* leave the 0th entry if it overflows*/
+	odom[i] = 0; /* reset this position*/
+    }
+    return 1;
+}
+
+static int
+odom_offset(void)
+{
     int i;
-    size_t count = 1;
-    for(i=0;i<MAXDIMS;i++)
-	count *= DIM[i];
-    memset(array,0,sizeof(T)*count);
+    int offset = 0;
+    for(i=0;i<actualdims;i++) {
+	offset *= dims[i];
+	offset += odom[i];
+    } 
+    return offset;
+}
+
+static T
+expected(void)
+{
+    int i;
+    T offset = 0;
+
+    for(i=0;i<actualdims;i++) {
+	offset *= dims[i];
+	offset += odom[i];
+    } 
+    return offset;
+}
+
+static size_t
+getint(const char* arg)
+{
+    char* p;
+    long l = strtol(arg,&p,10);
+    if(*p == '\0')
+	return (size_t)l;
+    fprintf(stderr,"expected integer: found %s\n", arg);
+    exit(1);
+}
+
+static double
+getdouble(const char* arg)
+{
+    char* p;
+    double d = strtod(arg,&p);
+    if(*p == '\0')
+	return d;
+    fprintf(stderr,"expected double: found %s\n", arg);
+    exit(1);
+}
+
+static void
+usage()
+{
+    fprintf(stderr,
+"Usage: tst_compress <options>\n"
+"where options are:\n"
+"    [-P] -- specify prefix multi-dimensional algorithm\n"
+"    [-S] -- specify suffix multi-dimensional algorithm\n"
+"    [-C(0|1)*] -- specify choice multi-dimensional algorithm\n"
+"    [-(0|1)*] -- specify choice multi-dimensional algorithm\n"
+"    [-d<int>] -- specify number of dimensions to use\n"
+"    [-p<int>] -- specify precision (0=>full precision) (fpzip,zfp only)\n"
+"    [-r<double>] -- specify rate (zfp only)\n"
+"    [-t<double>] -- specify tolerance (zfp only)\n"
+"    [-l<int>] -- specify level (zip,bzip2 only)\n"
+"    [-b<int>] -- specify pixels-per-block (szip only)\n"
+"    [-h] -- print this message\n"
+"    [nozip|zip|szip|bzip2|fpzip|zfp] -- specify the algorithms to test (may be repeated)\n"
+);
+    exit(1);
 }
 
 static void
@@ -522,6 +706,9 @@ init(int argc, char** argv)
 {
     int i,j;
     unsigned int nelem = 0;
+
+    memset(supported,0,sizeof(supported));
+    memset(test,0,sizeof(test));
     supported[NOZIP] = 1;
     supported[ZIP] = 1;
 #ifdef SZIP_FILTER
@@ -537,7 +724,7 @@ init(int argc, char** argv)
     if(NC_NELEMS_FPZIP < nelem) {
 	fprintf(stderr,"NC_NELEMS_FPZIP=%d < |nc_compression_t.fpzip|=%d\n",
 	        NC_NELEMS_FPZIP,nelem);
-	abort();	
+	exit(1);
     }
 #endif
 #ifdef ZFP_FILTER
@@ -547,7 +734,7 @@ init(int argc, char** argv)
     if(NC_NELEMS_ZFP < nelem) {
 	fprintf(stderr,"NC_NELEMS_ZFP=%d < |nc_compression_t.zfp|=%d\n",
 	        NC_NELEMS_ZFP,nelem);
-	abort();	
+	exit(1);
     }
 #endif
 
@@ -555,77 +742,74 @@ init(int argc, char** argv)
     if(NC_COMPRESSION_MAX_PARAMS < nelem) {
 	fprintf(stderr,"NC_COMPRESSION_MAX_PARAMS=%d < |nc_compression_t|=%d\n",
 	        NC_COMPRESSION_MAX_PARAMS,nelem);
-	abort();	
+	exit(1);
     }
 
+    /* pseudo getopt because windows may not have it */
     for(i=1;i<argc;i++) {
-        for(j=0;j<NZIP;j++) {
-	    if(strcmp(argv[i],zipnames[j])==0 && supported[j])
-		test[j] = 1;
+	const char* arg = argv[i];
+	if(arg[0] != '-') {
+            for(j=0;j<NZIP;j++) {
+	        if(strcmp(arg,zipnames[j])==0) {
+		    if(supported[j])
+		        test[j] = 1;
+		    else {
+			fprintf(stderr,"Unsupported compressor: %s\n",arg);
+			usage();
+		    }
+		}
+	    }	    
+	} else {
+	    int c = arg[1];
+	    const char* digits;
+
+	    switch (c) {
+	    case 'h': usage();  break;
+	    case 'P': ndimalg = 'p'; break;
+	    case 'S': ndimalg = 's'; break;
+	    case 'C': case '0': case '1':
+		ndimalg = 'c';
+		digits = (c == 'c' ? &arg[2] : &arg[1]);
+		for(i=0;*digits;digits++,i++)
+		    pattern[i] = (*digits == 1 ? 1 : 0);
+		break;
+	    case 'd': actualdims = getint(&arg[2]); break;
+	    case 'p': precision = getint(&arg[2]); break;
+	    case 't':
+		tolerance = getdouble(&arg[2]);
+		break;
+	    case 'r':
+		rate = getdouble(&arg[2]);
+		break;
+	    case 'l':
+		ziplevel = getint(&arg[2]);
+		bzip2level = ziplevel;
+		break;
+	    case 'b': pixels_per_block = getint(&arg[2]); break;
+	    default:
+	        fprintf(stderr,"unexpected option: %s\n",arg);
+		usage();
+	    }
+	}
+    }
+
+    /* Setup various variables */
+    totalproduct = 1;
+    fpzipproduct = 1;
+    zfpproduct = 1;
+    actualproduct = 1;
+    chunkproduct = 1;
+    for(i=0;i<MAXDIMS;i++) {
+	dims[i] = dimsize;
+	chunks[i] = (pattern[i] == 1 ? 1 : chunksize);
+	totalproduct *= dims[i];
+	if(i < actualdims) {
+	    actualproduct *= dims[i];
+	    chunkproduct *= chunks[i];
+   	    fpzipproduct *= (i >= FPZIPCHOOSE ? 1 : chunks[i]);
+	    zfpproduct *= (i >= ZFPCHOOSE ? 1 : chunks[i]);
 	}
     }
     /* Allocate max size */
-    array = (T*)malloc(sizeof(T)*product(MAXDIMS,DIM));
-    /* use only NDIMS worth */
-    total = product(NDIMS,DIM);
-}
-
-static void
-odom_reset(void)
-{
-    memset(odom,0,sizeof(odom));
-}
-
-static int
-odom_more(void)
-{
-    return (odom[0] < DIM[0]);
-}
-
-static int
-odom_next(void)
-{
-    int i; /* do not make unsigned */
-    for(i=NDIMS-1;i>=0;i--) {
-        odom[i] += 1;
-        if(odom[i] < DIM[i]) break;
-	if(i == 0) return 0; /* leave the 0th entry if it overflows*/
-	odom[i] = 0; /* reset this position*/
-    }
-    return 1;
-}
-
-static int
-odom_offset(void)
-{
-    int i;
-    int offset = 0;
-    for(i=0;i<NDIMS;i++) {
-	offset *= DIM[i];
-	offset += odom[i];
-    } 
-    return offset;
-}
-
-static size_t
-product(int ndims, size_t* dims)
-{
-    size_t prod = 1;
-    int i;
-    for(i=0;i<ndims;i++)
-	prod *= dims[i];
-    return prod;
-}
-
-static T
-expected(void)
-{
-    int i;
-    T offset = 0;
-
-    for(i=0;i<NDIMS;i++) {
-	offset *= DIM[i];
-	offset += odom[i];
-    } 
-    return offset;
+    array = (T*)malloc(sizeof(T)*actualproduct);
 }

@@ -23,7 +23,7 @@ for i in $TESTFILES ; do
     rm copy_of_$i.nc copy_of_$i.cdl tmp.cdl
 done
 # echo "*** Testing compression of deflatable files ..."
-./tst_compress
+./tst_compression
 echo "*** Test nccopy -d1 can compress a classic format file ..."
 ./nccopy -d1 tst_inflated.nc tst_deflated.nc
 if test `wc -c < tst_deflated.nc` -ge  `wc -c < tst_inflated.nc`; then

@@ -1583,7 +1583,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
               var->fletcher32 = NC_TRUE;
               break;
            default:
-	      status = nccompress_inq_parameters(
+	      status = nc_compress_inq_parameters(
                                       filter,
 				      propid,
 				      (int)cd_nelems,

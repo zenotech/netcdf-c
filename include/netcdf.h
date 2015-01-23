@@ -416,8 +416,8 @@ by the desired type. */
 #define NC_ECANTEXTEND   (-130)    /**< Attempt to extend dataset during ind. I/O operation. */
 #define NC_EMPI          (-131)    /**< MPI operation failed. */
 
-/* Filter related operations */
-#define NC_EFILTER       (-132)    /**< Generic Filter operation failure. */
+/* Compression related operations */
+#define NC_ECOMPRESS     (-132)    /**< Generic Compression operation failure. */
 
 #define NC4_LAST_ERROR   (-132)
 
@@ -1935,7 +1935,8 @@ ncrecput(int ncid, long recnum, void *const *datap);
 
 /* Compression API */
 
-#define NC_COMPRESSION_MAX_NAME 64
+/* Define the max size of a compression alg name; 16 - 1 for trailing null */
+#define NC_COMPRESSION_MAX_NAME 15
 /* This must be the max of the NC_NELEMS_XXX in nc4compress.h */
 #define NC_COMPRESSION_MAX_PARAMS 64
 /* Define the max number of dimensions that can be handled by

@@ -814,8 +814,7 @@ if test "x$enable_netcdf_4" = xyes || test "x$enable_dap" = xyes; then
 fi
 
   # Check for compression algorithms
-  # Bug for szip; disable for now
-  ALLFILTERS="zip bzip2 fpzip zfp"
+  ALLFILTERS="zip szip bzip2 fpzip zfp"
   # Iterate over known compression filters
   FILTERS=
   for f in ${ALLFILTERS} ; do
