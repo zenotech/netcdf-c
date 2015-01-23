@@ -12,6 +12,10 @@
 #include <stdlib.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER
+#include <crtdefs.h>
+#endif
+
 #ifdef SZIP_FILTER
 #include <szlib.h>
 #else
@@ -81,15 +85,16 @@ static int supported[NZIP];
 static int test[NZIP];
 
 /* Following must be consistent */
-static const int MAXDIMS = 5;
+//static const int MAXDIMS = 5;
+#define MAXDIMS 5
 static size_t DIM[5] = {32,32,32,32,32};
 static size_t CHUNKS[5]
 //= {8,8,8,8,8};
 = {32,32,32,32,32};
 
 /* Actual # dims to use */
-static const int NDIMS = 3;
-
+//static const int NDIMS = 3;
+#define NDIMS 3
 static size_t total = 0;
 static int ncid, varid;
 static int dimids[NC_MAX_VAR_DIMS];
@@ -97,7 +102,6 @@ static int odom[NC_MAX_VAR_DIMS];
 static T* array = NULL;
 
 static int tagndims = 0;
-
 /* Forward */
 static int test_zfp(void);
 static int test_fpzip(void);
@@ -143,6 +147,7 @@ verifychunks(void)
 {
     int i;
     int store = -1;
+
     size_t chunksizes[MAXDIMS];
     memset(chunksizes,0,sizeof(chunksizes));
     CHECK(nc_inq_var_chunking(ncid, varid, &store, chunksizes));
@@ -187,14 +192,14 @@ create(XZIP encoder)
 }
 
 static int
-open(XZIP encoder)
+comp_open(XZIP encoder)
 {
     char* algorithm;
     nc_compression_t parms;
     char* testfile = filenamefor(encoder);
     const char* compressor = zipnames[(int)encoder];
 
-    /* Open the file and check it. */
+    /* comp_open the file and check it. */
     CHECK(nc_open(testfile, NC_NOWRITE, &ncid));
     CHECK(nc_inq_varid(ncid, "var", &varid));
 
@@ -229,7 +234,7 @@ fill(void)
 }
 
 static int
-write(void)
+comp_write(void)
 {
    int stat = NC_NOERR;
 #ifdef VAR1
@@ -291,11 +296,11 @@ test_zfp(void)
     /* Fill in the array */
     fill();
     /* write array */
-    CHECK(write());
+    CHECK(comp_write());
     CHECK(nc_close(ncid));
 
     reset();
-    open(ZFP);
+    comp_open(ZFP);
     memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
@@ -327,11 +332,11 @@ test_fpzip(void)
     /* Fill in the array */
     fill();
     /* write array */
-    CHECK(write());
+    CHECK(comp_write());
     CHECK(nc_close(ncid));
 
     reset();
-    open(FPZIP);
+    comp_open(FPZIP);
     memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
@@ -357,11 +362,11 @@ test_bzip2(void)
     /* Fill in the array */
     fill();
     /* write array */
-    CHECK(write());
+    CHECK(comp_write());
     CHECK(nc_close(ncid));
 
     reset();
-    open(BZIP2);
+    comp_open(BZIP2);
     memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
@@ -396,11 +401,11 @@ test_szip(void)
     /* Fill in the array */
     fill();
     /* write array */
-    CHECK(write());
+    CHECK(comp_write());
     CHECK(nc_close(ncid));
 
     reset();
-    open(SZIP);
+    comp_open(SZIP);
     memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
@@ -427,11 +432,11 @@ test_zip(void)
     /* Fill in the array */
     fill();
     /* write array */
-    CHECK(write());
+    CHECK(comp_write());
     CHECK(nc_close(ncid));
 
     reset();
-    open(ZIP);
+    comp_open(ZIP);
     memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
@@ -453,11 +458,11 @@ test_nozip(void)
     /* Fill in the array */
     fill();
     /* write array */
-    CHECK(write());
+    CHECK(comp_write());
     CHECK(nc_close(ncid));
 
     reset();
-    open(NOZIP);
+    comp_open(NOZIP);
     memset(array,0,sizeof(T)*total);
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();

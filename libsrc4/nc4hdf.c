@@ -16,13 +16,14 @@
 #include "config.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
-#include "nc4compress.h"
 #include <H5DSpublic.h>
 #include <math.h>
 
 #if 0 /*def USE_PNETCDF*/
 #include <pnetcdf.h>
 #endif
+
+#include "nc4compress.h"
 
 #define NC3_STRICT_ATT_NAME "_nc3_strict"
 
@@ -520,11 +521,12 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   NC_HDF5_FILE_INFO_T *h5;
   NC_VAR_INFO_T *var;
   NC_DIM_INFO_T *dim;
+
   hid_t file_spaceid = 0, mem_spaceid = 0, xfer_plistid = 0;
+
   hsize_t xtend_size[NC_MAX_VAR_DIMS] , count[NC_MAX_VAR_DIMS];
   hsize_t fdims[NC_MAX_VAR_DIMS], fmaxdims[NC_MAX_VAR_DIMS];
   hsize_t start[NC_MAX_VAR_DIMS];
-  char *name_to_use;
   int need_to_extend = 0;
   int retval = NC_NOERR, range_error = 0, i, d2;
   void *bufr = NULL;
@@ -564,11 +566,12 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   if (var->hdf5_name && strlen(var->hdf5_name) >= strlen(NON_COORD_PREPEND) &&
       strncmp(var->hdf5_name, NON_COORD_PREPEND, strlen(NON_COORD_PREPEND)) == 0 &&
       var->ndims)
-    name_to_use = var->hdf5_name;
-  else
-    name_to_use = var->name;
+    if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, var->hdf5_name,
+                                       H5P_DEFAULT)) < 0)
+      return NC_ENOTVAR;
   if (!var->hdf_datasetid)
-    if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, name_to_use, H5P_DEFAULT)) < 0)
+    if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, var->name,
+                                       H5P_DEFAULT)) < 0)
       return NC_ENOTVAR;
 
   /* Get file space of data. */
@@ -844,13 +847,14 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
   NC_HDF5_FILE_INFO_T *h5;
   NC_VAR_INFO_T *var;
   NC_DIM_INFO_T *dim;
+
   hid_t file_spaceid = 0, mem_spaceid = 0;
   hid_t xfer_plistid = 0;
   size_t file_type_size;
+
   hsize_t *xtend_size = NULL, count[NC_MAX_VAR_DIMS];
   hsize_t fdims[NC_MAX_VAR_DIMS], fmaxdims[NC_MAX_VAR_DIMS];
   hsize_t start[NC_MAX_VAR_DIMS];
-  char *name_to_use;
   void *fillvalue = NULL;
   int no_read = 0, provide_fill = 0;
   int fill_value_size[NC_MAX_VAR_DIMS];
@@ -891,11 +895,12 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
   if (var->hdf5_name && strlen(var->hdf5_name) >= strlen(NON_COORD_PREPEND) &&
       strncmp(var->hdf5_name, NON_COORD_PREPEND, strlen(NON_COORD_PREPEND)) == 0 &&
       var->ndims)
-    name_to_use = var->hdf5_name;
-  else
-    name_to_use = var->name;
+    if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, var->hdf5_name,
+                                       H5P_DEFAULT)) < 0)
+      return NC_ENOTVAR;
   if (!var->hdf_datasetid)
-    if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, name_to_use, H5P_DEFAULT)) < 0)
+    if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, var->name,
+                                       H5P_DEFAULT)) < 0)
       return NC_ENOTVAR;
 
   /* Get file space of data. */
@@ -1530,7 +1535,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
 
   /* If the user wants to deflate the data, set that up now. */
   if (strlen(var->algorithm) > 0) {
-     if(nc_compress_set(var->algorithm,plistid,var->compress_nparams,
+     if(nccompress_set(var->algorithm,plistid,var->compress_nparams,
                        var->compress_params) != NC_NOERR)
 	 BAIL(NC_EHDFERR);
   }

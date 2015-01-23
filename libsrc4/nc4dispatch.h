@@ -270,7 +270,7 @@ NC4_show_metadata(int);
 EXTERNL int
 NC4_def_var_compress(int, int, int, const char*, nc_compression_t*);
 
-EXTERNL int 
+int 
 NC4_initialize(void);
 
 #if defined(__cplusplus)
