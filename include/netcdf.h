@@ -1963,4 +1963,5 @@ nc_inq_var_compress(int ncid, int varid, int *useshufflep,
 
 #define NC_HAVE_META_H
 
+
 #endif /* _NETCDF_ */
