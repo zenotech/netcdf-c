@@ -16,14 +16,13 @@
 #include "config.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
+#include "nc4compress.h"
 #include <H5DSpublic.h>
 #include <math.h>
 
 #if 0 /*def USE_PNETCDF*/
 #include <pnetcdf.h>
 #endif
-
-#include "nc4compress.c"
 
 #define NC3_STRICT_ATT_NAME "_nc3_strict"
 

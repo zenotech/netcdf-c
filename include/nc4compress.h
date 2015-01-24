@@ -62,29 +62,14 @@ typedef union {
 /*
 Turn on specified compression for a variable's plist
 */
-extern int nc_compress_set(const char* algorithm, hid_t plistid, int, unsigned int*);
+EXTERNL int nc_compress_set(const char* algorithm, hid_t plistid, int, unsigned int*);
 
-extern int nc_compress_inq_parameters(H5Z_filter_t filter, hid_t, int, unsigned int*,char*,int*,unsigned int*);
+EXTERNL int nc_compress_inq_parameters(H5Z_filter_t filter, hid_t, int, unsigned int*,char*,int*,unsigned int*);
 
 /* 
 Register all compression filters with the library
 */
-extern int nc_compress_register_all(void);
-
-#if 0
-/* Index by name */
-extern NC_compress_enum nc_compressor_by_name(const char* name);
-
-/* get compressor info by enum */
-
-/* Define a struct for holding common info about each compressor */
-typedef struct NC_compressor_info {
-    const char* name; /* canonical name for the compressor */
-    int nelems; /* size of the compression parameters */
-} NC_compressor_info;
-
-extern const NC_compressor_info* nc_compressor_by_index(NC_compress_enum index);
-#endif
+EXTERNL int nc_compress_register_all(void);
 
 
 #endif /*NC4COMPRESS_H*/

@@ -270,7 +270,7 @@ oc_set_curl_options(OCstate* state)
         stat = ocset_curlopt(state,ocflag->flag,cvt(triple->value,ocflag->type));
     }
  done:
-    if(hostport && hostport != "") free(hostport);
+    if(hostport && strlen(hostport) > 0) free(hostport);
     return stat;
 }
 
