@@ -34,4 +34,4 @@ DAP Support:		@HAS_DAP@
 Diskless Support:	@HAS_DISKLESS@
 MMap Support:		@HAS_MMAP@
 JNA Support:		@HAS_JNA@
-Filter Support:         ZIP @FILTERS@
+Filter Support:         zip @ACTIVEFILTERS@
