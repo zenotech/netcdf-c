@@ -816,7 +816,7 @@ fi
   # Check for compression algorithms
   ALLFILTERS="zip szip bzip2 fpzip zfp"
   # Iterate over known compression filters
-  FILTERS=
+  ACTIVEFILTERS=
   for f in ${ALLFILTERS} ; do
       case "$f" in
       zip)
@@ -824,7 +824,6 @@ fi
                        [havezip=yes],[havezip=no])	
         if test "x$havezip" = xyes ; then
           AC_DEFINE([ZIP_FILTER], [1], [if true, support zip compression])
-	  FILTERS="${FILTERS} zip"
 	else
           AC_MSG_ERROR([HDF5 must be built with zlib for netCDF-4])
         fi
@@ -835,7 +834,7 @@ fi
                      [haveszip=yes],[haveszip=no])	
         if test "x$haveszip" = xyes ; then
           AC_DEFINE([SZIP_FILTER], [1], [if true, support szip compression])
-	  FILTERS="${FILTERS} szip"
+	  ACTIVEFILTERS="${ACTIVEFILTERS} szip"
 	else
           AC_MSG_NOTICE([HDF5 not built with szip support.])
 	fi
@@ -847,7 +846,7 @@ fi
                      [havebzip2=yes],[havebzip2=no])	
         if test "x$havebzip2" = xyes; then
           AC_DEFINE([BZIP2_FILTER], [1], [if true, support bzip2 compression])
-	  FILTERS="${FILTERS} bzip2"
+	  ACTIVEFILTERS="${ACTIVEFILTERS} bzip2"
         else
           AC_MSG_NOTICE([bzip2 support not enabled.])
 	fi
@@ -859,7 +858,7 @@ fi
 			[havefpzip=yes],[havefpzip=no])
         if test "x$havefpzip" = xyes; then
           AC_DEFINE([FPZIP_FILTER], [1], [if true, support fpzip compression])
-	  FILTERS="${FILTERS} fpzip"
+	  ACTIVEFILTERS="${ACTIVEFILTERS} fpzip"
         else
           AC_MSG_NOTICE([fpzip support not enabled.])
 	fi
@@ -871,7 +870,7 @@ fi
 			[havezfp=yes],[havezfp=no])
         if test "x$havezfp" = xyes; then
           AC_DEFINE([ZFP_FILTER], [1], [if true, support zfp compression])
-	  FILTERS="${FILTERS} zfp"
+	  ACTIVEFILTERS="${ACTIVEFILTERS} zfp"
         else
           AC_MSG_NOTICE([zfp support not enabled.])
 	fi
@@ -1144,7 +1143,7 @@ AC_SUBST([LDFLAGS])
 AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_LDFLAGS])
-AC_SUBST([FILTERS])
+AC_SUBST([ACTIVEFILTERS])
 
 # Args:
 # 1. netcdf_meta.h variable
@@ -1218,6 +1217,9 @@ AC_CONFIG_FILES([Makefile
                  ncdap_test/expectremote4/Makefile
 		 ],
                  [test -f  nc-config && chmod 755 nc-config])
+
+AC_CONFIG_FILES([nc_test4/run_compress.sh], [chmod +x nc_test4/run_compress.sh])
+
 AC_OUTPUT()
 
 cat libnetcdf.settings

@@ -754,8 +754,7 @@ init(int argc, char** argv)
 		    if(supported[j])
 		        test[j] = 1;
 		    else {
-			fprintf(stderr,"Unsupported compressor: %s\n",arg);
-			usage();
+			fprintf(stderr,"Unsupported compressor: %s; ignored\n",arg);
 		    }
 		}
 	    }	    
