@@ -830,19 +830,20 @@ fi
 	;;
 
       szip)
-	AC_SEARCH_LIBS([H5Z_SZIP],[hdf5 hdf5_hl],
+	# Warning, this test may be library specific
+	AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[szip],
                      [haveszip=yes],[haveszip=no])	
-        if test "x$haveszip" = xyes ; then
+        if test "x$haveszip" = xyes; then
           AC_DEFINE([SZIP_FILTER], [1], [if true, support szip compression])
 	  ACTIVEFILTERS="${ACTIVEFILTERS} szip"
-	else
-          AC_MSG_NOTICE([HDF5 not built with szip support.])
+        else
+          AC_MSG_NOTICE([szip support not enabled.])
 	fi
         ;;
 
       bzip2)
 	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([BZ2_bzDecompressInit],[bz],
+	AC_SEARCH_LIBS([BZ2_bzCompress],[bz2],
                      [havebzip2=yes],[havebzip2=no])	
         if test "x$havebzip2" = xyes; then
           AC_DEFINE([BZIP2_FILTER], [1], [if true, support bzip2 compression])

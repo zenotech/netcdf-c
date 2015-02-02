@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef SZIP_FILTER
 #include <szlib.h>
@@ -21,6 +22,25 @@
 #include "nc4compress.h"
 
 #define DEBUG
+
+/* From hdf5.H5private.h */
+#define H5_ASSIGN_OVERFLOW(dst, src, srctype, dsttype)  \
+    (dst) = (dsttype)(src);
+#define H5_CHECK_OVERFLOW(var, vartype, casttype)
+
+/* From hdf5.H5Fprivate.h */
+#  define UINT32DECODE(p, i) {						      \
+   (i)	=  (uint32_t)(*(p) & 0xff);	   (p)++;			      \
+   (i) |= ((uint32_t)(*(p) & 0xff) <<  8); (p)++;			      \
+   (i) |= ((uint32_t)(*(p) & 0xff) << 16); (p)++;			      \
+   (i) |= ((uint32_t)(*(p) & 0xff) << 24); (p)++;			      \
+}
+#  define UINT32ENCODE(p, i) {						      \
+   *(p) = (uint8_t)( (i)        & 0xff); (p)++;				      \
+   *(p) = (uint8_t)(((i) >>  8) & 0xff); (p)++;				      \
+   *(p) = (uint8_t)(((i) >> 16) & 0xff); (p)++;				      \
+   *(p) = (uint8_t)(((i) >> 24) & 0xff); (p)++;				      \
+}
 
 /* Define an "enum" for all potentially supported compressors;
    The max number of compressors is 127 to fit into signed char.
@@ -53,6 +73,9 @@ static H5Z_class2_t H5Z_INFO[NC_COMPRESSORS];
 static int registered[NC_COMPRESSORS];
 
 /*Forward*/
+#ifdef SZIP_FILTER
+static size_t H5Z_filter_szip(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
+#endif
 #ifdef BZIP2_FILTER
 static size_t H5Z_filter_bzip2(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
 #endif
@@ -275,25 +298,39 @@ zip_attach(const NCC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
 static int
 szip_register(const NCC_COMPRESSOR* info, H5Z_class2_t* h5info)
 {
+    herr_t status = NC_NOERR;
 #ifdef SZIP_FILTER
     /* See if already in the hdf5 library */
     int avail = H5Zfilter_avail(H5Z_FILTER_SZIP);
-    registered[info->nccid] = (avail ? 1 : 0);
+    if(avail) {
+        registered[info->nccid] = (avail ? 1 : 0);
+    } else {
+        /* finish the H5Z_class2_t instance */
+        h5info->filter = (H5Z_func_t)H5Z_filter_szip;
+        status = H5Zregister(h5info);
+        if(status == 0) registered[info->nccid] = 1;
+    }
 #endif
-    return THROW(NC_NOERR); /* no-op */
+    return THROW((status ? NC_ECOMPRESS : NC_NOERR));
 }
 
 static int
 szip_attach(const NCC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
 {
     herr_t status;
-
+    int avail;
     if(!registered[info->nccid]) return NC_ECOMPRESS;
-
-    status = H5Pset_szip(plistid, parms->szip.options_mask, parms->szip.pixels_per_block);
+    /* See if already in the hdf5 library */
+    avail = H5Zfilter_avail(H5Z_FILTER_SZIP);
+    if(avail) {
+        status = H5Pset_szip(plistid, parms->szip.options_mask, parms->szip.pixels_per_block);
+    } else {
+        status = H5Pset_filter(plistid, info->h5id, H5Z_FLAG_MANDATORY, (size_t)NC_NELEMS_SZIP,parms->params);
+    }
     return THROW((status ? NC_ECOMPRESS : NC_NOERR));
 }
 
+#if 0
 static int
 szip_inq(const NCC_COMPRESSOR* info, hid_t propid, int* argc, unsigned int* argv, nc_compression_t* parms)
 {
@@ -307,6 +344,116 @@ szip_inq(const NCC_COMPRESSOR* info, hid_t propid, int* argc, unsigned int* argv
     parms->szip.pixels_per_block = argv[1];
     return THROW(NC_NOERR);
 }
+#endif
+
+#ifdef SZIP_FILTER
+static size_t
+H5Z_filter_szip (unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
+    size_t nbytes, size_t *buf_size, void **buf)
+{
+    size_t ret_value = 0;       /* Return value */
+    size_t size_out  = 0;       /* Size of output buffer */
+    unsigned char *outbuf = NULL;    /* Pointer to new output buffer */
+    unsigned char *newbuf = NULL;    /* Pointer to input buffer */
+    SZ_com_t sz_param;          /* szip parameter block */
+
+    /* Sanity check to make certain that we haven't drifted out of date with
+     * the mask options from the szlib.h header */
+    assert(H5_SZIP_ALLOW_K13_OPTION_MASK==SZ_ALLOW_K13_OPTION_MASK);
+    assert(H5_SZIP_CHIP_OPTION_MASK==SZ_CHIP_OPTION_MASK);
+    assert(H5_SZIP_EC_OPTION_MASK==SZ_EC_OPTION_MASK);
+#if 0 /* not defined in our szlib.h */
+    assert(H5_SZIP_LSB_OPTION_MASK==SZ_LSB_OPTION_MASK);
+    assert(H5_SZIP_MSB_OPTION_MASK==SZ_MSB_OPTION_MASK);
+    assert(H5_SZIP_RAW_OPTION_MASK==SZ_RAW_OPTION_MASK);
+#endif
+    assert(H5_SZIP_NN_OPTION_MASK==SZ_NN_OPTION_MASK);
+
+    /* Check arguments */
+    if (cd_nelmts!=4) {
+	fprintf(stderr,"szip: invalid deflate aggression level\n");
+	ret_value = 0;
+	goto done;
+    }
+
+    /* Copy the filter parameters into the szip parameter block */
+    H5_ASSIGN_OVERFLOW(sz_param.options_mask,cd_values[H5Z_SZIP_PARM_MASK],unsigned,int);
+    H5_ASSIGN_OVERFLOW(sz_param.bits_per_pixel,cd_values[H5Z_SZIP_PARM_BPP],unsigned,int);
+    H5_ASSIGN_OVERFLOW(sz_param.pixels_per_block,cd_values[H5Z_SZIP_PARM_PPB],unsigned,int);
+    H5_ASSIGN_OVERFLOW(sz_param.pixels_per_scanline,cd_values[H5Z_SZIP_PARM_PPS],unsigned,int);
+
+    /* Input; uncompress */
+    if (flags & H5Z_FLAG_REVERSE) {
+        uint32_t stored_nalloc;  /* Number of bytes the compressed block will expand into */
+        size_t nalloc;  /* Number of bytes the compressed block will expand into */
+
+        /* Get the size of the uncompressed buffer */
+        newbuf = *buf;
+        UINT32DECODE(newbuf,stored_nalloc);
+        H5_ASSIGN_OVERFLOW(nalloc,stored_nalloc,uint32_t,size_t);
+
+        /* Allocate space for the uncompressed buffer */
+        if(NULL==(outbuf = malloc(nalloc))) {
+	    fprintf(stderr,"szip: memory allocation failed for szip decompression\n");
+	    ret_value = 0;
+	    goto done;
+	}
+        /* Decompress the buffer */
+        size_out=nalloc;
+        if(SZ_BufftoBuffDecompress(outbuf, &size_out, newbuf, nbytes-4, &sz_param) != SZ_OK) {
+	    fprintf(stderr,"szip: szip_filter: decompression failed\n");
+	    ret_value = 0;
+	    goto done;
+	}
+        assert(size_out==nalloc);
+
+        /* Free the input buffer */
+        if(*buf) free(*buf);
+
+        /* Set return values */
+        *buf = outbuf;
+        outbuf = NULL;
+        *buf_size = nalloc;
+        ret_value = nalloc;
+    }
+    /* Output; compress */
+    else {
+        unsigned char *dst = NULL;    /* Temporary pointer to new output buffer */
+
+        /* Allocate space for the compressed buffer & header (assume data won't get bigger) */
+        if(NULL==(dst=outbuf = malloc(nbytes+4))) {
+	    fprintf(stderr,"szip: unable to allocate szip destination buffer\n");
+	    ret_value = 0;
+	    goto done;
+	}
+        /* Encode the uncompressed length */
+        H5_CHECK_OVERFLOW(nbytes,size_t,uint32_t);
+        UINT32ENCODE(dst,nbytes);
+
+        /* Compress the buffer */
+        size_out = nbytes;
+        if(SZ_OK!= SZ_BufftoBuffCompress(dst, &size_out, *buf, nbytes, &sz_param)) {
+	    fprintf(stderr,"szip: overflow\n");
+	    ret_value = 0;
+	    goto done;
+	}
+        assert(size_out<=nbytes);
+
+        /* Free the input buffer */
+        if(*buf) free(*buf);
+
+        /* Set return values */
+        *buf = outbuf;
+        outbuf = NULL;
+        *buf_size = size_out+4;
+        ret_value = size_out+4;
+    }
+done:
+    if(outbuf)
+        free(outbuf);
+    return ret_value;
+}
+#endif /*SZIP_FILTER*/
 
 /**************************************************/
 
@@ -363,7 +510,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
         outbuflen = nbytes * 3 + 1;/* average bzip2 compression ratio is 3:1 */
         outbuf = malloc(outbuflen);
 	if(outbuf == NULL) {
-	    fprintf(stderr, "memory allocation failed for bzip2 decompression\n");
+	    fprintf(stderr,"memory allocation failed for bzip2 decompression\n");
 	    goto cleanupAndFail;
 	}
         /* Use standard malloc()/free() for internal memory handling. */
@@ -430,7 +577,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
 	    if(blockSize100k < 1 || blockSize100k > 9) {
 		fprintf(stderr, "invalid compression block size: %d\n", blockSize100k);
                 goto cleanupAndFail;
-		}
+	    }
         }
     
         /* Prepare the output buffer. */
@@ -451,7 +598,7 @@ H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
             goto cleanupAndFail;
         }
     }
-    
+
     /* Always replace the input buffer with the output buffer. */
     free(*buf);
     *buf = outbuf;
@@ -893,7 +1040,7 @@ cleanupAndFail:
 /* Provide access to all the compressors */
 static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
     {NC_ZIP, "zip", NC_NELEMS_ZIP, H5Z_FILTER_DEFLATE, zip_register, zip_attach, generic_inq},
-    {NC_SZIP, "szip", NC_NELEMS_SZIP, H5Z_FILTER_SZIP, szip_register, szip_attach, szip_inq},
+    {NC_SZIP, "szip", NC_NELEMS_SZIP, H5Z_FILTER_SZIP, szip_register, szip_attach, generic_inq},
     {NC_BZIP2, "bzip2", NC_NELEMS_BZIP2, H5Z_FILTER_BZIP2, bzip2_register, bzip2_attach, generic_inq},
     {NC_FPZIP, "fpzip", NC_NELEMS_FPZIP, H5Z_FILTER_FPZIP, fpzip_register, fpzip_attach, generic_inq},
     {NC_ZFP, "zfp", NC_NELEMS_ZFP, H5Z_FILTER_ZFP, zfp_register, zfp_attach, generic_inq},
