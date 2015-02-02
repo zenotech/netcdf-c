@@ -582,6 +582,33 @@ nc_def_var_endian(int ncid, int varid, int endian)
     return ncp->dispatch->def_var_endian(ncid,varid,endian);
 }
 
+/** \ingroup variables
+Set the compression settings for a variable.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param useshuffle Set to1 if the shuffle filter is
+turned on for this variable, and a 0 otherwise.
+
+\param algorithm This specifies the name of the compression
+algorithm to use (e.g. "zip", "bzip2", etc).
+
+\param nparams This specifies the number of valid paramters
+in the params vector.
+
+\param params This specifies the parameters for the specified
+compression algorithm.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ECOMPRESS Invalid compression parameters.
+*/
 int
 nc_def_var_compress(int ncid, int varid, int useshuffle, const char* algorithm, int nparams, unsigned int* params)
 {

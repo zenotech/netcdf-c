@@ -1,14 +1,14 @@
 #!/bin/bash
 #X="-x"
 #NB=1
-#DB=1
+DB=1
 
 if test $# != 0 ; then
 cmds=$@
 fi
 
 HDF5=1
-DAP=1
+#DAP=1
 #HDF4=1
 #PNETCDF=1
 #PAR=1
@@ -95,28 +95,31 @@ LD_LIBRARY_PATH="${stddir}/lib:$LD_LIBRARY_PATH"
 fi
 
 if test "x$SZIP" = "x1" ; then
-LDFLAGS="$LDFLAGS -lsz -laec"
+LDFLAGS="$LDFLAGS -lszip"
+fi
+
+if test -f /machine/dmh/libs ; then
+DMHLIBS=/machine/dmh/libs
+else
+DMHLIBS=/usr/local
 fi
 
 if test "x$BZIP2" = "x1" ; then
-LDFLAGS="$LDFLAGS -L/machine/dmh/libs/lib -lbz2"
-CPPFLAGS="$CPPFLAGS -I/machine/dmh/libs/include"
-LD_LIBRARY_PATH="/machine/dmh/libs/lib:$LD_LIBRARY_PATH"
-LDFLAGS="$LDFLAGS -lbz2"
+LDFLAGS="$LDFLAGS -L${DMHLIBS}/lib -lbz2"
+CPPFLAGS="$CPPFLAGS -I${DMHLIBS}/include"
+LD_LIBRARY_PATH="${DMHLIBS}/lib:$LD_LIBRARY_PATH"
 fi
 
 if test "x$FPZIP" = "x1" ; then
-LDFLAGS="$LDFLAGS -L/machine/dmh/libs/lib -lfpzip"
-CPPFLAGS="$CPPFLAGS -I/machine/dmh/libs/include"
-LD_LIBRARY_PATH="/machine/dmh/libs/lib:$LD_LIBRARY_PATH"
-LDFLAGS="$LDFLAGS -lfpzip"
+LDFLAGS="$LDFLAGS -L${DMHLIBS}/lib -lfpzip"
+CPPFLAGS="$CPPFLAGS -I${DMHLIBS}/include"
+LD_LIBRARY_PATH="${DMHLIBS}/lib:$LD_LIBRARY_PATH"
 fi
 
 if test "x$ZFP" = "x1" ; then
-LDFLAGS="$LDFLAGS -L/machine/dmh/libs/lib -lzfp"
-CPPFLAGS="$CPPFLAGS -I/machine/dmh/libs/include"
-LD_LIBRARY_PATH="/machine/dmh/libs/lib:$LD_LIBRARY_PATH"
-LDFLAGS="$LDFLAGS -lzfp"
+LDFLAGS="$LDFLAGS -L${DMHLIBS}/lib -lzfp"
+CPPFLAGS="$CPPFLAGS -I${DMHLIBS}/include"
+LD_LIBRARY_PATH="${DMHLIBS}/lib:$LD_LIBRARY_PATH"
 fi
 
 if test "x$HDF4" = "x1" ; then
@@ -160,7 +163,7 @@ FLAGS="$FLAGS --enable-dap-auth-tests"
 #FLAGS="$FLAGS --with-libcf"
 #valgrind => not shared
 #FLAGS="$FLAGS --enable-valgrind-tests"
-FLAGS="$FLAGS --enable-jna"
+#FLAGS="$FLAGS --enable-jna"
 COMP="zip"
 if test "x$SZIP" = x1 ; then
 COMP="$COMP,szip"

@@ -46,8 +46,15 @@ IF(UNAME)
   getuname(cpu    -m)
   set(BUILDNAME "${osname}-${osrel}-${cpu}" CACHE STRING "Build name variable for CDash")
 ENDIF()
+
 # For CMAKE_INSTALL_LIBDIR
 INCLUDE(GNUInstallDirs)
+
+SET(CMAKE_INSTALL_CMAKEDIR cmake)
+
+IF(NOT DEFINED CMAKE_INSTALL_LIBDIR)
+  SET(CMAKE_INSTALL_LIBDIR lib)
+ENDIF(NOT DEFINED CMAKE_INSTALL_LIBDIR)
 
 IF(MSVC)
   SET(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -622,7 +629,10 @@ ENDIF() #USE_HDF5 OR ENABLE_NETCDF_4
 OPTION(ENABLE_DAP "Enable DAP Client." ON)
 IF(ENABLE_DAP)
   SET(USE_DAP ON)
-  FIND_PACKAGE(CURL)
+  FIND_PACKAGE(CURL NO_MODULE)
+  IF(NOT CURL_FOUND)
+    FIND_PACKAGE(CURL)
+  ENDIF()
   IF(NOT CURL_LIBRARY)
     MESSAGE(FATAL_ERROR "DAP Support specified, CURL libraries are not found.")
   ENDIF()
@@ -1352,10 +1362,11 @@ IF(ENABLE_PNETCDF OR ENABLE_PARALLEL)
 ENDIF()
 
 ##
-# Brute force, grab all of the dlls from the depency directory,
+# Brute force, grab all of the dlls from the dependency directory,
 # install them in the binary dir. Grab all of the .libs, put them
 # in the libdir.
 ##
+IF(FALSE)
 IF(MSVC)
   FILE(GLOB COPY_FILES ${CMAKE_PREFIX_PATH}/lib/*.lib)
   INSTALL(FILES ${COPY_FILES}
@@ -1372,6 +1383,7 @@ IF(MSVC)
   #  INSTALL(FILES ${ALL_TLL_LIBS}
   #  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   #  COMPONENT dependencies)
+ENDIF()
 ENDIF()
 
 # Subdirectory CMakeLists.txt files should specify their own
@@ -1569,8 +1581,6 @@ install(
 ####
 # End export files
 ####
-
-
 
 # CPack inclusion must come last.
 # INCLUDE(CPack)
