@@ -14,10 +14,10 @@ HDF5=1
 #PAR=1
 
 # Following must be consistent
-SZIP=1
-BZIP2=1
-FPZIP=1
-ZFP=1
+#SZIP=1
+#BZIP2=1
+#FPZIP=1
+#ZFP=1
 
 if test "x$PNETCDF" = x1 ; then
 PAR=1
@@ -179,6 +179,7 @@ fi
 
 if test "x${DB}" = x1 ; then
 FLAGS="$FLAGS --disable-shared"
+FLAGS="$FLAGS --enable-static"
 else
 FLAGS="$FLAGS --enable-shared"
 fi
