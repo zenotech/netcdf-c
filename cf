@@ -1,7 +1,7 @@
 #!/bin/bash
 #X="-x"
 #NB=1
-DB=1
+#DB=1
 
 if test $# != 0 ; then
 cmds=$@
@@ -15,7 +15,7 @@ HDF5=1
 
 # Following must be consistent
 #SZIP=1
-#BZIP2=1
+BZIP2=1
 #FPZIP=1
 #ZFP=1
 
@@ -64,7 +64,7 @@ MALLOC_CHECK=""
 CPPFLAGS=""
 LDFLAGS=""
 
-CFLAGS="-g -O0 $CFLAGS"
+CFLAGS="-gstabs+ -O0 $CFLAGS"
 
 case "$HOST" in
   mort)
@@ -174,7 +174,7 @@ fi
 if test "x$FPZIP" = x1 ; then
 COMP="$COMP,fpzip"
 fi
-#FLAGS="$FLAGS --with-compression=${COMP}"
+FLAGS="$FLAGS --with-compression=${COMP}"
 
 
 if test "x${DB}" = x1 ; then
@@ -182,6 +182,7 @@ FLAGS="$FLAGS --disable-shared"
 FLAGS="$FLAGS --enable-static"
 else
 FLAGS="$FLAGS --enable-shared"
+FLAGS="$FLAGS --enable-static"
 fi
 
 if test "x${PAR}" != x ; then
@@ -223,12 +224,13 @@ FLAGS="$FLAGS --enable-pnetcdf"
 FLAGS="$FLAGS --enable-parallel-tests"
 fi
 
-export PATH
+
+export PATH;
 export CC
-export CPPFLAGS
-export CFLAGS
-export LDFLAGS
-export LD_LIBRARY_PATH
+export CPPFLAGS; echo "CPPFLAGS=$CPPFLAGS"
+export CFLAGS; echo "CFLAGS=$CFLAGS"
+export LDFLAGS; echo "LDFLAGS=$LDFLAGS"
+export LD_LIBRARY_PATH; echo " LD_LIBRARYPATH=$LD_LIBRARY_PATH"
 export MALLOC_CHECK
 export CXXFLAGS
 
@@ -240,8 +242,8 @@ for f in $cmds ; do
 done
 
 if test -z "$NB" ; then
-${MAKE} maintainer-clean >/dev/null 2>&1
-if autoreconf -i --force ; then ok=1; else exit ; fi
+  ${MAKE} maintainer-clean >/dev/null 2>&1
+  if autoreconf -i --force ; then ok=1; else exit ; fi
 fi
 
 if test -f Makefile ; then ${MAKE} distclean >/dev/null 2>&1 ; fi

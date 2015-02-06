@@ -11,12 +11,6 @@ conditions.
 
 #include "config.h"
 #include <math.h>
-#ifdef SZIP_FILTER
-#include <szlib.h>
-#else
-#define SZ_MAX_PIXELS_PER_BLOCK 0
-#define SZ_MAX_PIXELS_PER_SCANLINE 0
-#endif
 #include "netcdf.h"
 #include "nc4compress.h"
 #include "nc4dispatch.h"
@@ -25,10 +19,6 @@ conditions.
 #if 0 /*def USE_PNETCDF*/
 #include <pnetcdf.h>
 #endif
-
-/* Min and max deflate levels tolerated by HDF5. */
-#define MIN_DEFLATE_LEVEL 0
-#define MAX_DEFLATE_LEVEL 9
 
 /* This is to track opened HDF5 objects to make sure they are
  * closed. */
@@ -721,18 +711,6 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    if (contiguousp)
       *contiguousp = var->contiguous ? NC_CONTIGUOUS : NC_CHUNKED;
 
-   /* Filter stuff. */
-   if(algorithmp) 
-     *algorithmp = var->algorithm;
-   if(nparamsp)
-	*nparamsp = var->compress_nparams;
-   if (compress_paramsp)
-     memcpy((void*)compress_paramsp,(void*)var->compress_params,var->compress_nparams*sizeof(unsigned int));
-   if (shufflep)
-      *shufflep = (int)var->shuffle;
-   if (fletcher32p)
-      *fletcher32p = (int)var->fletcher32;
-
    /* Fill value stuff. */
    if (no_fill)
       *no_fill = (int)var->no_fill;
@@ -787,6 +765,18 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    if (endiannessp)
       *endiannessp = var->type_info->endianness;
 
+   /* Filter stuff. */
+   if(algorithmp) 
+     *algorithmp = var->algorithm;
+   if(nparamsp)
+	*nparamsp = var->compress_nparams;
+   if (compress_paramsp)
+     memcpy((void*)compress_paramsp,(void*)var->compress_params,var->compress_nparams*sizeof(unsigned int));
+   if (shufflep)
+      *shufflep = (int)var->shuffle;
+   if (fletcher32p)
+      *fletcher32p = (int)var->fletcher32;
+
    return NC_NOERR;
 }
 
@@ -810,6 +800,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    NC_VAR_INFO_T *var;
    NC_DIM_INFO_T *dim;
    int d;
+   size_t alglen = 0;
    int retval;
    nc_bool_t ishdf4 = NC_FALSE; /* Use this to avoid so many ifdefs */
 
@@ -839,9 +830,18 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    if (!var)
       return NC_ENOTVAR;
 
+   /* Set var-algorithm so we can uniformly test against strlen(var->algorithm) */
+   if(algorithm) {
+	if(strlen(var->algorithm) > 0) /* do not allow change of compression on a var */
+  	    return NC_ECOMPRESS;
+        strncpy(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME);
+	var->contiguous = NC_FALSE;
+   }
+   alglen = strlen(var->algorithm);
+
    /* Can't turn on contiguous and deflate/fletcher32/szip. */
    if (contiguous)
-      if ((*contiguous != NC_CHUNKED && algorithm) || 
+      if ((*contiguous != NC_CHUNKED && alglen > 0) || 
 	  (*contiguous != NC_CHUNKED && fletcher32))
 	 return NC_EINVAL;
 
@@ -849,40 +849,6 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
     * late to set all the extra stuff. */
    if (var->created)
       return NC_ELATEDEF;
-
-   /* Check compression options. */
-   if (algorithm != NULL && (nparams == NULL || params == NULL))
-      return NC_EINVAL;      
-   if (nparams != NULL && *nparams > NC_COMPRESSION_MAX_PARAMS)
-      return NC_EINVAL;      
-       
-   /* Valid deflate level? */
-   if (algorithm != NULL && (nparams != NULL && params != NULL))
-   {
-      nc_compression_t* uparams  = (nc_compression_t*)params;
-      if (strcmp(algorithm,"zip") == 0)
-         if (uparams->zip.level < MIN_DEFLATE_LEVEL ||
-             uparams->zip.level > MAX_DEFLATE_LEVEL)
-            return NC_EINVAL;
-      if (strcmp(algorithm,"bzip2") == 0)
-         if (uparams->bzip2.level > MAX_DEFLATE_LEVEL)
-            return NC_EINVAL;
-      if (strcmp(algorithm,"szip") == 0)
-         if (uparams->szip.pixels_per_block > SZ_MAX_PIXELS_PER_BLOCK)
-            return NC_EINVAL;
-
-      /* For scalars, just ignore attempt to deflate. */
-      if (!var->ndims)
-            return NC_NOERR;
-
-      /* Well, if we couldn't find any errors, I guess we have to take
-       * the users settings. Darn! */
-      var->contiguous = NC_FALSE;
-      strncpy(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME);
-      var->compress_nparams = *nparams;
-      if(*nparams > 0)
-          memcpy((void*)var->compress_params,(void*)params,*nparams*sizeof(unsigned int));
-   }
 
    /* Shuffle filter? */
    if (shuffle)
@@ -903,7 +869,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
     * for this data. */
    if (contiguous && *contiguous)
    {
-      if (*var->algorithm != '\0' || var->fletcher32 || var->shuffle)
+      if (alglen > 0 || var->fletcher32 || var->shuffle)
 	 return NC_EINVAL;
       
      if (!ishdf4) {
@@ -981,6 +947,31 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    if (endianness)
       var->type_info->endianness = *endianness;
 
+   /* Check compression options. */
+   if (algorithm != NULL && (nparams == NULL || params == NULL))
+      return NC_EINVAL;      
+   if (nparams != NULL && *nparams > NC_COMPRESSION_MAX_PARAMS)
+      return NC_EINVAL;      
+       
+   /* set compression */
+   if (algorithm != NULL && (nparams != NULL && params != NULL))
+   {
+      /* For scalars, just ignore attempt to deflate. */
+      if (!var->ndims)
+            return NC_NOERR;
+
+      /* validate the parameters */
+      retval = nc_compress_validate(algorithm,*nparams,params);
+      if(retval != NC_NOERR)
+	return retval;
+      /* Well, if we couldn't find any obvious errors, I guess we have to take
+       * the users settings. Darn! */
+      var->contiguous = NC_FALSE;
+      var->compress_nparams = *nparams;
+      if(*nparams > 0)
+          memcpy((void*)var->compress_params,(void*)params,*nparams*sizeof(unsigned int));
+   }
+
    return NC_NOERR;
 }
 
@@ -993,10 +984,13 @@ NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
 {
    nc_compression_t parms;
    int nparams = NC_NELEMS_ZIP;
-   parms.zip.level = deflate_level;
-   return nc_def_var_extra(ncid, varid, &shuffle, "zip",
+   if(deflate) {
+       parms.zip.level = deflate_level;
+       return nc_def_var_extra(ncid, varid, &shuffle, "zip",
                            &nparams,parms.params,
 			   NULL, NULL, NULL, NULL, NULL, NULL);
+    }
+    return NC_NOERR;
 }
 
 /* Set checksum for a var. This must be called after the nc_def_var
