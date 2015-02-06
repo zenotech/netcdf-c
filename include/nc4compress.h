@@ -2,7 +2,9 @@
 #define NC4COMPRESS_H
 
 #include <hdf5.h>
+#ifdef FPZIP_FILTER
 #include <fpzip.h>
+#endif
 
 /* These must all be <= NC_COMPRESSION_MAX_PARAMS in netcdf.h */
 #define NC_NELEMS_ZIP 1
@@ -64,7 +66,20 @@ Turn on specified compression for a variable's plist
 */
 EXTERNL int nc_compress_set(const char* algorithm, hid_t plistid, int, unsigned int*);
 
-EXTERNL int nc_compress_inq_parameters(H5Z_filter_t filter, hid_t, int, unsigned int*,char*,int*,unsigned int*);
+/*
+Get the compression parameters for a variable
+*/
+EXTERNL int nc_compress_inq_parameters(const char*, hid_t, int, unsigned int*,char*,int*,unsigned int*);
+
+/*
+Validate a set of compression parameters
+*/
+EXTERNL int nc_compress_validate(const char*, int, unsigned int*);
+
+/*
+Convert an HDF5 filter id into a name or null
+*/
+EXTERNL const char* nc_compress_name_for(int id);
 
 /* 
 Register all compression filters with the library

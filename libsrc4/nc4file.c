@@ -1576,7 +1576,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
               break;
            default:
 	      status = nc_compress_inq_parameters(
-                                      filter,
+                                      nc_compress_name_for(filter),
 				      propid,
 				      (int)cd_nelems,
 				      cd_values,

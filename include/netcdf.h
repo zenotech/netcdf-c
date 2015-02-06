@@ -1942,6 +1942,9 @@ ncrecput(int ncid, long recnum, void *const *datap);
 /* Define the max number of dimensions that can be handled by
    some of the compressors */
 #define NC_COMPRESSION_MAX_DIMS 16
+/* Compression max/min for simple deflates */
+#define NC_DEFLATE_LEVEL_MIN 0
+#define NC_DEFLATE_LEVEL_MAX 9
 
 /** 
 The compression parameters are stored in an
