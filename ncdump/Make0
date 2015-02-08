@@ -1,5 +1,12 @@
-# Test c output
-#VG=valgrind --leak-check=full
+#!/bin/bash
+
+T=tst_special_atts
+#T=nccopy
+VG=valgrind --leak-check=full
+GDB=gdb --args
+#ARGS=tst_comp.nc copy_of_tst_comp.nc
+
+EXP=export LD_LIBRARY_PATH="/usr/local/lib"
 
 CFLAGS=-gstabs+ -O0 -I.. -I../include -I. -I/usr/local/include -I/usr/include
 LDFLAGS=../liblib/.libs/libnetcdf.a  -L/usr/local/lib -lhdf5_hl -lhdf5 -lz -lm -lcurl -lbz2
@@ -7,11 +14,15 @@ LDFLAGS=../liblib/.libs/libnetcdf.a  -L/usr/local/lib -lhdf5_hl -lhdf5 -lz -lm -
 NCC=nccopy.c nciter.c chunkspec.c utils.c dimmap.c
 
 
-#	export LD_RUN_PATH; export CFLAGS; export LDFLAGS; \
-
-
 all::
-	gcc -o ncc ${CFLAGS} ${NCC} ${LDFLAGS}
+	${EXP} ; gcc -o t ${CFLAGS} ${T}.c ${LDFLAGS}
+#	${EXP} ; gcc -o ncc ${CFLAGS} ${NCC} ${LDFLAGS} ;\
+
+t::
+	${EXP} ; ./${T} ${ARGS}
 
 g::
-	gdb --args ./ncc tst_comp.nc copy_of_tst_comp.nc
+	${EXP} ; ${GDB} ./.libs/${T} ${ARGS}
+
+v::
+	${EXP} ; ${VG} ./.libs/${T} ${ARGS}

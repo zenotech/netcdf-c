@@ -132,6 +132,7 @@ NCDEFAULT_get_varm,
 NCDEFAULT_put_varm,
 
 NULL, /*inq_var_all*/
+NULL, /*def_var_extra*/
 
 NULL, /*var_par_access*/
 
@@ -166,11 +167,6 @@ NULL, /*insert_enum*/
 NULL, /*inq_enum_member*/
 NULL, /*inq_enum_ident*/
 NULL, /*def_opaque*/
-NULL, /*def_var_deflate*/
-NULL, /*def_var_fletcher32*/
-NULL, /*def_var_chunking*/
-NULL, /*def_var_fill*/
-NULL, /*def_var_endian*/
 NULL, /*set_var_chunk_cache*/
 NULL, /*get_var_chunk_cache*/
 

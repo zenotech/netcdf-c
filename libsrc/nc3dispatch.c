@@ -37,6 +37,12 @@ static int NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp);
 
+static int NC3_def_var_extra(int ncid, int varid,
+		    const char* algorithm, int* nparams, unsigned int* params,
+		    int *contiguous, const size_t *chunksizes,
+                    int *no_fill, const void *fill_value,
+                    int *shuffle, int *fletcher32, int *endianness);
+
 static int NC3_var_par_access(int,int,int);
 
 #ifdef USE_NETCDF4
@@ -69,14 +75,8 @@ static int NC3_insert_enum(int,nc_type,const char*,const void*);
 static int NC3_inq_enum_member(int,nc_type,int,char*,void*);
 static int NC3_inq_enum_ident(int,nc_type,long long,char*);
 static int NC3_def_opaque(int,size_t,const char*,nc_type*);
-static int NC3_def_var_deflate(int,int,int,int,int);
-static int NC3_def_var_fletcher32(int,int,int);
-static int NC3_def_var_chunking(int,int,int,const size_t*);
-static int NC3_def_var_fill(int,int,int,const void*);
-static int NC3_def_var_endian(int,int,int);
 static int NC3_set_var_chunk_cache(int,int,size_t,size_t,float);
 static int NC3_get_var_chunk_cache(int,int,size_t*,size_t*,float*);
-static int NC3_def_var_compress(int,int,int,const char*,int,unsigned int*);
 #endif /*USE_NETCDF4*/
 
 static NC_Dispatch NC3_dispatcher = {
@@ -125,6 +125,7 @@ NCDEFAULT_get_varm,
 NCDEFAULT_put_varm,
 
 NC3_inq_var_all,
+NC3_def_var_extra,
 
 NC3_var_par_access,
 
@@ -159,14 +160,8 @@ NC3_insert_enum,
 NC3_inq_enum_member,
 NC3_inq_enum_ident,
 NC3_def_opaque,
-NC3_def_var_deflate,
-NC3_def_var_fletcher32,
-NC3_def_var_chunking,
-NC3_def_var_fill,
-NC3_def_var_endian,
 NC3_set_var_chunk_cache,
 NC3_get_var_chunk_cache,
-NC3_def_var_compress
 #endif /*USE_NETCDF4*/
 };
 
@@ -196,6 +191,16 @@ NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
     if(no_fill) *no_fill = 1;
     if(endiannessp) return NC_ENOTNC4;
     return NC_NOERR;
+}
+
+static int
+NC3_def_var_extra(int ncid, int varid,
+		    const char* algorithm, int* nparams, unsigned int* params,
+		    int *contiguous, const size_t *chunksizes,
+                    int *no_fill, const void *fill_value,
+                    int *shuffle, int *fletcher32, int *endianness)
+{
+    return NC_ENOTNC4;
 }
 
 static int
@@ -469,43 +474,6 @@ NC3_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems, float p
 
 static int
 NC3_get_var_chunk_cache(int ncid, int varid, size_t *sizep, size_t *nelemsp, float *preemptionp)
-{
-    return NC_ENOTNC4;
-}
-
-static int
-NC3_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
-		   int deflate_level)
-{
-    return NC_ENOTNC4;
-}
-
-static int
-NC3_def_var_fletcher32(int ncid, int varid, int fletcher32)
-{
-    return NC_ENOTNC4;
-}
-
-static int
-NC3_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
-{
-    return NC_ENOTNC4;
-}
-
-static int
-NC3_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
-{
-    return NC_ENOTNC4;
-}
-
-static int
-NC3_def_var_endian(int ncid, int varid, int endianness)
-{
-    return NC_ENOTNC4;
-}
-
-static int
-NC3_def_var_compress(int ncid, int varid ,int useshuffle, const char* algorithmp, int nparams, unsigned int* params)
 {
     return NC_ENOTNC4;
 }

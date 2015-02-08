@@ -486,6 +486,16 @@ genc_definespecialattributes(Symbol* vsym)
         codedump(stmt);
         codelined(1,"check_err(stat,__LINE__,__FILE__);");
     }   
+    if(special->flags & _SHUFFLE_FLAG) {
+        bbprintf0(stmt,
+                "    stat = nc_def_var_shuffle(%s, %s, %s);\n",
+                groupncid(vsym->container),
+                varncid(vsym),
+                (special->_Shuffle?"NC_SHUFFLE":"NC_NOSHUFFLE")
+                );
+        codedump(stmt);
+        codelined(1,"check_err(stat,__LINE__,__FILE__);");
+    }   
     if(special->flags & (_COMPRESSION_FLAG) && (strlen(special->_Algorithm) > 0)) {
 	bbprintf0(stmt,"    {\n");
         codedump(stmt);
@@ -494,10 +504,9 @@ genc_definespecialattributes(Symbol* vsym)
 	bbprintf0(stmt,"        parms.level = %d;\n",special->_DeflateLevel);
         codedump(stmt);
         bbprintf0(stmt,
-                "        stat = nc_def_var_compress(%s, %s, %s, %d, parms.params);\n",
+                "        stat = nc_def_var_compress(%s, %s, %s, parms.params);\n",
                 groupncid(vsym->container),
                 varncid(vsym),
-                (special->_Shuffle == 1?"NC_SHUFFLE":"NC_NOSHUFFLE"),
                 (special->_Algorithm));
         codedump(stmt);
 	bbprintf0(stmt,"    }\n");

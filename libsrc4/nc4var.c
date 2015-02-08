@@ -787,12 +787,12 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    Some args are int* instead of int so that NULL can be used to
    specify not-defined.
 */
-static int
-nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
-		 int* nparams, unsigned int* params,
-		 int *fletcher32, int *contiguous, 
-		 const size_t *chunksizes, int *no_fill, 
-                 const void *fill_value, int *endianness)
+int
+NC4_def_var_extra(int ncid, int varid,
+		    const char* algorithm, int* nparams, unsigned int* params,
+		    int *contiguous, const size_t *chunksizes,
+                    int *no_fill, const void *fill_value,
+                    int *shuffle, int *fletcher32, int *endianness)
 {
    NC *nc;
    NC_GRP_INFO_T *grp; 
@@ -800,7 +800,6 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    NC_VAR_INFO_T *var;
    NC_DIM_INFO_T *dim;
    int d;
-   size_t alglen = 0;
    int retval;
    nc_bool_t ishdf4 = NC_FALSE; /* Use this to avoid so many ifdefs */
 
@@ -822,28 +821,71 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   for (var = grp->var; var; var = var->l.next)
+   for (var = grp->var; var; var = var->l.next) {
       if (var->varid == varid)
          break;
-   
+   }
+
    /* Oh no! Maybe we couldn't find it (*sob*)! */
    if (!var)
       return NC_ENOTVAR;
 
-   /* Set var-algorithm so we can uniformly test against strlen(var->algorithm) */
-   if(algorithm) {
-	if(strlen(var->algorithm) > 0) /* do not allow change of compression on a var */
-  	    return NC_ECOMPRESS;
-        strncpy(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME);
-	var->contiguous = NC_FALSE;
-   }
-   alglen = strlen(var->algorithm);
+   /* The following can only be set once (unless value is same) */
+   if(var->shuffle_set && shuffle && var->shuffle != *shuffle)
+	return NC_EINVAL;
+   if(var->fletcher32_set && fletcher32 && var->fletcher32 != *fletcher32)
+	return NC_EINVAL;
+   if(var->algorithm_set && algorithm
+      && strncmp(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME) != 0)
+	return NC_EINVAL;
+   if(var->contiguous_set && contiguous && var->contiguous != *contiguous)
+	return NC_EINVAL;
+   if(var->compress_set && nparams) {
+	int i;
+	if(var->compress_nparams != *nparams)
+	    return NC_EINVAL;
+	if(params != NULL) {
+	    for(i=0;i<var->compress_nparams;i++) {
+	        if(var->compress_params[i] != params[i])
+		    return NC_EINVAL;
+	    }
+	}	
+    }
+    if(var->chunks_set) {
+	int i;
+	if(chunksizes != NULL) {
+	    for(i=0;i<var->ndims;i++) {
+	        if(var->chunksizes[i] != chunksizes[i])
+		    return NC_EINVAL;
+	    }
+	}	
+    }
+    /* Some addition conflict tests */
+    if(algorithm && var->contiguous_set && var->contiguous)
+	return NC_EINVAL;
+    if(shuffle && (*shuffle == NC_SHUFFLE) && var->chunks_set && var->contiguous)
+	return NC_EINVAL;
+    if(fletcher32 && *fletcher32 && var->chunks_set && var->contiguous)
+	return NC_EINVAL;
 
+    if(chunksizes && var->contiguous_set && var->contiguous == NC_CONTIGUOUS)
+	return NC_EINVAL;    
+
+    /* Set var-algorithm so we can uniformly test against it */
+   if(algorithm) {
+	strncpy(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME);
+	var->algorithm_set = NC_TRUE;
+	var->contiguous_set = NC_TRUE;
+        var->contiguous = NC_FALSE;
+   }
+
+#if 0
    /* Can't turn on contiguous and deflate/fletcher32/szip. */
    if (contiguous)
-      if ((*contiguous != NC_CHUNKED && alglen > 0) || 
+      if ((*contiguous != NC_CHUNKED)
 	  (*contiguous != NC_CHUNKED && fletcher32))
 	 return NC_EINVAL;
+#endif
 
    /* If the HDF5 dataset has already been created, then it is too
     * late to set all the extra stuff. */
@@ -853,23 +895,25 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    /* Shuffle filter? */
    if (shuffle)
    {
-      var->shuffle = *shuffle;
+      var->shuffle = *shuffle; var->shuffle_set = NC_TRUE;
+      var->contiguous_set = NC_TRUE;
       var->contiguous = NC_FALSE;
    }
 
    /* Fltcher32 checksum error protection? */
    if (fletcher32)
    {
-      var->fletcher32 = *fletcher32;
+      var->fletcher32 = *fletcher32; var->fletcher32_set = NC_TRUE;
+      var->contiguous_set = NC_TRUE;
       var->contiguous = NC_FALSE;
    }
    
    /* Does the user want a contiguous dataset? Not so fast! Make sure
     * that there are no unlimited dimensions, and no filters in use
     * for this data. */
-   if (contiguous && *contiguous)
+   if (contiguous && *contiguous == NC_CONTIGUOUS)
    {
-      if (alglen > 0 || var->fletcher32 || var->shuffle)
+      if (var->algorithm_set || var->fletcher32 || var->shuffle)
 	 return NC_EINVAL;
       
      if (!ishdf4) {
@@ -880,15 +924,13 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
 	 if (dim->unlimited)
 	    return NC_EINVAL;
       }
-      var->contiguous = NC_TRUE;
+      var->contiguous = NC_TRUE; var->contiguous_set = NC_TRUE;
     }
    }
 
    /* Chunksizes anyone? */
    if (!ishdf4 && contiguous && *contiguous == NC_CHUNKED)
    {
-      var->contiguous = NC_FALSE;
-
       /* If the user provided chunksizes, check that they are not too
        * big, and that their total size of chunk is less than 4 GB. */
       if (chunksizes)
@@ -900,12 +942,14 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
 	 /* Set the chunksizes for this variable. */
 	 for (d = 0; d < var->ndims; d++)
 	    var->chunksizes[d] = chunksizes[d];
+	 var->chunks_set = NC_TRUE;
       }
+      var->contiguous = NC_FALSE; var->contiguous_set = NC_TRUE;
    }
 
    /* Is this a variable with a chunksize greater than the current
     * cache size? */
-   if (!var->contiguous && (chunksizes || algorithm || contiguous))
+   if (!var->contiguous && (chunksizes || var->algorithm_set || contiguous))
    {
       /* Determine default chunksizes for this variable. */
       if (!var->chunksizes[0])
@@ -966,7 +1010,8 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
 	return retval;
       /* Well, if we couldn't find any obvious errors, I guess we have to take
        * the users settings. Darn! */
-      var->contiguous = NC_FALSE;
+      var->contiguous = NC_FALSE; var->contiguous_set = NC_TRUE;
+      var->compress_set = NC_TRUE;
       var->compress_nparams = *nparams;
       if(*nparams > 0)
           memcpy((void*)var->compress_params,(void*)params,*nparams*sizeof(unsigned int));
@@ -975,6 +1020,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, const char* algorithm,
    return NC_NOERR;
 }
 
+#if 0
 /* Set the deflate level for a var, lower is faster, higher is
  * better. Must be called after nc_def_var and before nc_enddef or any
  * functions which writes data to the file. */
@@ -982,15 +1028,17 @@ int
 NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate, 
                    int deflate_level)
 {
-   nc_compression_t parms;
-   int nparams = NC_NELEMS_ZIP;
-   if(deflate) {
+   int status = NC_NOERR;
+   status = NC4_def_var_shuffle(ncid,varid,shuffle);
+   if(status == NC_NOERR) {
+       nc_compression_t parms;
+       int nparams = NC_NELEMS_ZIP;
        parms.zip.level = deflate_level;
-       return nc_def_var_extra(ncid, varid, &shuffle, "zip",
+       status = nc_def_var_compress(ncid, varid, "zip",
                            &nparams,parms.params,
 			   NULL, NULL, NULL, NULL, NULL, NULL);
     }
-    return NC_NOERR;
+    return status;
 }
 
 /* Set checksum for a var. This must be called after the nc_def_var
@@ -1118,7 +1166,6 @@ NC4_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
                            NULL, NULL, &no_fill, fill_value, NULL);
 }
 
-
 /* Define the endianness of a variable. */
 int
 NC4_def_var_endian(int ncid, int varid, int endianness)
@@ -1127,16 +1174,25 @@ NC4_def_var_endian(int ncid, int varid, int endianness)
                            NULL, NULL, NULL, NULL, &endianness);
 }
 
+/* Define the shuffle of a variable. */
+int
+NC4_def_var_shuffle(int ncid, int varid, int shuffle)
+{
+   return nc_def_var_extra(ncid, varid, &shuffle, NULL, NULL, NULL, NULL,
+                           NULL, NULL, NULL, NULL, NULL);
+}
+
 /* Set the compression algorithm for a var.
    Must be called after nc_def_var and before nc_enddef or any
    functions which writes data to the file. */
 int
-NC4_def_var_compress(int ncid, int varid ,int useshuffle, const char* algorithm, int nparams, unsigned int* params)
+NC4_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params)
 {
-   return nc_def_var_extra(ncid, varid, &useshuffle, algorithm,
+   return nc_def_var_extra(ncid, varid, NULL, algorithm,
                            &nparams, params,
 			   NULL, NULL, NULL, NULL, NULL, NULL);
 }
+#endif
 
 /* Get var id from name. */
 int

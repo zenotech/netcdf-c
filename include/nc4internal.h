@@ -151,7 +151,6 @@ typedef struct NC_VAR_INFO
    nc_bool_t is_new_var;        /* True if variable is newly created */
    nc_bool_t was_coord_var;     /* True if variable was a coordinate var, but either the dim or var has been renamed */
    nc_bool_t became_coord_var;  /* True if variable _became_ a coordinate var, because either the dim or var has been renamed */
-   nc_bool_t fill_val_changed;  /* True if variable's fill value changes after it has been created */
    nc_bool_t attr_dirty;        /* True if variable's attributes are dirty and should be rewritten */
    nc_bool_t created;           /* Variable has already been created (_not_ that it was just created) */
    nc_bool_t written_to;        /* True if variable has data written to it */
@@ -159,18 +158,33 @@ typedef struct NC_VAR_INFO
    hid_t hdf_datasetid;
    NC_ATT_INFO_T *att;
    nc_bool_t no_fill;           /* True if no fill value is defined for var */
+   nc_bool_t fill_val_changed;  /* True if variable's fill value changes after it has been created */
    void *fill_value;
-   size_t *chunksizes;
-   nc_bool_t contiguous;        /* True if variable is stored contiguously in HDF5 file */
    int parallel_access;         /* Type of parallel access for I/O on variable (collective or independent) */
    nc_bool_t dimscale;          /* True if var is a dimscale */
    nc_bool_t *dimscale_attached;        /* Array of flags that are true if dimscale is attached for that dim index */
    HDF5_OBJID_T *dimscale_hdf5_objids;
-   char algorithm[NC_COMPRESSION_MAX_NAME]; /* Deflate algorithm name ; "" => none */
+
+   /* The following can only be set once */
+   nc_bool_t chunks_set;
+   size_t *chunksizes;
+   nc_bool_t contiguous_set;
+   nc_bool_t contiguous; /* True if variable is stored contiguously in HDF5 file */
+
+   nc_bool_t compress_set;
    int compress_nparams; /* actual # of compression params */
    unsigned int compress_params[NC_COMPRESSION_MAX_PARAMS];
+
+   nc_bool_t algorithm_set;
+   char algorithm[NC_COMPRESSION_MAX_NAME]; /* Deflate algorithm name ; "" => none */
+
+   nc_bool_t shuffle_set;
    nc_bool_t shuffle;           /* True if var has shuffle filter applied */
+
+   nc_bool_t fletcher32_set;
    nc_bool_t fletcher32;        /* True if var has fletcher32 filter applied */
+   /* end set only once */
+
    size_t chunk_cache_size, chunk_cache_nelems;
    float chunk_cache_preemption;
 #ifdef USE_HDF4

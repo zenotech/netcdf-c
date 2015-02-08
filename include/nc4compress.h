@@ -62,9 +62,14 @@ typedef union {
 } nc_compression_t;
 
 /*
-Turn on specified compression for a variable's plist
+Turn on specified compression for a variable (via plist)
 */
 EXTERNL int nc_compress_set(const char* algorithm, hid_t plistid, int, unsigned int*);
+
+/*
+Turn on shuffle for a variable (via plist)
+*/
+EXTERNL int nc_compress_shuffle(hid_t plistid, int);
 
 /*
 Get the compression parameters for a variable

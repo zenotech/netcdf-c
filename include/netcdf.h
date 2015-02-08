@@ -829,6 +829,14 @@ nc_def_var_endian(int ncid, int varid, int endian);
 EXTERNL int
 nc_inq_var_endian(int ncid, int varid, int *endianp);
 
+/* Define the shuffle of a variable. */
+EXTERNL int
+nc_def_var_shuffle(int ncid, int varid, int shuffle);
+
+/* Learn about the shuffle of a variable. */
+EXTERNL int
+nc_inq_var_shuffle(int ncid, int varid, int *shufflep);
+
 /* Set the fill mode (classic or 64-bit offset files only). */
 EXTERNL int
 nc_set_fill(int ncid, int fillmode, int *old_modep);
@@ -1957,7 +1965,7 @@ the array conforms to the union defined in nc4compress.h.
    The form of the parameters is algorithm dependent.
 */
 EXTERNL int
-nc_def_var_compress(int ncid, int varid, int useshuffle, const char* algorithm, int nparams, unsigned int* params);
+nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params);
 
 /* Find out compression settings of a var. */
 EXTERNL int
