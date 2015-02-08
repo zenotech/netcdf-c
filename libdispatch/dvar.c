@@ -6,6 +6,9 @@ Research/Unidata. See COPYRIGHT file for more info.
 */
 
 #include "ncdispatch.h"
+#ifdef USE_NETCDF4
+#include "nc4compress.h"
+#endif
 #include "netcdf_f.h"
 
 /** \defgroup variables Variables
@@ -539,9 +542,26 @@ int
 nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_level)
 {
     NC* ncp;
+    nc_compression_t nct;
+    int nparams;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_deflate(ncid,varid,shuffle,deflate,deflate_level);
+    stat = ncp->dispatch->def_var_extra(ncid,varid,
+		NULL,NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,
+		&shuffle,NULL,NULL);
+    if(stat != NC_NOERR) return stat;
+    if(deflate) {
+        nct.zip.level = deflate_level;
+        nparams = 1;
+        stat = ncp->dispatch->def_var_extra(ncid,varid,
+		"zip",&nparams,nct.params,
+		NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,NULL);
+    }
+    return stat;
 }
 
 int
@@ -550,7 +570,11 @@ nc_def_var_fletcher32(int ncid, int varid, int fletcher32)
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_fletcher32(ncid,varid,fletcher32);
+    return ncp->dispatch->def_var_extra(ncid,varid,
+		NULL,NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,
+		NULL,&fletcher32,NULL);
 }
 
 int
@@ -560,8 +584,11 @@ nc_def_var_chunking(int ncid, int varid, int storage,
     NC* ncp;
     int stat = NC_check_id(ncid, &ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_chunking(ncid, varid, storage, 
-					   chunksizesp);
+    return ncp->dispatch->def_var_extra(ncid,varid,
+		NULL,NULL,NULL,
+		&storage,chunksizesp,
+		NULL,NULL,
+		NULL,NULL,NULL);
 }
 
 int
@@ -570,7 +597,11 @@ nc_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_fill(ncid,varid,no_fill,fill_value);
+    return ncp->dispatch->def_var_extra(ncid,varid,
+		NULL,NULL,NULL,
+		NULL,NULL,
+		&no_fill,fill_value,
+		NULL,NULL,NULL);
 }
 
 int
@@ -579,7 +610,24 @@ nc_def_var_endian(int ncid, int varid, int endian)
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_endian(ncid,varid,endian);
+    return ncp->dispatch->def_var_extra(ncid,varid,
+		NULL,NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,&endian);
+}
+
+int
+nc_def_var_shuffle(int ncid, int varid, int shuffle)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+    if(stat != NC_NOERR) return stat;
+    return ncp->dispatch->def_var_extra(ncid,varid,
+		NULL,NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,
+		&shuffle,NULL,NULL);
 }
 
 /** \ingroup variables
@@ -590,9 +638,6 @@ nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
-
-\param useshuffle Set to1 if the shuffle filter is
-turned on for this variable, and a 0 otherwise.
 
 \param algorithm This specifies the name of the compression
 algorithm to use (e.g. "zip", "bzip2", etc).
@@ -610,12 +655,16 @@ compression algorithm.
 \returns ::NC_ECOMPRESS Invalid compression parameters.
 */
 int
-nc_def_var_compress(int ncid, int varid, int useshuffle, const char* algorithm, int nparams, unsigned int* params)
+nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->def_var_compress(ncid,varid,useshuffle,algorithm,nparams,params);
+    return ncp->dispatch->def_var_extra(ncid,varid,
+		algorithm,&nparams,params,
+		NULL,NULL,
+		NULL,NULL,
+		NULL,NULL,NULL);
 }
 
 #endif /* USE_NETCDF4 */

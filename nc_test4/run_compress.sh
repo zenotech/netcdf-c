@@ -9,7 +9,7 @@ O="-P -d5 -l9 -p0 -b32 -t1e-9 -r32"
 # Known compressions
 C="nozip zip szip bzip2 fpzip zfp"
 
-BASELINE=compress.cdl
+BASELINE=nozip.cdl
 
 # if this is part of a distcheck action, then this script
 # will be executed in a different directory
@@ -96,10 +96,10 @@ clean
 baseline
 
 # Main test
-if test -f ${srcdir}/${BASELINE} ; then
-    echo "baseline: ${srcdir}/${BASELINE}"
+if test -f ${builddir}/${BASELINE} ; then
+    echo "baseline: ${builddir}/${BASELINE}"
 else
-  echo "baseline: ${srcdir}/${BASELINE}"
+  echo "baseline: ${builddir}/${BASELINE}"
   echo "No baseline file exists"
   exit 1
 fi

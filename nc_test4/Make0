@@ -1,23 +1,24 @@
 # Test c output
-T=tst_chunks
+T=tst_vars2
 VG=valgrind --leak-check=full
 GDB=gdb --args
-ARGS=
+#ARGS="nozip zip bzip2"
 
-CFLAGS=-gstabs+ -O0 -I.. -I../include -I/usr/local/include
+CFLAGS=-O0 -gstabs+ -I.. -I../include -I/usr/local/include
 LDFLAGS=../liblib/.libs/libnetcdf.a  -L/usr/local/lib -lhdf5_hl -lhdf5 -lz -lm -lcurl -lbz2
+
+EXP=export LD_LIBRARY_PATH="/usr/local/lib"
 
 #	cd .. ; ${MAKE} all
 
 all::
-	export LD_RUN_PATH; export CFLAGS; export LDFLAGS; \
-	gcc -o t ${CFLAGS} ${T}.c ${LDFLAGS}
+	${EXP}; gcc -o t ${CFLAGS} ${T}.c ${LDFLAGS}
 
 t::
-	./t ${ARGS}
+	${EXP}; ./t ${ARGS}
 
 v::
-	${VG} ./t ${ARGS}
+	${EXPR}; ${VG} ./t ${ARGS}
 
 g::
-	${GDB} ./t ${ARGS}
+	${EXP}; ${GDB} ./t ${ARGS}

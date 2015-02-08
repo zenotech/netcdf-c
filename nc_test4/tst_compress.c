@@ -379,7 +379,7 @@ test_zfp(void)
     setchunking(ZFP,parms.zfp.chunksizes);
     showparameters(ZFP,&parms);
 
-    CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "zfp", NC_NELEMS_ZFP,parms.params));
+    CHECK(nc_def_var_compress(ncid, varid, "zfp", NC_NELEMS_ZFP,parms.params));
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */
@@ -415,7 +415,7 @@ test_fpzip(void)
     setchunking(FPZIP,parms.fpzip.chunksizes);
     showparameters(FPZIP,&parms);
 
-    CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "fpzip", NC_NELEMS_FPZIP, parms.params));
+    CHECK(nc_def_var_compress(ncid, varid, "fpzip", NC_NELEMS_FPZIP, parms.params));
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */
@@ -447,7 +447,7 @@ test_bzip2(void)
     setchunking(BZIP2,NULL);
     showparameters(BZIP2,&parms);
 
-    CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "bzip2", NC_NELEMS_BZIP2, parms.params));
+    CHECK(nc_def_var_compress(ncid, varid, "bzip2", NC_NELEMS_BZIP2, parms.params));
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */
@@ -481,7 +481,7 @@ test_szip(void)
     setchunking(SZIP,NULL);
     showparameters(SZIP,&parms);
 
-    CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "szip", NC_NELEMS_SZIP, parms.params));
+    CHECK(nc_def_var_compress(ncid, varid, "szip", NC_NELEMS_SZIP, parms.params));
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */
@@ -514,7 +514,7 @@ test_zip(void)
     setchunking(ZIP,NULL);
     showparameters(ZIP,&parms);
 
-    CHECK(nc_def_var_compress(ncid, varid, NC_NOSHUFFLE, "zip", NC_NELEMS_ZIP, parms.params));
+    CHECK(nc_def_var_compress(ncid, varid, "zip", NC_NELEMS_ZIP, parms.params));
     CHECK(nc_enddef(ncid));
 
     /* Fill in the array */

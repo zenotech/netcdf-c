@@ -249,6 +249,12 @@ int (*inq_var_all)(int ncid, int varid, char *name, nc_type *xtypep,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp);
 
+int (*def_var_extra)(int ncid, int varid,
+		    const char* algorithm, int* nparams, unsigned int* params,
+		    int *contiguous, const size_t *chunksizes,
+                    int *no_fill, const void *fill_value,
+                    int *shuffle, int *fletcher32, int *endianness);
+
 int (*var_par_access)(int, int, int);
 
 /* Note the following may still be invoked by netcdf client code
@@ -285,14 +291,8 @@ int (*insert_enum)(int, nc_type, const char*, const void*);
 int (*inq_enum_member)(int, nc_type, int, char*, void*);
 int (*inq_enum_ident)(int, nc_type, long long, char*);
 int (*def_opaque)(int, size_t, const char*, nc_type*);
-int (*def_var_deflate)(int, int, int, int, int);
-int (*def_var_fletcher32)(int, int, int);
-int (*def_var_chunking)(int, int, int, const size_t*);
-int (*def_var_fill)(int, int, int, const void*);
-int (*def_var_endian)(int, int, int);
 int (*set_var_chunk_cache)(int, int, size_t, size_t, float);
 int (*get_var_chunk_cache)(int ncid, int varid, size_t *sizep, size_t *nelemsp, float *preemptionp);
-int (*def_var_compress)(int, int, int, const char*, int, unsigned int*);
 #endif /*USE_NETCDF4*/
 };
 

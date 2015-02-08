@@ -57,6 +57,7 @@ NCDEFAULT_get_varm,
 NCDEFAULT_put_varm,
 
 NC4_inq_var_all,
+NC4_def_var_extra,
 
 NC4_var_par_access,
 
@@ -91,14 +92,8 @@ NC4_insert_enum,
 NC4_inq_enum_member,
 NC4_inq_enum_ident,
 NC4_def_opaque,
-NC4_def_var_deflate,
-NC4_def_var_fletcher32,
-NC4_def_var_chunking,
-NC4_def_var_fill,
-NC4_def_var_endian,
 NC4_set_var_chunk_cache,
 NC4_get_var_chunk_cache,
-NC4_def_var_compress
 };
 
 NC_Dispatch* NC4_dispatch_table = NULL; /* moved here from ddispatch.c */
