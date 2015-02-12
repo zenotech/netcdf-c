@@ -4,12 +4,14 @@ set -e
 #S="-s"
 
 #Options
-O="-P -d5 -l9 -p0 -b32 -t1e-9 -r32"
+O="-d5 -l9 -p0 -b32 -t1e-9 -r32"
 
 # Known compressions
-C="nozip zip szip bzip2 fpzip zfp"
+C0="nozip zip szip bzip2 fpzip zfp"
+# Ignore szip when defaulting
+DFALT="zip bzip2 fpzip zfp"
 
-BASELINE=nozip.cdl
+BASELINE=nozip
 
 # if this is part of a distcheck action, then this script
 # will be executed in a different directory
@@ -33,7 +35,7 @@ if test -f ${top_srcdir}/libnetcdf.settings ; then
   TC=`echo "${TC}" | tr ',' ' ' | cut -d: -f 2`
 #sed -e 's/^Filter Support:[ \t]*\(.*\)$/\1/p'`
 else
-  TC="${C}"
+  TC="${DFALT}"
 fi
 TC=`echo ${TC} | sed 's/^ *//'`
 
@@ -44,7 +46,7 @@ EXE="${builddir}/tst_compress"
 fi
 
 function clean {
-for c in $C ; do
+for c in ${DFALT} ; do
 rm -f $c.nc $c.cdl
 done
 }
@@ -52,7 +54,7 @@ done
 function compare {
   $builddir/../ncdump/ncdump $S -n compress $1.nc > $1.cdl
   # diff against ${BASELINE}
-  if diff -wBb ${srcdir}/${BASELINE} $1.cdl ; then
+  if diff -wBb ${srcdir}/${BASELINE}.cdl $1.cdl ; then
 #  if test x = x ; then
     CODE=1
   else
@@ -80,11 +82,11 @@ function dotest {
 }
 
 function baseline {
+  rm -f ${BASELINE}.cdl ${BASELINE}.nc
   if ! ${EXE} ${O} nozip ; then
     echo "***FAIL: tst_compress zip"
   else
-    rm -f ${BASELINE}
-    ../ncdump/ncdump $S -n compress nozip.nc > ./${BASELINE}
+    ../ncdump/ncdump $S -n compress nozip.nc > ./${BASELINE}.cdl
   fi
 }
 
@@ -95,14 +97,6 @@ clean
 # Build the baseline
 baseline
 
-# Main test
-if test -f ${builddir}/${BASELINE} ; then
-    echo "baseline: ${builddir}/${BASELINE}"
-else
-  echo "baseline: ${builddir}/${BASELINE}"
-  echo "No baseline file exists"
-  exit 1
-fi
 
 PASSFAIL=1
 
@@ -111,7 +105,7 @@ for c in $TC ; do
 done
 
 clean
-rm -f ${BASELINE}
+rm -f ${BASELINE}.nc ${BASELINE}.cdl
 
 if test "x$PASSFAIL" = "x1" ; then
     echo "***PASS: run_compress"

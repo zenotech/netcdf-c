@@ -569,10 +569,11 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   # Locate compression filter libraries
   ################################
 
-  OPTION(COMPRESSORS "Which compression filters to enable" "zip")
-
   # Apparently filter names must be upper case
-  SET(ALLFILTERS ZLIB SZIP BZIP2 FPZIP ZFP)
+  SET(ALLFILTERS ZIP SZIP BZIP2 FPZIP ZFP)
+
+  # Default is to look for all compression libraries
+  OPTION(COMPRESSION "Which compression filters to enable" "${ALLFILTERS}")
 
   MACRO(EQUATE x1 x2)
     IF(${x1})
@@ -595,14 +596,14 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDMACRO()
 
   # Locate candidate compression libraries
-  LOCATE_LIB(ZLIB z)
+  LOCATE_LIB(ZIP z)
   LOCATE_LIB(SZIP sz)
   LOCATE_LIB(BZIP2 bz2)
   LOCATE_LIB(FPZIP fpzip)
   LOCATE_LIB(ZFP zfp)
 
   # Make compressors into a cmake list
-  STRING(REPLACE "," " " ENABLEDFILTERS ${COMPRESSORS})
+  STRING(REPLACE "," " " ENABLEDFILTERS ${COMPRESSION})
   STRING(REPLACE " " ";" ENABLEDFILTERS ${ENABLED_FILTERS})
   ENABLEDFILTERS="zip $ENABLEDFILTERS"
 

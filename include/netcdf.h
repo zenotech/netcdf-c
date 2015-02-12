@@ -829,14 +829,6 @@ nc_def_var_endian(int ncid, int varid, int endian);
 EXTERNL int
 nc_inq_var_endian(int ncid, int varid, int *endianp);
 
-/* Define the shuffle of a variable. */
-EXTERNL int
-nc_def_var_shuffle(int ncid, int varid, int shuffle);
-
-/* Learn about the shuffle of a variable. */
-EXTERNL int
-nc_inq_var_shuffle(int ncid, int varid, int *shufflep);
-
 /* Set the fill mode (classic or 64-bit offset files only). */
 EXTERNL int
 nc_set_fill(int ncid, int fillmode, int *old_modep);
@@ -1969,8 +1961,16 @@ nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, uns
 
 /* Find out compression settings of a var. */
 EXTERNL int
-nc_inq_var_compress(int ncid, int varid, int *useshufflep, 
+nc_inq_var_compress(int ncid, int varid,
 		    char**algorithmp, int* nparamsp, unsigned int* paramsp);
+
+/* Define the shuffle of a variable. */
+EXTERNL int
+nc_def_var_shuffle(int ncid, int varid, int shuffle);
+
+/* Learn about the shuffle of a variable. */
+EXTERNL int
+nc_inq_var_shuffle(int ncid, int varid, int *shufflep);
 
 #define NC_HAVE_META_H
 

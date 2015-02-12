@@ -823,7 +823,8 @@ fi
   AC_ARG_WITH([compression],
               [AS_HELP_STRING([--with-compression=filter,filter,...],
                               [Specify filters to look for.])],
-              [ENABLEDFILTERS=$with_compression], [ENABLEDFILTERS=""])
+              [ENABLEDFILTERS=$with_compression],
+              [ENABLEDFILTERS="$ALLFILTERS"])
   AC_MSG_RESULT([$ENABLEDFILTERS])
   ENABLEDFILTERS=`echo $ENABLEDFILTERS | tr ',' ' '`
   ENABLEDFILTERS="zip $ENABLEDFILTERS"
@@ -842,6 +843,7 @@ fi
       fi
       case "$f" in
       zip)
+	# Check to see if it is enabled in hdf5
 	AC_SEARCH_LIBS([H5Pset_deflate],[hdf5 hdf5_hl],
                        [havefilter=yes],[havefilter=no])	
         if test "x$havefilter" = xyes ; then
@@ -850,9 +852,9 @@ fi
 	;;
 
       szip)
-	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[szip],
-                     [havefilter=yes],[havefilter=no])	
+	# Check to see if it is enabled in hdf5
+	AC_SEARCH_LIBS([H5Z_SZIP],[hdf5 hdf5_hl],
+                       [havefilter=yes],[havefilter=no])	
         if test "x$havefilter" = xyes; then
           AC_DEFINE([SZIP_FILTER], [1], [if true, support szip compression])
 	fi

@@ -44,14 +44,12 @@ typedef union {
         unsigned int pixels_per_block;
     } szip;
     struct {
-	int ndimalg; /* Specify algorithm for handling more than N dims*/
 	int isdouble;
 	int prec; /* number of bits of precision (zero = full) */
 	int rank;
 	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
     } fpzip;
     struct {
-	int ndimalg; /* Specify algorithm for handling more than N dims*/
         int isdouble;
         int prec;
         double rate;
