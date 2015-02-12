@@ -31,11 +31,9 @@ Currently, the following schemes are supported.
 - "fpzip" (from LLNL)
 - "zfp" (from LLNL)
 
-The first, zip, is directly supported by libhdf5 if it 
-is compiled with zlib support (on by default).
-The second, szip, can be compiled into hdf5, but if not,
-then it can be supported by the netcdf compression support
-in the same way as the last three.
+The first two, zip and szip, are directly supported by libhdf5 if it 
+is compiled with zlib and (optionally) szip support.
+Support for zlib is on by default.
 
 The last three require that the netcdf library be compiled
 with the library and include directory specified
