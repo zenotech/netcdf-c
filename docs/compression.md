@@ -83,14 +83,12 @@ typedef union {
         unsigned int pixels_per_block;
     } szip;
     struct {
-        int ndimalg; //Specify algorithm for handling more than N dims
         int isdouble;
         int prec; // number of bits of precision (zero = full)
         int rank;
         size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
     } fpzip;
     struct {
-        int ndimalg; // Specify algorithm for handling more than N dims
         int isdouble;
         int prec;
         double rate;
@@ -100,17 +98,6 @@ typedef union {
     } zfp;
 } nc_compression_t;
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Suppose we have this variable.
-~~~~~~~~~~
-dimensions:
-  d1 = ...;
-  d2 = ...;
-  d3 = ...;
-  ...
-  dN = ...;
-int v(d1,d2,d3,...dN)
-~~~~~~~~~~
 
 ### Chunking
 Every time a compressor (or decompressor) is called,
@@ -256,9 +243,18 @@ The possible return codes are as follows.
 
 # Algorithm Specific Notes
 
-## *fpzip* and *zfp*
+Suppose we have this variable.
+~~~~~~~~~~
+dimensions:
+  d1 = ...;
+  d2 = ...;
+  d3 = ...;
+  ...
+  dN = ...;
+int v(d1,d2,d3,...dN)
+~~~~~~~~~~
 
-Suppose we assume the variable v(d1,d2,d3,...dN) defined above.
+## *fpzip* and *zfp*
 
 The fpzip (and zfp) have the problem that they are only defined
 for variables with 1 to 3 dimensions. So, some way must be defined
@@ -339,8 +335,7 @@ two criteria must be met.
 2. The library for the compression algorithm must be accessible,
    typically thru the *LDFLAGS* and *CPPFLAGS* environment variables.
 
-If *--with-compression* is not specified, then the set of all known
-filters will be used as the default.
+If *--with-compression* is not specified, then it defaults to zip only.
 
 ## Cmake
 1. The flag *-DCOMPRESSION=c1,c2,...cn*
@@ -350,7 +345,5 @@ filters will be used as the default.
    Typically, the flag *-DCMAKE_PREFIX_PATH=...* is used
    to specify these libraries.
 
-If *-DCOMPRESSION* is not specified, then the set of all known
-filters will be used as the default.
-
+If *-DCOMPRESSION* is not specified, then it defaults to zip only.
 
