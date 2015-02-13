@@ -252,7 +252,7 @@ oc_set_curl_options(OCstate* state)
     hostport = occombinehostport(state->uri);
     if(hostport == NULL) {
       hostport = (char*)malloc(sizeof(char)*1);
-      *hostport = "";
+      *hostport = '\0';
     }
 
     store = &ocglobalstate.rc.ocrc;
