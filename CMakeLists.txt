@@ -109,13 +109,6 @@ EXECUTE_PROCESS(
 IF(CONFIG_DATE)
 	string(STRIP ${CONFIG_DATE} CONFIG_DATE)
 ENDIF()
-##
-
-##
-# Allow for extra dependencies.
-##
-
-SET(EXTRA_DEPS "")
 
 ##
 # Allow for extra dependencies.
@@ -461,13 +454,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     IF(MSVC)
       FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
     ELSE()
-      # try this first
-      FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
-      IF(HDF5_FOUND)
-        SET(HDF5_C_LIBRARIES ${HDF5_LIBRARIES})
-      ELSE()
-        FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
-      ENDIF()
+      FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
     ENDIF()
   ENDIF()
 
@@ -667,6 +654,7 @@ IF(ENABLE_DAP)
   IF(NOT CURL_LIBRARY)
     MESSAGE(FATAL_ERROR "DAP Support specified, CURL libraries are not found.")
   ENDIF()
+
   ADD_DEFINITIONS(-DCURL_STATICLIB=1)
   INCLUDE_DIRECTORIES(${CURL_INCLUDE_DIRS})
 
@@ -1451,7 +1439,6 @@ ENDIF()
 # install them in the binary dir. Grab all of the .libs, put them
 # in the libdir.
 ##
-IF(FALSE)
 IF(MSVC)
   FILE(GLOB COPY_FILES ${CMAKE_PREFIX_PATH}/lib/*.lib)
   INSTALL(FILES ${COPY_FILES}
@@ -1468,7 +1455,6 @@ IF(MSVC)
   #  INSTALL(FILES ${ALL_TLL_LIBS}
   #  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   #  COMPONENT dependencies)
-ENDIF()
 ENDIF()
 
 # Subdirectory CMakeLists.txt files should specify their own
