@@ -109,13 +109,6 @@ EXECUTE_PROCESS(
 IF(CONFIG_DATE)
 	string(STRIP ${CONFIG_DATE} CONFIG_DATE)
 ENDIF()
-##
-
-##
-# Allow for extra dependencies.
-##
-
-SET(EXTRA_DEPS "")
 
 ##
 # Allow for extra dependencies.
@@ -461,13 +454,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     IF(MSVC)
       FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
     ELSE()
-      # try this first
-      FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
-      IF(HDF5_FOUND)
-        SET(HDF5_C_LIBRARIES ${HDF5_LIBRARIES})
-      ELSE()
-        FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
-      ENDIF()
+      FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
     ENDIF()
   ENDIF()
 
@@ -557,102 +544,69 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDIF()
 
   # Check for ZLib, but only if using HDF5.
-#  FIND_PACKAGE(ZLIB)
-#  IF(NOT ZLIB_LIBRARY)
-#    MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
-#  ENDIF()
-#  SET(USE_ZLIB ON)
-#  SET(ZLIB_FILTER ON)
-#  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
 
   ################################
   # Locate compression filter libraries
   ################################
 
   # Apparently filter names must be upper case
-  SET(ALLFILTERS ZIP SZIP BZIP2 FPZIP ZFP)
 
   # Default is to look for all compression libraries
-  OPTION(COMPRESSION "Which compression filters to enable" "${ALLFILTERS}")
 
-  MACRO(EQUATE x1 x2)
-    IF(${x1})
-      SET(${x2} ${${x1}})
-    ELSEIF(${x2})
-      SET(${x1} ${${x2}})
-    ENDIF()
-  ENDMACRO()
 
-  # Utility macro
-  MACRO(LOCATE_LIB prefix lib)
-    FIND_PACKAGE(${prefix} COMPONENTS C ${lib} NO_MODULE)
-    IF(NOT ${${prefix}_FOUND})
-      FIND_PACKAGE(${prefix})
-    ENDIF()
-    IF(${${prefix}_FOUND})
-      EQUATE(${prefix}_LIBRARY ${prefix}_LIBRARIES)
-      EQUATE(${prefix}_INCLUDE_DIR ${prefix}_INCLUDE_DIRS)
-    ENDIF()
-  ENDMACRO()
+  SET(ALLFILTERS BZIP2 FPZIP ZFP)
 
-  # Locate candidate compression libraries
-  LOCATE_LIB(ZIP z)
-  LOCATE_LIB(SZIP sz)
-  LOCATE_LIB(BZIP2 bz2)
-  LOCATE_LIB(FPZIP fpzip)
-  LOCATE_LIB(ZFP zfp)
+  IF(USE_SZIP)
+	FIND_PACKAGE(SZIP NO_MODULE REQUIRED)
+	INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
+  ENDIF()
 
-  # Make compressors into a cmake list
-  STRING(REPLACE "," " " ENABLEDFILTERS ${COMPRESSION})
-  STRING(REPLACE " " ";" ENABLEDFILTERS ${ENABLED_FILTERS})
-  ENABLEDFILTERS="zip $ENABLEDFILTERS"
-
-  SET(ACTIVEFILTERS)
-  SET(DUP 0)
-  FOREACH(A ${ALLFILTERS})
-    FOREACH(D ${ACTIVEFILTERS})
-      if(${D} equals ${A})
-        SET(DUP 1)
-      ENDIF()
-    IF(NOT ${DUP})
-      IF(${A}_FOUND)
-        MESSAGE(STATUS "${A} library found: ${${A}_LIBRARIES}")
-        SET(ACTIVEFILTERS ${ACTIVEFILTERS} ${A})
-        SET(HAVE_${A} ON)
-        SET(USE_${A} ON)
-        SET(${A}_FILTER ON)
-        IF(${A}_INCLUDE_DIRS)
-          SET(${A}_INCLUDE_DIR ${${A}_INCLUDE_DIRS})
-          INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIRS})
-        ELSEIF(${A}_INCLUDE_DIR)
-          SET(${A}_INCLUDE_DIRS ${${A}_INCLUDE_DIR})
-        ENDIF()
-        INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
-        IF(${A}_LIBRARY)
-          SET(${A}_LIBRARIES ${${A}_LIBRARY})
-        ENDIF()
-      ELSE()
-        MESSAGE(STATUS "${A} library not found.")
-      ENDIF()
-    ENDIF(NOT ${DUP})
-  ENDFOREACH()
-  string (REPLACE ";" " " ACTIVEFILTERS "${ACTIVEFILTERS}")
-  IF(NOT ZLIB_LIBRARIES)
+  # Check for ZLib, but only if using HDF5.
+  FIND_PACKAGE(ZLIB)
+  IF(NOT ZLIB_LIBRARY)
     MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
   ENDIF()
+  SET(USE_ZLIB ON)
+  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
+
+
+  ##
+  # Check for additional compression libraries.
+  # 1. bzip2
+  # 2. fpzip
+  # 3. zfp
+  ##
+  FIND_LIBRARY(HAVE_BZIP2 NAMES bzip2 bz2)
+  FIND_LIBRARY(HAVE_FPZIP NAMES fpzip)
+  FIND_LIBRARY(HAVE_ZFP NAMES ZFP)
+
+  FIND_PATH(BZIP2_INCLUDE_DIR bzlib.h)
+  FIND_PATH(FPZIP_INCLUDE_DIR fpzip.h)
+  FIND_PATH(ZFP_INCLUDE_DIR zfp.h)
+
+  FOREACH(A ${ALLFILTERS})
+    IF(HAVE_${A})
+      MESSAGE(STATUS "Found ${A}: ${HAVE_${A}}")
+      SET(USE_${A} ON)
+      SET(${A}_FILTER ON)
+      IF(${A}_INCLUDE_DIR)
+        INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
+      ENDIF()
+    ELSE()
+      MESSAGE(WARNING "Warning: Couldn't find ${A}")
+    ENDIF()
+  ENDFOREACH()
 ENDIF() #USE_HDF5 OR ENABLE_NETCDF_4
 
 # Option to Build DAP Client
 OPTION(ENABLE_DAP "Enable DAP Client." ON)
 IF(ENABLE_DAP)
   SET(USE_DAP ON)
-  FIND_PACKAGE(CURL NO_MODULE)
-  IF(NOT CURL_FOUND)
-    FIND_PACKAGE(CURL)
-  ENDIF()
+  FIND_PACKAGE(CURL)
   IF(NOT CURL_LIBRARY)
     MESSAGE(FATAL_ERROR "DAP Support specified, CURL libraries are not found.")
   ENDIF()
+
   ADD_DEFINITIONS(-DCURL_STATICLIB=1)
   INCLUDE_DIRECTORIES(${CURL_INCLUDE_DIRS})
 
@@ -1367,7 +1321,7 @@ IF(USE_DAP)
   ADD_SUBDIRECTORY(libdap2)
 ENDIF()
 
-add_subdirectory(liblib)
+ADD_SUBDIRECTORY(liblib)
 
 # For tests and utilities, we are no longer
 # exporting symbols but rather importing them.
@@ -1437,7 +1391,6 @@ ENDIF()
 # install them in the binary dir. Grab all of the .libs, put them
 # in the libdir.
 ##
-IF(FALSE)
 IF(MSVC)
   FILE(GLOB COPY_FILES ${CMAKE_PREFIX_PATH}/lib/*.lib)
   INSTALL(FILES ${COPY_FILES}
@@ -1454,7 +1407,6 @@ IF(MSVC)
   #  INSTALL(FILES ${ALL_TLL_LIBS}
   #  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   #  COMPONENT dependencies)
-ENDIF()
 ENDIF()
 
 # Subdirectory CMakeLists.txt files should specify their own
