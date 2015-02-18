@@ -557,14 +557,6 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDIF()
 
   # Check for ZLib, but only if using HDF5.
-<<<<<<< HEAD
-#  FIND_PACKAGE(ZLIB)
-#  IF(NOT ZLIB_LIBRARY)
-#    MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
-#  ENDIF()
-#  SET(USE_ZLIB ON)
-#  SET(ZLIB_FILTER ON)
-#  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
 
   ################################
   # Locate compression filter libraries
@@ -606,7 +598,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   # Make compressors into a cmake list
   STRING(REPLACE "," " " ENABLEDFILTERS ${COMPRESSION})
   STRING(REPLACE " " ";" ENABLEDFILTERS ${ENABLED_FILTERS})
-  ENABLEDFILTERS="zip $ENABLEDFILTERS"
+  SET(ENABLEDFILTERS="zip $ENABLEDFILTERS")
 
   SET(ACTIVEFILTERS)
   SET(DUP 0)
@@ -641,22 +633,6 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   IF(NOT ZLIB_LIBRARIES)
     MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
   ENDIF()
-=======
-  FIND_PACKAGE(ZLIB)
-  IF(NOT ZLIB_LIBRARY)
-    MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
-  ENDIF()
-  SET(USE_ZLIB ON)
-  SET(ZLIB_FILTER ON)
-  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
-
-  #Check to see if H5Z_SZIP exists in HDF5_Libraries. If so, we must use szip.
-  IF(USE_SZIP)
-    FIND_PACKAGE(SZIP NO_MODULE REQUIRED)
-    INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
-    SET(SZIP_FILTER ON)
-  ENDIF()
-  # Locate compression filter libraries (except zlib and szip)
 
   FIND_LIBRARY(HAVE_BZIP2 NAMES bzip2)
   FIND_LIBRARY(HAVE_FPZIP NAMES fpzip)
@@ -673,12 +649,11 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       MESSAGE(STATUS "Found ${HAVE_${A}}")
       IF(${A}_INCLUDE_DIR)
         INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
-      ENDIF()      
+      ENDIF()
     ELSE()
       MESSAGE(WARNING "Warning: Couldn't find ${A}")
     ENDIF()
   ENDFOREACH()
->>>>>>> 1. move the tests in nccompress_tests to nc_test4
 ENDIF() #USE_HDF5 OR ENABLE_NETCDF_4
 
 # Option to Build DAP Client
