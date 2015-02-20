@@ -46,13 +46,13 @@ else
 EXE="${builddir}/tst_compress"
 fi
 
-function clean {
-for c in ${DFALT} ; do
-rm -f $c.nc $c.cdl
-done
+clean() {
+    for c in ${DFALT} ; do
+        rm -f $c.nc $c.cdl
+    done
 }
 
-function compare {
+compare() {
   $builddir/../ncdump/ncdump $S -n compress $1.nc > $1.cdl
   # diff against ${BASELINE}
   if diff -wBb ${srcdir}/${BASELINE}.cdl $1.cdl ; then
@@ -69,7 +69,7 @@ function compare {
   if test CODE = 0 ; then PASSFAIL=0; fi
 }
 
-function dotest {
+dotest() {
   # Create {zip,bzip2,szip}.nc
   if ! ${EXE} ${O} $1 ; then
     echo "***FAIL: tst_compress: $1"
@@ -82,7 +82,7 @@ function dotest {
   fi
 }
 
-function baseline {
+baseline() {
   rm -f ${BASELINE}.cdl ${BASELINE}.nc
   if ! ${EXE} ${O} nozip ; then
     echo "***FAIL: tst_compress zip"
