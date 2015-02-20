@@ -25,9 +25,10 @@ cd $srcdir
 srcdir=`pwd`
 echo "srcdir=${srcdir}"
 cd $builddir
-pushd ${srcdir}/..
+cd ${srcdir}/..
 top_srcdir=`pwd`
-popd
+cd $builddir
+echo "top_srcdir=${top_srcdir}"
 
 # Figure out the compressions to test
 if test -f ${top_srcdir}/libnetcdf.settings ; then
