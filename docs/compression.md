@@ -31,18 +31,16 @@ Currently, the following schemes are supported.
 - "fpzip" (from LLNL)
 - "zfp" (from LLNL)
 
-The first, zip, is directly supported by libhdf5 if it 
-is compiled with zlib support (on by default).
-The second, szip, can be compiled into hdf5, but if not,
-then it can be supported by the netcdf compression support
-in the same way as the last three.
+The first two, zip and szip, are directly supported by libhdf5 if it 
+is compiled with zlib and (optionally) szip support.
+Support for zlib is on by default.
 
 The last three require that the netcdf library be compiled
 with the library and include directory specified
 in the *LDFLAGS* and *CPPFLAGS* environment variables.
 
-The bzip2 support is a bit of a problem because the API
-to bzip2 is not entirely standardized.
+Some of these can present a problem because the library API
+may not entirely standardized.
 
 # Extensions to *netcdf.h*
 
@@ -85,14 +83,12 @@ typedef union {
         unsigned int pixels_per_block;
     } szip;
     struct {
-        int ndimalg; //Specify algorithm for handling more than N dims
         int isdouble;
         int prec; // number of bits of precision (zero = full)
         int rank;
         size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
     } fpzip;
     struct {
-        int ndimalg; // Specify algorithm for handling more than N dims
         int isdouble;
         int prec;
         double rate;
@@ -102,17 +98,6 @@ typedef union {
     } zfp;
 } nc_compression_t;
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Suppose we have this variable.
-~~~~~~~~~~
-dimensions:
-  d1 = ...;
-  d2 = ...;
-  d3 = ...;
-  ...
-  dN = ...;
-int v(d1,d2,d3,...dN)
-~~~~~~~~~~
 
 ### Chunking
 Every time a compressor (or decompressor) is called,
@@ -137,7 +122,6 @@ the parameters is, of course, algorithm dependent.
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 int nc_def_var_compress(int ncid,
                         int varid,
-                        int useshuffle,
                         const char* algorithm,
                         int nparams,
                         unsigned int* params);
@@ -151,16 +135,13 @@ nc_inq_ncid().
 
 2. *varid* -- Variable ID
 
-3. *useshuffle* -- Set to1 if the shuffle filter is
-turned on for this variable, and a 0 otherwise.
-
-4. *algorithm* -- This specifies the name of the compression
+3. *algorithm* -- This specifies the name of the compression
 algorithm to use (e.g. "zip", "bzip2", etc).
 
-5. *nparams* -- This specifies the number of valid paramters
+4. *nparams* -- This specifies the number of valid paramters
 in the params vector.
 
-6. *params* -- This specifies the parameters for the specified
+5. *params* -- This specifies the parameters for the specified
 compression algorithm.
 
 The possible return codes are as follows.
@@ -179,7 +160,6 @@ If any parameter is null, then no value will be returned.
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 int nc_inq_var_compress(int ncid,
                         int varid,
-                        int *useshufflep,
                         char**algorithmp,
                         int* nparamsp,
                         unsigned int* paramsp);
@@ -193,18 +173,15 @@ nc_inq_ncid().
 
 2. *varid* -- Variable ID
 
-3. *shufflep* -- A 1 will be written here if the shuffle filter is
-turned on for this variable, and a 0 otherwise. \ref ignored_if_null.
-
-4. *deflatep* -- If this pointer is non-NULL, the name of the compression
+3. *deflatep* -- If this pointer is non-NULL, the name of the compression
 algorithm for this variable will be stored into this parameter.
 This is a constant and the caller should not free this value.
 \ref ignored_if_null.
 
-5. *nparamsp* -- The number of valid parameters will be stored here.
+4. *nparamsp* -- The number of valid parameters will be stored here.
 \ref ignored_if_null.
 
-6. *paramsp* -- The parameters for the specified
+5. *paramsp* -- The parameters for the specified
 compression algorithm will be stored into this vector.
 
 The possible return codes are as follows.
@@ -214,9 +191,57 @@ The possible return codes are as follows.
 - *NC_ENOTVAR* -- Invalid variable ID.
 - *NC_ECOMPRESS* -- Invalid compression parameters.
 
-# Algorithm Specific Notes
 
-## *fpzip* and *zfp*
+### nc_def_var_shuffle
+
+In order to simplify the compression related API,
+the shuffle flag is now handled like e.g. fletcher32,
+as a separate set of procedures.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~
+int nc_def_var_shuffle(int ncid, int varid, int shuffle);
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The parameter semantics are as follows.
+
+1. *ncid* -- NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+2. *varid* -- Variable ID
+
+3. *shuffle* -- 1 indicates turn on shuffle, 0 indicates turn it off.
+
+The possible return codes are as follows.
+- *NC_NOERR* -- No error.
+- *NC_ENOTNC4* -- Not a netCDF-4 file. 
+- *NC_EBADID* -- Bad ncid.
+- *NC_ENOTVAR* -- Invalid variable ID.
+- *NC_EINVAL* -- Invalid argument
+
+~~~~~~~~~~~~~~~~~~~~~~~~~
+int nc_inq_var_shuffle(int ncid, int varid, int *shuffle);
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The parameter semantics are as follows.
+
+1. *ncid* -- NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+2. *varid* -- Variable ID
+
+3. *shufflep* -- the current shuffle value for this variable is
+                 stored thru this pointer.
+
+The possible return codes are as follows.
+- *NC_NOERR* -- No error.
+- *NC_ENOTNC4* -- Not a netCDF-4 file. 
+- *NC_EBADID* -- Bad ncid.
+- *NC_ENOTVAR* -- Invalid variable ID.
+- *NC_EINVAL* -- Invalid argument
+
+# Algorithm Specific Notes
 
 Suppose we have this variable.
 ~~~~~~~~~~
@@ -229,12 +254,14 @@ dimensions:
 int v(d1,d2,d3,...dN)
 ~~~~~~~~~~
 
+## *fpzip* and *zfp*
+
 The fpzip (and zfp) have the problem that they are only defined
 for variables with 1 to 3 dimensions. So, some way must be defined
 to support variables with N dimensions, where N is less than 3.
 
 The following schemes have been defined to handle this case.
-1. Prefix -- The first two dimensions are kept as is, and the
+1. Prefix (the default) -- The first two dimensions are kept as is, and the
    third dimension is increased to cover all of the dimensions
    after the first two. So the above is treated as if it was defined
    as follows.
@@ -242,7 +269,7 @@ The following schemes have been defined to handle this case.
 int v(d1,d2,dM)
 ~~~~~~~~~~
    where dM is defined to have the size d3 x d4 ...x dN.
-   Since we are dealing with chunks, the actual last chunk
+   Since we are actually dealing with chunks, the actual last chunk
    is treated as if it was of size c3 x d4 ...x cN.
 
 2. Choice (M out of N) -- The idea here is to define the chunks so that
@@ -250,11 +277,12 @@ int v(d1,d2,dM)
    has significant consequences for performance because it can increase
    the number of chunks dramatically, which can significantly increase
    compression time.
-<!--
-Suffix -- The last two dimensions are kept as is, and the
-   incoming data block is treated as if it was divided into M
-   blocks where M is c1 x c2 ... cS where S is N - 2.
--->
+
+The choice of scheme is determined as follows.
+
+1. If all but three of the chunksizes are set to 1 (one),
+   then the choice scheme will be used.
+2. Otherwise, prefix will be used.
 
 <!--
 # Adding a New Compression Algorithm
@@ -284,10 +312,6 @@ Its usage is as follows.
 ~~~~~~~~~~
 tst_compress <options>
 where the options are:
-    [-P] -- specify prefix multi-dimensional algorithm
-    [-C(0|1)*] -- specify choice multi-dimensional algorithm; a zero digit
-                  implies use the full chunking, 1 => chunk is 1.
-    [-(0|1)*] -- Same as -C; specify choice multi-dimensional algorithm
     [-d<int>] -- specify number of dimensions to use
     [-p<int>] -- specify precision (0=>full precision) (fpzip,zfp only)
     [-r<double>] -- specify rate (zfp only)
@@ -298,3 +322,27 @@ where the options are:
     [nozip|zip|szip|bzip2|fpzip|zfp] -- specify the algorithms to test
                                         (may be repeated)
 ~~~~~~~~~~
+
+# Configuring Compression
+
+In order for a compression algorithm to be "activated",
+two criteria must be met.
+
+## Automake
+1. The ./configure flag --with-compression=c1,c2,...cn
+   must be used and the name of the desired compression algorithm
+   (e.g. bzip2) must appear as one of the comma separated ci.
+2. The library for the compression algorithm must be accessible,
+   typically thru the *LDFLAGS* and *CPPFLAGS* environment variables.
+
+If *--with-compression* is not specified, then it defaults to zip only.
+
+## Cmake
+1. The flag *-DCOMPRESSION=c1,c2,...cn*
+   must be used and the name of the desired compression algorithm
+   (e.g. bzip2) must appear as one of the comma separated ci.
+2. The library for the compression algorithm must be accessible.
+   Typically, the flag *-DCMAKE_PREFIX_PATH=...* is used
+   to specify these libraries.
+
+If *-DCOMPRESSION* is not specified, then it defaults to zip only.

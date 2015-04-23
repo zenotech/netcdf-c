@@ -84,9 +84,6 @@ static int fpzip_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int zfp_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 
 /*Forward*/
-#ifdef SZIP_FILTER
-static size_t H5Z_filter_szip(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
-#endif
 #ifdef BZIP2_FILTER
 static size_t H5Z_filter_bzip2(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
 #endif
@@ -353,11 +350,6 @@ szip_register(const NCC_COMPRESSOR* info, H5Z_class2_t* h5info)
     int avail = H5Zfilter_avail(H5Z_FILTER_SZIP);
     if(avail) {
         registered[info->nccid] = (avail ? 1 : 0);
-    } else {
-        /* finish the H5Z_class2_t instance */
-        h5info->filter = (H5Z_func_t)H5Z_filter_szip;
-        status = H5Zregister(h5info);
-        if(status == 0) registered[info->nccid] = 1;
     }
 #endif
     return THROW((status ? NC_ECOMPRESS : NC_NOERR));
@@ -375,8 +367,7 @@ szip_attach(const NCC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
     if(avail) {
        	if(H5Pset_szip(plistid, parms->szip.options_mask, parms->szip.pixels_per_block))
 	    status = NC_ECOMPRESS;
-    } else if(H5Pset_filter(plistid, info->h5id, H5Z_FLAG_MANDATORY, (size_t)NC_NELEMS_SZIP,parms->params))
-	status = NC_ECOMPRESS;
+    }
 done:
     return THROW(status);
 }
@@ -407,6 +398,7 @@ szip_inq(const NCC_COMPRESSOR* info, hid_t propid, int* argc, unsigned int* argv
 }
 #endif
 
+#if 0
 #ifdef SZIP_FILTER
 static size_t
 H5Z_filter_szip (unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
@@ -515,6 +507,7 @@ done:
     return ret_value;
 }
 #endif /*SZIP_FILTER*/
+#endif /*0*/
 
 /**************************************************/
 
@@ -718,11 +711,9 @@ static int
 fpzip_valid(const NCC_COMPRESSOR* info, nc_compression_t* parms)
 {
     int status = NC_NOERR;
-    char c = (char)parms->fpzip.ndimalg;
     if(parms->fpzip.prec < 0 || parms->fpzip.prec > 64) {status = NC_EINVAL; goto done;}
     if(parms->fpzip.prec > 32 && !parms->fpzip.isdouble) {status = NC_EINVAL; goto done;}
     if(parms->fpzip.rank < 0 || parms->fpzip.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
-    if(c!='p' && c != 'c' && c != 's') {status = NC_EINVAL; goto done;}
 done:
     return THROW(status);
 }
@@ -741,6 +732,7 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 {
     int i;
     FPZ* fpz;
+    FPZ  fpinfo;
     nc_compression_t* params;
     int rank;
     int isdouble;
@@ -754,7 +746,7 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
     size_t chunksizes[NC_MAX_VAR_DIMS];
     int nx,ny,nz,nf;
     size_t nzsize;
-    int ndimalg;
+    int choice;
 
     if(nbytes == 0) return 0; /* sanity check */
 
@@ -762,6 +754,7 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
     isdouble = params->fpzip.isdouble;
     prec = params->fpzip.prec;
     rank = params->fpzip.rank;
+<<<<<<< HEAD
     ndimalg = (int)params->fpzip.ndimalg;	
 
     for(totalsize=1,i=0;i<rank;i++) {
@@ -771,6 +764,17 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 
     switch (ndimalg) {
     case NC_NDIM_CHOOSE:
+=======
+
+    for(choice=0,totalsize=1,i=0;i<rank;i++) {
+	chunksizes[i] = params->fpzip.chunksizes[i];
+	totalsize *= chunksizes[i];
+	if(chunksizes[i] > 1) choice++;
+    }
+    choice = (choice == 3 && rank > 3 ? 1 : 0);
+
+    if(choice) {
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         nx = ny = nz = nf = 1;
         for(i=0;i<rank;i++) {
 	    if(chunksizes[i] > 1) {
@@ -783,17 +787,24 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 		}
 	    }
 	}
+<<<<<<< HEAD
 	break;
     case NC_NDIM_PREFIX:
+=======
+    } else { /*prefix*/
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         /* Do some computations */
         nzsize = 0;
         if(rank > 2) {
             for(nzsize=1,i=2;i<rank;i++)
 	        nzsize *= chunksizes[i];
 	}
+<<<<<<< HEAD
 	break;
     case NC_NDIM_SUFFIX:
 	break;
+=======
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
     }
 
     /* Element size (in bytes) */
@@ -822,21 +833,32 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
         fpz->type = isdouble ? FPZIP_TYPE_DOUBLE : FPZIP_TYPE_FLOAT;
 	fpz->prec = prec;
 
+<<<<<<< HEAD
 	switch (ndimalg) {
 	case NC_NDIM_CHOOSE:
+=======
+	if(choice) {
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	    fpz->nx = nz;
 	    fpz->ny = ny;
 	    fpz->nz = nz;
 	    fpz->nf = nf;
+<<<<<<< HEAD
 	    break;
 	case NC_NDIM_PREFIX:
+=======
+	} else {/*prefix*/
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	    fpz->nx = chunksizes[0];
 	    fpz->ny = (rank >= 2 ? chunksizes[1] : 1);
 	    fpz->nz = (rank >= 3 ? nzsize : 1);
 	    fpz->nf = 1;
+<<<<<<< HEAD
 	    break;
 	case NC_NDIM_SUFFIX:
 	    break;
+=======
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	}
 
         /* Create the decompressed data buffer */
@@ -871,6 +893,7 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
         outbuf = (char*)malloc(bufbytes); /* overkill */
 
         /* Compress into the decompressed data buffer */
+<<<<<<< HEAD
         fpz = fpzip_write_to_buffer(outbuf,bufbytes);
         if(fpzip_errno != fpzipSuccess)
 	    goto cleanupAndFail;
@@ -911,6 +934,42 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
         free(*buf);
         *buf = outbuf;
         *buf_size = bufbytes;
+=======
+        fpinfo.type = isdouble ? FPZIP_TYPE_DOUBLE : FPZIP_TYPE_FLOAT;
+	fpinfo.prec = prec;
+
+        fpinfo.type = isdouble ? FPZIP_TYPE_DOUBLE : FPZIP_TYPE_FLOAT;
+	fpinfo.prec = prec;
+	if(choice) {
+	    fpinfo.nx = nz;
+	    fpinfo.ny = ny;
+	    fpinfo.nz = nz;
+	    fpinfo.nf = nf;
+	} else {/*prefix*/
+	    fpinfo.nx = chunksizes[0];
+	    fpinfo.ny = (rank >= 2 ? chunksizes[1] : 1);
+	    fpinfo.nz = (rank >= 3 ? nzsize : 1);
+	    fpinfo.nf = 1;
+	}
+
+	fpz = fpzip_write_to_buffer(outbuf,bufbytes);
+	if(fpzip_errno != fpzipSuccess)
+  	    goto cleanupAndFail;
+	*fpz = fpinfo;
+	outbuflen = fpzip_write(fpz,*buf);
+	if(outbuflen == 0 && fpzip_errno  == fpzipSuccess)
+	    fpzip_errno = fpzipErrorWriteStream;
+	if(fpzip_errno != fpzipSuccess)
+	    goto cleanupAndFail;
+	fpzip_write_close(fpz);
+	if(fpzip_errno != fpzipSuccess)
+	    goto cleanupAndFail;
+	
+	/* Replace the buffer given to us with our decompressed data buffer */
+	free(*buf);
+	*buf = outbuf;
+	*buf_size = bufbytes;
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         outbuf = NULL;
         return outbuflen; /* # valid bytes */
     }
@@ -957,11 +1016,17 @@ static int
 zfp_valid(const NCC_COMPRESSOR* info, nc_compression_t* parms)
 {
     int status = NC_NOERR;
+<<<<<<< HEAD
     char c = (char)parms->zfp.ndimalg;
     if(parms->zfp.prec < 0 || parms->zfp.prec > 64) {status = NC_EINVAL; goto done;}
     if(parms->zfp.prec > 32 && !parms->zfp.isdouble) {status = NC_EINVAL; goto done;}
     if(parms->zfp.rank < 0 || parms->zfp.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
     if(c != 'p' && c != 'c' && c != 's') {status = NC_EINVAL; goto done;}
+=======
+    if(parms->zfp.prec < 0 || parms->zfp.prec > 64) {status = NC_EINVAL; goto done;}
+    if(parms->zfp.prec > 32 && !parms->zfp.isdouble) {status = NC_EINVAL; goto done;}
+    if(parms->zfp.rank < 0 || parms->zfp.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 done:
     return THROW(status);
 }
@@ -993,7 +1058,11 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
     size_t chunksizes[NC_MAX_VAR_DIMS];
     int nx,ny,nz;
     size_t nzsize;
+<<<<<<< HEAD
     int ndimalg;
+=======
+    int choice = 0; /* default is prefix */
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
     
     if(nbytes == 0) return 0; /* sanity check */
 
@@ -1003,6 +1072,7 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
     rank = params->zfp.rank;
     rate = params->zfp.rate;
     accuracy = params->zfp.tolerance;
+<<<<<<< HEAD
     ndimalg = params->zfp.ndimalg;
 
     for(totalsize=1,i=0;i<rank;i++) {
@@ -1012,6 +1082,17 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 
     switch (ndimalg) {
     case NC_NDIM_CHOOSE:
+=======
+
+    for(choice=0,totalsize=1,i=0;i<rank;i++) {
+	chunksizes[i] = params->zfp.chunksizes[i];
+	totalsize *= chunksizes[i];
+	if(chunksizes[i] > 1) choice++;
+    }
+    choice = (choice == 3 && rank > 3 ? 1 : 0);
+
+    if(choice) {
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         nx = ny = nz = 1;
         for(i=0;i<rank;i++) {
             if(chunksizes[i] > 1) {
@@ -1024,8 +1105,12 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 		}
             }
         }
+<<<<<<< HEAD
 	break;
     case NC_NDIM_PREFIX:
+=======
+    } else { /*prefix*/
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         /* Do some computations */
         nzsize = 0;
         if(rank > 2) {
@@ -1033,9 +1118,12 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
                 nzsize *= chunksizes[i];
             }
         }
+<<<<<<< HEAD
 	break;
     case NC_NDIM_SUFFIX:
 	break;
+=======
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
     }
 
     /* Element size (in bytes) */
@@ -1051,6 +1139,7 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
         /* Allocated size of the target buffer */
         bufbytes = 1024 + inbytes; /* see fpzip? */
 
+<<<<<<< HEAD
 	switch (ndimalg) {
 	case NC_NDIM_CHOOSE:
 	    zfp.nx = nz;
@@ -1064,6 +1153,16 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 	    break;
 	case NC_NDIM_SUFFIX:
 	    break;
+=======
+	if(choice) {
+	    zfp.nx = nz;
+	    zfp.ny = ny;
+	    zfp.nz = nz;
+	} else {/* prefix */
+	    zfp.nx = chunksizes[0];
+	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
+	    zfp.nz = (rank >= 3 ? nzsize : 1);
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	}
 
         zfp.type = isdouble ? ZFP_TYPE_DOUBLE : ZFP_TYPE_FLOAT;
@@ -1095,6 +1194,7 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
          **/
 
         /* fill in zfp */
+<<<<<<< HEAD
 	switch (ndimalg) {
 	case NC_NDIM_CHOOSE:
 	    zfp.nx = nz;
@@ -1108,6 +1208,16 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 	    break;
 	case NC_NDIM_SUFFIX:
 	    break;
+=======
+	if(choice) {
+	    zfp.nx = nz;
+	    zfp.ny = ny;
+	    zfp.nz = nz;
+	} else { /*prefix*/
+	    zfp.nx = chunksizes[0];
+	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
+	    zfp.nz = (rank >= 3 ? nzsize : 1);
+>>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	}
 
         zfp.type = isdouble ? ZFP_TYPE_DOUBLE : ZFP_TYPE_FLOAT;

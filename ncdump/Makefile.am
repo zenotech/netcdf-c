@@ -42,13 +42,14 @@ if USE_NETCDF4
 check_PROGRAMS += tst_create_files tst_h_rdc0 tst_group_data		\
 tst_enum_data tst_opaque_data tst_string_data tst_vlen_data tst_comp	\
 tst_comp2 tst_nans tst_special_atts tst_unicode tst_fillbug \
-tst_chunking tst_h_scalar tst_compression
+tst_chunking tst_h_scalar tst_compression tst_bug324
 
 TESTS += tst_create_files tst_group_data tst_enum_data tst_opaque_data	\
 tst_string_data tst_vlen_data tst_comp tst_comp2 tst_nans		\
 tst_special_atts tst_netcdf4.sh tst_h_rdc0 tst_unicode tst_fillbug	\
-tst_fillbug.sh tst_netcdf4_4.sh tst_nccopy4.sh             \
-tst_grp_spec.sh tst_mud.sh tst_h_scalar tst_h_scalar.sh tst_formatx4.sh
+tst_fillbug.sh tst_netcdf4_4.sh tst_compression tst_nccopy4.sh             \
+tst_grp_spec.sh tst_mud.sh tst_h_scalar tst_h_scalar.sh tst_formatx4.sh \
+tst_bug324
 
 if EXTRA_TESTS
 TESTS += run_back_comp_tests.sh
@@ -135,5 +136,5 @@ EXTRA_DIST += tst_ncgen_shared.sh tst_ncgen4.sh tst_ncgen4_classic.sh	\
 tst_ncgen4_diff.sh tst_ncgen4_cycle.sh ref_ctest.c ref_ctest64.c \
 ctest.c ctest64.c
 
-CLEANFILES += results/*.nc results/*.dmp results/*.dmp2 tmp*.cdl
+CLEANFILES += results/*.nc results/*.dmp results/*.dmp2 tmp*.cdl tst_bug324.nc
 DISTCLEANFILES = results

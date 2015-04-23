@@ -1,5 +1,5 @@
 # Test c output
-T=tst_vars2
+T=tst_compress
 VG=valgrind --leak-check=full
 GDB=gdb --args
 #ARGS="nozip zip bzip2"

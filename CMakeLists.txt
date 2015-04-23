@@ -26,11 +26,11 @@ set(PACKAGE "netCDF" CACHE STRING "")
 SET(NC_VERSION_MAJOR 4)
 SET(NC_VERSION_MINOR 3)
 SET(NC_VERSION_PATCH 3)
-SET(NC_VERSION_NOTE "-rc3")
+SET(NC_VERSION_NOTE "")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
 SET(NC_VERSION ${netCDF_VERSION})
-SET(netCDF_LIB_VERSION 7.2.0)
+SET(netCDF_LIB_VERSION 7.2.1)
 SET(netCDF_SO_VERSION 7)
 SET(PACKAGE_VERSION ${VERSION})
 
@@ -109,13 +109,6 @@ EXECUTE_PROCESS(
 IF(CONFIG_DATE)
 	string(STRIP ${CONFIG_DATE} CONFIG_DATE)
 ENDIF()
-##
-
-##
-# Allow for extra dependencies.
-##
-
-SET(EXTRA_DEPS "")
 
 ##
 # Allow for extra dependencies.
@@ -461,13 +454,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     IF(MSVC)
       FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
     ELSE()
-      # try this first
-      FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
-      IF(HDF5_FOUND)
-        SET(HDF5_C_LIBRARIES ${HDF5_LIBRARIES})
-      ELSE()
-        FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
-      ENDIF()
+      FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
     ENDIF()
   ENDIF()
 
@@ -557,101 +544,69 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDIF()
 
   # Check for ZLib, but only if using HDF5.
-#  FIND_PACKAGE(ZLIB)
-#  IF(NOT ZLIB_LIBRARY)
-#    MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
-#  ENDIF()
-#  SET(USE_ZLIB ON)
-#  SET(ZLIB_FILTER ON)
-#  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
 
   ################################
   # Locate compression filter libraries
   ################################
 
-  OPTION(COMPRESSORS "Which compression filters to enable" "zip")
-
   # Apparently filter names must be upper case
-  SET(ALLFILTERS ZLIB SZIP BZIP2 FPZIP ZFP)
 
-  MACRO(EQUATE x1 x2)
-    IF(${x1})
-      SET(${x2} ${${x1}})
-    ELSEIF(${x2})
-      SET(${x1} ${${x2}})
-    ENDIF()
-  ENDMACRO()
+  # Default is to look for all compression libraries
 
-  # Utility macro
-  MACRO(LOCATE_LIB prefix lib)
-    FIND_PACKAGE(${prefix} COMPONENTS C ${lib} NO_MODULE)
-    IF(NOT ${${prefix}_FOUND})
-      FIND_PACKAGE(${prefix})
-    ENDIF()
-    IF(${${prefix}_FOUND})
-      EQUATE(${prefix}_LIBRARY ${prefix}_LIBRARIES)
-      EQUATE(${prefix}_INCLUDE_DIR ${prefix}_INCLUDE_DIRS)
-    ENDIF()
-  ENDMACRO()
 
-  # Locate candidate compression libraries
-  LOCATE_LIB(ZLIB z)
-  LOCATE_LIB(SZIP sz)
-  LOCATE_LIB(BZIP2 bz2)
-  LOCATE_LIB(FPZIP fpzip)
-  LOCATE_LIB(ZFP zfp)
+  SET(ALLFILTERS BZIP2 FPZIP ZFP)
 
-  # Make compressors into a cmake list
-  STRING(REPLACE "," " " ENABLEDFILTERS ${COMPRESSORS})
-  STRING(REPLACE " " ";" ENABLEDFILTERS ${ENABLED_FILTERS})
-  ENABLEDFILTERS="zip $ENABLEDFILTERS"
+  IF(USE_SZIP)
+	FIND_PACKAGE(SZIP NO_MODULE REQUIRED)
+	INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
+  ENDIF()
 
-  SET(ACTIVEFILTERS)
-  SET(DUP 0)
-  FOREACH(A ${ALLFILTERS})
-    FOREACH(D ${ACTIVEFILTERS})
-      if(${D} equals ${A})
-        SET(DUP 1)
-      ENDIF()
-    IF(NOT ${DUP})
-      IF(${A}_FOUND)
-        MESSAGE(STATUS "${A} library found: ${${A}_LIBRARIES}")
-        SET(ACTIVEFILTERS ${ACTIVEFILTERS} ${A})
-        SET(HAVE_${A} ON)
-        SET(USE_${A} ON)
-        SET(${A}_FILTER ON)
-        IF(${A}_INCLUDE_DIRS)
-          SET(${A}_INCLUDE_DIR ${${A}_INCLUDE_DIRS})
-          INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIRS})
-        ELSEIF(${A}_INCLUDE_DIR)
-          SET(${A}_INCLUDE_DIRS ${${A}_INCLUDE_DIR})
-        ENDIF()
-        INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
-        IF(${A}_LIBRARY)
-          SET(${A}_LIBRARIES ${${A}_LIBRARY})
-        ENDIF()
-      ELSE()
-        MESSAGE(STATUS "${A} library not found.")
-      ENDIF()
-    ENDIF(NOT ${DUP})
-  ENDFOREACH()
-  string (REPLACE ";" " " ACTIVEFILTERS "${ACTIVEFILTERS}")
-  IF(NOT ZLIB_LIBRARIES)
+  # Check for ZLib, but only if using HDF5.
+  FIND_PACKAGE(ZLIB)
+  IF(NOT ZLIB_LIBRARY)
     MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
   ENDIF()
+  SET(USE_ZLIB ON)
+  INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
+
+
+  ##
+  # Check for additional compression libraries.
+  # 1. bzip2
+  # 2. fpzip
+  # 3. zfp
+  ##
+  FIND_LIBRARY(HAVE_BZIP2 NAMES bzip2 bz2)
+  FIND_LIBRARY(HAVE_FPZIP NAMES fpzip)
+  FIND_LIBRARY(HAVE_ZFP NAMES ZFP)
+
+  FIND_PATH(BZIP2_INCLUDE_DIR bzlib.h)
+  FIND_PATH(FPZIP_INCLUDE_DIR fpzip.h)
+  FIND_PATH(ZFP_INCLUDE_DIR zfp.h)
+
+  FOREACH(A ${ALLFILTERS})
+    IF(HAVE_${A})
+      MESSAGE(STATUS "Found ${A}: ${HAVE_${A}}")
+      SET(USE_${A} ON)
+      SET(${A}_FILTER ON)
+      IF(${A}_INCLUDE_DIR)
+        INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
+      ENDIF()
+    ELSE()
+      MESSAGE(WARNING "Warning: Couldn't find ${A}")
+    ENDIF()
+  ENDFOREACH()
 ENDIF() #USE_HDF5 OR ENABLE_NETCDF_4
 
 # Option to Build DAP Client
 OPTION(ENABLE_DAP "Enable DAP Client." ON)
 IF(ENABLE_DAP)
   SET(USE_DAP ON)
-  FIND_PACKAGE(CURL NO_MODULE)
-  IF(NOT CURL_FOUND)
-    FIND_PACKAGE(CURL)
-  ENDIF()
+  FIND_PACKAGE(CURL)
   IF(NOT CURL_LIBRARY)
     MESSAGE(FATAL_ERROR "DAP Support specified, CURL libraries are not found.")
   ENDIF()
+
   ADD_DEFINITIONS(-DCURL_STATICLIB=1)
   INCLUDE_DIRECTORIES(${CURL_INCLUDE_DIRS})
 
@@ -748,6 +703,19 @@ IF(ENABLE_TESTS)
   SET(NC_CTEST_PROJECT_NAME "netcdf-c" CACHE STRING "Project Name for CTest-based testing purposes.")
   SET(NC_CTEST_DROP_SITE "my.cdash.org" CACHE STRING "Dashboard location for CTest-based testing purposes.")
   SET(NC_CTEST_DROP_LOC_PREFIX "" CACHE STRING "Prefix for Dashboard location on remote server when using CTest-based testing.")
+
+  FIND_PROGRAM(HOSTNAME_CMD NAMES hostname)
+  IF(NOT MSVC)
+    SET(HOSTNAME_ARG "-s")
+  ENDIF()
+  IF(HOSTNAME_CMD)
+    EXEC_PROGRAM(${HOSTNAME_CMD} ARGS "${HOSTNAME_ARG}" OUTPUT_VARIABLE HOSTNAME)
+    SET(NC_CTEST_SITE "${HOSTNAME}" CACHE STRING "Hostname of test machine.")
+  ENDIF()
+
+  IF(NC_CTEST_SITE)
+    SET(SITE "${NC_CTEST_SITE}" CACHE STRING "")
+  ENDIF()
 
   # Create a CTestConfig file from the template.
   CONFIGURE_FILE("${netCDF_SOURCE_DIR}/CTestConfig.cmake.in"
@@ -1087,6 +1055,12 @@ MACRO(add_bin_env_temp_large_test prefix F)
   ADD_TEST(${prefix}_${F} bash "-c" "TEMP_LARGE=${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${prefix}_${F}")
   IF(MSVC)
     SET_PROPERTY(TARGET ${prefix}_${F} PROPERTY FOLDER "tests")
+    SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()
 
@@ -1115,6 +1089,12 @@ MACRO(build_bin_test F)
     SET_TARGET_PROPERTIES(${F}
       PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
       )
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()
 
@@ -1124,6 +1104,12 @@ MACRO(add_bin_test_no_prefix F)
   ADD_TEST(${F} ${EXECUTABLE_OUTPUT_PATH}/${F})
   IF(MSVC)
     SET_PROPERTY(TEST ${F} PROPERTY FOLDER "tests/")
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()
 
@@ -1133,6 +1119,12 @@ MACRO(build_bin_test_no_prefix F)
   ADD_TEST(${F} ${EXECUTABLE_OUTPUT_PATH}/${F})
   IF(MSVC)
     SET_PROPERTY(TEST ${F} PROPERTY FOLDER "tests/")
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()
 
@@ -1155,6 +1147,12 @@ MACRO(add_bin_test prefix F)
   ADD_TEST(${prefix}_${F} ${EXECUTABLE_OUTPUT_PATH}/${prefix}_${F})
   IF(MSVC)
     SET_PROPERTY(TEST ${prefix}_${F} PROPERTY FOLDER "tests/")
+    SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
+      ${CMAKE_CURRENT_BINARY_DIR})
+    SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()
 
@@ -1207,10 +1205,21 @@ MACRO(print_conf_summary)
 
   MESSAGE("")
 ENDMACRO()
-
+##
 # Shell script Macro
+##
+# Determine if 'bash' is on the system.
+##
+
+FIND_PROGRAM(HAVE_BASH NAMES bash)
+IF(HAVE_BASH)
+  MESSAGE(STATUS "Found bash: ${HAVE_BASH}")
+ELSE()
+  MESSAGE(STATUS "Bash shell not found; disabling shell script tests.")
+ENDIF()
+
 MACRO(add_sh_test prefix F)
-  IF(NOT MSVC)
+  IF(HAVE_BASH)
     ADD_TEST(${prefix}_${F} bash "-c" "export srcdir=${CMAKE_CURRENT_SOURCE_DIR};export TOPSRCDIR=${CMAKE_SOURCE_DIR};${CMAKE_CURRENT_BINARY_DIR}/${F}.sh")
   ENDIF()
 ENDMACRO()
@@ -1312,7 +1321,7 @@ IF(USE_DAP)
   ADD_SUBDIRECTORY(libdap2)
 ENDIF()
 
-add_subdirectory(liblib)
+ADD_SUBDIRECTORY(liblib)
 
 # For tests and utilities, we are no longer
 # exporting symbols but rather importing them.
@@ -1382,7 +1391,6 @@ ENDIF()
 # install them in the binary dir. Grab all of the .libs, put them
 # in the libdir.
 ##
-IF(FALSE)
 IF(MSVC)
   FILE(GLOB COPY_FILES ${CMAKE_PREFIX_PATH}/lib/*.lib)
   INSTALL(FILES ${COPY_FILES}
@@ -1399,7 +1407,6 @@ IF(MSVC)
   #  INSTALL(FILES ${ALL_TLL_LIBS}
   #  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   #  COMPONENT dependencies)
-ENDIF()
 ENDIF()
 
 # Subdirectory CMakeLists.txt files should specify their own

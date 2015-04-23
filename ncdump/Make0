@@ -6,6 +6,8 @@ VG=valgrind --leak-check=full
 GDB=gdb --args
 #ARGS=tst_comp.nc copy_of_tst_comp.nc
 
+#L=/.libs
+
 EXP=export LD_LIBRARY_PATH="/usr/local/lib"
 
 CFLAGS=-gstabs+ -O0 -I.. -I../include -I. -I/usr/local/include -I/usr/include
@@ -15,14 +17,14 @@ NCC=nccopy.c nciter.c chunkspec.c utils.c dimmap.c
 
 
 all::
-	${EXP} ; gcc -o t ${CFLAGS} ${T}.c ${LDFLAGS}
+	${EXP} ; gcc -o ${T} ${CFLAGS} ${T}.c ${LDFLAGS}
 #	${EXP} ; gcc -o ncc ${CFLAGS} ${NCC} ${LDFLAGS} ;\
 
 t::
 	${EXP} ; ./${T} ${ARGS}
 
 g::
-	${EXP} ; ${GDB} ./.libs/${T} ${ARGS}
+	${EXP} ; ${GDB} .${L}/${T} ${ARGS}
 
 v::
-	${EXP} ; ${VG} ./.libs/${T} ${ARGS}
+	${EXP} ; ${VG} .${L}/${T} ${ARGS}

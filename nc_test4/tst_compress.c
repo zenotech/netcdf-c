@@ -98,7 +98,6 @@ static const char* zipnames[NZIP+1] = {"nozip","zip","szip","bzip2","fpzip","zfp
 static int supported[NZIP];
 
 /* From command line */	
-static char ndimalg = 'p';
 static size_t pattern[MAXDIMS]; /* from command line */
 static int test[NZIP];
 static int precision = DEFAULTPRECISION;
@@ -222,7 +221,7 @@ open(XZIP encoder)
     if(encoder != NOZIP) {
 	int nparams = NC_COMPRESSION_MAX_PARAMS;	
         /* Check the compression algorithm */
-        CHECK(nc_inq_var_compress(ncid,varid,NULL,&algorithm,&nparams,parms.params));
+        CHECK(nc_inq_var_compress(ncid,varid,&algorithm,&nparams,parms.params));
         if(strcmp(algorithm,compressor) != 0) {
 	    printf("Compression algorithm mismatch: %s\n",algorithm);
 	    return 0;
@@ -288,7 +287,7 @@ static int
 compare(void)
 {
    int errs = 0;
-   fprintf(stderr,"data comparison: |array|=%ld\n",actualproduct);
+   fprintf(stderr,"data comparison: |array|=%d\n",actualproduct);
    odom_reset();
    while(odom_more()) {
 	int offset = odom_offset();
@@ -315,12 +314,10 @@ showparameters(XZIP encoding, nc_compression_t* parms)
     case ZFP:
         fprintf(stderr,"parameters: "
                    " rank=%d"
-                   " multi=%c"
                    " precision=%d"
                    " rate=%g"
                    " tolerance=%g",
 	parms->zfp.rank,
-	parms->zfp.ndimalg,
 	parms->zfp.prec,
 	parms->zfp.rate,
 	parms->zfp.tolerance);
@@ -328,34 +325,32 @@ showparameters(XZIP encoding, nc_compression_t* parms)
     case FPZIP:
         fprintf(stderr,"parameters: "
                    " rank=%d"
-                   " multi=%c"
                    " precision=%d",
 	parms->fpzip.rank,
-	parms->fpzip.ndimalg,
 	parms->fpzip.prec);
 	break;
     case BZIP2:
-        fprintf(stderr,"parameters: rank=%ld level=%u",
+        fprintf(stderr,"parameters: rank=%d level=%u",
 		actualdims,parms->bzip2.level);
 	break;
     case SZIP:
-        fprintf(stderr,"parameters: rank=%ld mask=%0x pixels-per-block=%d",
+        fprintf(stderr,"parameters: rank=%d mask=%0x pixels-per-block=%d",
 		actualdims,
                 parms->szip.options_mask,
 		parms->szip.pixels_per_block);
 	break;
     case ZIP:
-        fprintf(stderr,"parameters: rank=%ld level=%u",
+        fprintf(stderr,"parameters: rank=%d level=%u",
 		actualdims,parms->zip.level);
 	break;
     case NOZIP:
-        fprintf(stderr,"parameters: rank=%ld",actualdims);
+        fprintf(stderr,"parameters: rank=%d",actualdims);
 	break;		
     default: break;
     }
 
     for(i=0;i<actualdims;i++)
-	fprintf(stderr,"%s%ld",(i==0?" chunks=":","),chunks[i]);
+	fprintf(stderr,"%s%d",(i==0?" chunks=":","),chunks[i]);
     fprintf(stderr,"\n");
 }
 
@@ -368,7 +363,6 @@ test_zfp(void)
     printf("\n*** Testing zfp compression.\n");
 
     /* Use zfp compression */
-    parms.zfp.ndimalg   = ndimalg;
     parms.zfp.isdouble  = 0; /* single (0) or double (1) precision */
     parms.zfp.prec      = 0; /* number of bits of precision */
     parms.zfp.rate      = rate;
@@ -406,7 +400,6 @@ test_fpzip(void)
     reset();
 
     /* Use fpzip compression */
-    parms.fpzip.ndimalg    = ndimalg;
     parms.fpzip.isdouble = 0; /* single (0) or double (1) precision */
     parms.fpzip.prec     = 0; /* number of bits of precision (zero = full) */
     parms.fpzip.rank     = actualdims;
@@ -685,10 +678,6 @@ usage()
     fprintf(stderr,
 "Usage: tst_compress <options>\n"
 "where options are:\n"
-"    [-P] -- specify prefix multi-dimensional algorithm\n"
-"    [-S] -- specify suffix multi-dimensional algorithm\n"
-"    [-C(0|1)*] -- specify choice multi-dimensional algorithm\n"
-"    [-(0|1)*] -- specify choice multi-dimensional algorithm\n"
 "    [-d<int>] -- specify number of dimensions to use\n"
 "    [-p<int>] -- specify precision (0=>full precision) (fpzip,zfp only)\n"
 "    [-r<double>] -- specify rate (zfp only)\n"
@@ -760,18 +749,8 @@ init(int argc, char** argv)
 	    }	    
 	} else {
 	    int c = arg[1];
-	    const char* digits;
-
 	    switch (c) {
 	    case 'h': usage();  break;
-	    case 'P': ndimalg = 'p'; break;
-	    case 'S': ndimalg = 's'; break;
-	    case 'C': case '0': case '1':
-		ndimalg = 'c';
-		digits = (c == 'c' ? &arg[2] : &arg[1]);
-		for(i=0;*digits;digits++,i++)
-		    pattern[i] = (*digits == 1 ? 1 : 0);
-		break;
 	    case 'd': actualdims = getint(&arg[2]); break;
 	    case 'p': precision = getint(&arg[2]); break;
 	    case 't':

@@ -2,6 +2,11 @@
 # This shell script runs the backward compatibility tests.
 
 set -e
+
+if test "x$srcdir" = x ; then
+srcdir=`pwd`
+fi
+
 echo ""
 echo "*** Testing that this version can read data produced by old versions of netCDF."
 echo "*** checking ref_nc_test_netcdf4_4_0.nc..."

@@ -564,6 +564,23 @@ nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_le
     return stat;
 }
 
+/** \ingroup variables
+Enable/Disable fletcher32 checksums for a variable.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param fletcher32 1 to turn on, 0 to turn off.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOTINDEFINE Not in define mode. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+*/
 int
 nc_def_var_fletcher32(int ncid, int varid, int fletcher32)
 {
@@ -577,6 +594,26 @@ nc_def_var_fletcher32(int ncid, int varid, int fletcher32)
 		NULL,&fletcher32,NULL);
 }
 
+/** \ingroup variables
+Enable/Disable chunking for a variable.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param storage either NC_CONTIGOUOUS or NC_CHUNKING.
+
+\param chunksizesp Only valid if storage is NC_CHUNKING.
+Specifies the chunksizes for each dimension of the variable.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOTINDEFINE Not in define mode. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+*/
 int
 nc_def_var_chunking(int ncid, int varid, int storage, 
 		    const size_t *chunksizesp)
@@ -591,6 +628,26 @@ nc_def_var_chunking(int ncid, int varid, int storage,
 		NULL,NULL,NULL);
 }
 
+/** \ingroup variables
+Enable/Disable fill value for a variable.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param no_fill either NC_FILL or NC_NOFILL
+
+\param fill_value Only valid if no_fill is NC_FILL
+Specifies the fill value for a variable.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOTINDEFINE Not in define mode. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+*/
 int
 nc_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 {
@@ -604,8 +661,27 @@ nc_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 		NULL,NULL,NULL);
 }
 
+/** \ingroup variables
+Set the endian-ness of a variable: big-endian or little-endian.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param endianness one of three constants from netcdf.h:
+NC_ENDIAN_NATIVE, NC_ENDIAN_LITTLE, NC_ENDIAN_BIG.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOTINDEFINE Not in define mode. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_EINVAL Invalid endian value.
+*/
 int
-nc_def_var_endian(int ncid, int varid, int endian)
+nc_def_var_endian(int ncid, int varid, int endianness)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
@@ -614,9 +690,26 @@ nc_def_var_endian(int ncid, int varid, int endian)
 		NULL,NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,
-		NULL,NULL,&endian);
+		NULL,NULL,&endianness);
 }
 
+/** \ingroup variables
+Set the shuffle mode of a variable.
+
+\param ncid NetCDF or group ID, from a previous call to nc_open(),
+nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_inq_ncid().
+
+\param varid Variable ID
+
+\param shuffle 1 to turn on shuffle, 0 to turn it off.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_EBADID Bad ncid.
+\returns ::NC_ENOTVAR Invalid variable ID.
+\returns ::NC_ENOTINDEFINE Not in define mode. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+*/
 int
 nc_def_var_shuffle(int ncid, int varid, int shuffle)
 {

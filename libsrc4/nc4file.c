@@ -1010,17 +1010,17 @@ read_hdf5_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
    {
       /* NC_CHAR attributes are written as a scalar in HDF5, of type
        * H5T_C_S1, of variable length. */
-      if (att_ndims == 0)
-      {
-	 if (!(dims[0] = H5Tget_size(file_typeid)))
-	    BAIL(NC_EATTMETA);
-      }
-      else
-      {
-	 /* This is really a string type! */
-	 att->nc_typeid = NC_STRING;
-	 dims[0] = att_npoints;
-      }
+     if (att_ndims == 0)
+       {
+         if (!(dims[0] = H5Tget_size(file_typeid)))
+           BAIL(NC_EATTMETA);
+       }
+     else
+       {
+         /* This is really a string type! */
+         att->nc_typeid = NC_STRING;
+         dims[0] = att_npoints;
+       }
    }
    else
    {
@@ -1091,8 +1091,10 @@ read_hdf5_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
 	       BAIL(NC_ENOMEM);
 
 	    /* Read the fixed-len strings as one big block. */
-	    if (H5Aread(attid, att->native_hdf_typeid, contig_buf) < 0)
-	       BAIL(NC_EATTMETA);
+	    if (H5Aread(attid, att->native_hdf_typeid, contig_buf) < 0) {
+          free(contig_buf);
+          BAIL(NC_EATTMETA);
+        }
 
 	    /* Copy strings, one at a time, into their new home. Alloc
 	       space for each string. The user will later free this
@@ -1100,9 +1102,11 @@ read_hdf5_att(NC_GRP_INFO_T *grp, hid_t attid, NC_ATT_INFO_T *att)
 	    cur = contig_buf;
 	    for (i = 0; i < att->len; i++)
 	    {
-	       if (!(att->stdata[i] = malloc(fixed_size)))
-		  BAIL(NC_ENOMEM);
-	       strncpy(att->stdata[i], cur, fixed_size);
+          if (!(att->stdata[i] = malloc(fixed_size))) {
+            free(contig_buf);
+            BAIL(NC_ENOMEM);
+          }
+           strncpy(att->stdata[i], cur, fixed_size);
 	       cur += fixed_size;
 	    }
 
@@ -1284,7 +1288,11 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 
 #ifndef JNA
                /* Free the member name (which HDF5 allocated for us). */
+			   /* On Windows using the microsoft runtime, it is an error
+				  for one library to free memory allocated by a different library. */
+#ifndef _MSC_VER
                if(member_name != NULL) free(member_name);
+#endif
 #endif
 	       member_name = NULL;
             }
@@ -1385,7 +1393,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
             /* Read each name and value defined in the enum. */
             for (i = 0; i < type->u.e.num_members; i++)
             {
-	       retval = NC_NOERR;
+
                /* Get the name and value from HDF5. */
                if (!(member_name = H5Tget_member_name(hdf_typeid, i)))
                {
@@ -1426,9 +1434,9 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 	    if(member_name != NULL)
 		free(member_name);
 #endif
-            if(value) free(value);
-	    if(retval) /* error exit from loop */
-		return retval;
+        if(value) free(value);
+        if(retval) /* error exit from loop */
+          return retval;
          }
          break;
 

@@ -15,12 +15,12 @@ AC_REVISION([$Id: configure.ac,v 1.450 2010/05/28 19:42:47 dmh Exp $])
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.3.3-rc3], [support-netcdf@unidata.ucar.edu])
+AC_INIT([netCDF], [4.3.3], [support-netcdf@unidata.ucar.edu])
 
 AC_SUBST([NC_VERSION_MAJOR]) NC_VERSION_MAJOR=4
 AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=3
 AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=3
-AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-rc3"
+AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE=""
 
 #####
 # Set some variables used to generate a libnetcdf.settings file,
@@ -823,7 +823,8 @@ fi
   AC_ARG_WITH([compression],
               [AS_HELP_STRING([--with-compression=filter,filter,...],
                               [Specify filters to look for.])],
-              [ENABLEDFILTERS=$with_compression], [ENABLEDFILTERS=""])
+              [ENABLEDFILTERS=$with_compression],
+              [ENABLEDFILTERS="$ALLFILTERS"])
   AC_MSG_RESULT([$ENABLEDFILTERS])
   ENABLEDFILTERS=`echo $ENABLEDFILTERS | tr ',' ' '`
   ENABLEDFILTERS="zip $ENABLEDFILTERS"
@@ -842,6 +843,7 @@ fi
       fi
       case "$f" in
       zip)
+	# Check to see if it is enabled in hdf5
 	AC_SEARCH_LIBS([H5Pset_deflate],[hdf5 hdf5_hl],
                        [havefilter=yes],[havefilter=no])	
         if test "x$havefilter" = xyes ; then
@@ -850,9 +852,9 @@ fi
 	;;
 
       szip)
-	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([SZ_BufftoBuffCompress],[szip],
-                     [havefilter=yes],[havefilter=no])	
+	# Check to see if it is enabled in hdf5
+	AC_SEARCH_LIBS([H5Z_SZIP],[hdf5 hdf5_hl],
+                       [havefilter=yes],[havefilter=no])	
         if test "x$havefilter" = xyes; then
           AC_DEFINE([SZIP_FILTER], [1], [if true, support szip compression])
 	fi
