@@ -12,23 +12,7 @@
 #define NC_NELEMS_BZIP2 1
 #define NC_NELEMS_FPZIP 36
 #define NC_NELEMS_ZFP 42
-
-/**
-Currently supported algorithms
-for dealing with M dimensions, M > N.
-Applies to fpzip and zfp currently.
-"prefix" - use the first N-1 dimensions
-   and make dim N be the cross product of
-   all remaining (M-N+1) dimensions.
-"suffix" - use the last N-1 dimensions
-   and repeatedly apply the algorithm
-   to the last N dimensions.
-"choose" - require all but N of the chunks
-   have a value of 1.
-*/
-#define NC_NDIM_PREFIX 'p'
-#define NC_NDIM_SUFFIX 's'
-#define NC_NDIM_CHOOSE 'c'
+#define NC_NELEMS_JP2 100
 
 /* It should be possible to overlay this
 on the params[] to extract the values.
@@ -57,6 +41,44 @@ typedef union {
         int rank;
 	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
     } zfp; 
+    struct {
+	struct jp2_compress {
+           int cp_reduce;
+           int cp_layer;
+           int decod_format;
+           int cod_format;
+           OPJ_LIMIT_DECODING cp_limit_decoding;
+	} decompress;
+	struct jp2_compress {
+           bool tile_size_on;
+           int cp_tx0;
+           int cp_ty0;
+           int cp_tdx;
+           int cp_tdy;
+           int cp_disto_alloc;
+           int cp_fixed_alloc;
+           int cp_fixed_quality;
+           int *cp_matrice;
+           int csty;
+           OPJ_PROG_ORDER prog_order;
+           opj_poc_t POC[32];
+           int numpocs;
+           int tcp_numlayers;
+           float tcp_rates[100];
+           float tcp_distoratio[100];
+           int numresolution;
+           int cblockw_init;
+           int cblockh_init;
+           int irreversible;
+           int roi_compno;
+           int roi_shift;
+           int res_spec;
+           int prcw_init[J2K_MAXRLVLS];
+           int prch_init[J2K_MAXRLVLS];
+	} compress;
+        int rank;
+	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
+    } jp2;
 } nc_compression_t;
 
 /*

@@ -16,6 +16,9 @@
 #ifdef ZFP_FILTER
 #include <zfp.h>
 #endif
+#ifdef JP2_FILTER
+#include <openjpeg.h>
+#endif
 
 #include "netcdf.h"
 #include "hdf5.h"
@@ -56,7 +59,8 @@ NC_SZIP  = 2,
 NC_BZIP2 = 3,
 NC_FPZIP = 4,
 NC_ZFP   = 5,
-NC_COMPRESSORS = (NC_ZFP+1)
+NC_JP2   = 6,
+NC_COMPRESSORS = (NC_JP2+1)
 } NC_compress_enum;
 
 typedef struct NCC_COMPRESSOR {
@@ -73,6 +77,7 @@ typedef struct NCC_COMPRESSOR {
 #define H5Z_FILTER_BZIP2 307
 #define H5Z_FILTER_FPZIP 256
 #define H5Z_FILTER_ZFP 257
+#define H5Z_FILTER_JP2 258
 
 static H5Z_class2_t H5Z_INFO[NC_COMPRESSORS];
 static int registered[NC_COMPRESSORS];
@@ -82,6 +87,7 @@ static int szip_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int bzip2_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int fpzip_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int zfp_valid(const NCC_COMPRESSOR*, nc_compression_t*);
+static int jp2_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 
 /*Forward*/
 #ifdef BZIP2_FILTER
@@ -92,6 +98,9 @@ static size_t H5Z_filter_fpzip(unsigned,size_t,const unsigned[],size_t,size_t*,v
 #endif
 #ifdef ZFP_FILTER
 static size_t H5Z_filter_zfp(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
+#endif
+#ifdef JP2_FILTER
+static size_t H5Z_filter_jp2(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
 #endif
 
 #ifndef DEBUG
@@ -754,17 +763,6 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
     isdouble = params->fpzip.isdouble;
     prec = params->fpzip.prec;
     rank = params->fpzip.rank;
-<<<<<<< HEAD
-    ndimalg = (int)params->fpzip.ndimalg;	
-
-    for(totalsize=1,i=0;i<rank;i++) {
-	chunksizes[i] = params->fpzip.chunksizes[i];
-	totalsize *= chunksizes[i];
-    }
-
-    switch (ndimalg) {
-    case NC_NDIM_CHOOSE:
-=======
 
     for(choice=0,totalsize=1,i=0;i<rank;i++) {
 	chunksizes[i] = params->fpzip.chunksizes[i];
@@ -774,7 +772,6 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
     choice = (choice == 3 && rank > 3 ? 1 : 0);
 
     if(choice) {
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         nx = ny = nz = nf = 1;
         for(i=0;i<rank;i++) {
 	    if(chunksizes[i] > 1) {
@@ -787,24 +784,13 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 		}
 	    }
 	}
-<<<<<<< HEAD
-	break;
-    case NC_NDIM_PREFIX:
-=======
     } else { /*prefix*/
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         /* Do some computations */
         nzsize = 0;
         if(rank > 2) {
             for(nzsize=1,i=2;i<rank;i++)
 	        nzsize *= chunksizes[i];
 	}
-<<<<<<< HEAD
-	break;
-    case NC_NDIM_SUFFIX:
-	break;
-=======
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
     }
 
     /* Element size (in bytes) */
@@ -833,32 +819,16 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
         fpz->type = isdouble ? FPZIP_TYPE_DOUBLE : FPZIP_TYPE_FLOAT;
 	fpz->prec = prec;
 
-<<<<<<< HEAD
-	switch (ndimalg) {
-	case NC_NDIM_CHOOSE:
-=======
 	if(choice) {
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	    fpz->nx = nz;
 	    fpz->ny = ny;
 	    fpz->nz = nz;
 	    fpz->nf = nf;
-<<<<<<< HEAD
-	    break;
-	case NC_NDIM_PREFIX:
-=======
 	} else {/*prefix*/
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	    fpz->nx = chunksizes[0];
 	    fpz->ny = (rank >= 2 ? chunksizes[1] : 1);
 	    fpz->nz = (rank >= 3 ? nzsize : 1);
 	    fpz->nf = 1;
-<<<<<<< HEAD
-	    break;
-	case NC_NDIM_SUFFIX:
-	    break;
-=======
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	}
 
         /* Create the decompressed data buffer */
@@ -893,48 +863,6 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
         outbuf = (char*)malloc(bufbytes); /* overkill */
 
         /* Compress into the decompressed data buffer */
-<<<<<<< HEAD
-        fpz = fpzip_write_to_buffer(outbuf,bufbytes);
-        if(fpzip_errno != fpzipSuccess)
-	    goto cleanupAndFail;
-
-        fpz->type = isdouble ? FPZIP_TYPE_DOUBLE : FPZIP_TYPE_FLOAT;
-	fpz->prec = prec;
-
-	switch (ndimalg) {
-	case NC_NDIM_CHOOSE:
-	    fpz->nx = nz;
-	    fpz->ny = ny;
-	    fpz->nz = nz;
-	    fpz->nf = nf;
-	    break;
-	case NC_NDIM_PREFIX:
-	    fpz->nx = chunksizes[0];
-	    fpz->ny = (rank >= 2 ? chunksizes[1] : 1);
-	    fpz->nz = (rank >= 3 ? nzsize : 1);
-	    fpz->nf = 1;
-	    break;
-	case NC_NDIM_SUFFIX:
-	    break;
-	}
-
-        /* Compress to the compressed data buffer from decompressed data in *buf*/
-        outbuflen = fpzip_write(fpz,*buf);
-
-        if(outbuflen == 0 && fpzip_errno  == fpzipSuccess)
-            fpzip_errno = fpzipErrorWriteStream;
-        if(fpzip_errno != fpzipSuccess)
-	    goto cleanupAndFail;
-
-        fpzip_write_close(fpz);
-        if(fpzip_errno != fpzipSuccess)
-	    goto cleanupAndFail;
-
-        /* Replace the buffer given to us with our decompressed data buffer */
-        free(*buf);
-        *buf = outbuf;
-        *buf_size = bufbytes;
-=======
         fpinfo.type = isdouble ? FPZIP_TYPE_DOUBLE : FPZIP_TYPE_FLOAT;
 	fpinfo.prec = prec;
 
@@ -969,7 +897,6 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 	free(*buf);
 	*buf = outbuf;
 	*buf_size = bufbytes;
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         outbuf = NULL;
         return outbuflen; /* # valid bytes */
     }
@@ -1016,17 +943,9 @@ static int
 zfp_valid(const NCC_COMPRESSOR* info, nc_compression_t* parms)
 {
     int status = NC_NOERR;
-<<<<<<< HEAD
-    char c = (char)parms->zfp.ndimalg;
     if(parms->zfp.prec < 0 || parms->zfp.prec > 64) {status = NC_EINVAL; goto done;}
     if(parms->zfp.prec > 32 && !parms->zfp.isdouble) {status = NC_EINVAL; goto done;}
     if(parms->zfp.rank < 0 || parms->zfp.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
-    if(c != 'p' && c != 'c' && c != 's') {status = NC_EINVAL; goto done;}
-=======
-    if(parms->zfp.prec < 0 || parms->zfp.prec > 64) {status = NC_EINVAL; goto done;}
-    if(parms->zfp.prec > 32 && !parms->zfp.isdouble) {status = NC_EINVAL; goto done;}
-    if(parms->zfp.rank < 0 || parms->zfp.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 done:
     return THROW(status);
 }
@@ -1058,11 +977,7 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
     size_t chunksizes[NC_MAX_VAR_DIMS];
     int nx,ny,nz;
     size_t nzsize;
-<<<<<<< HEAD
-    int ndimalg;
-=======
     int choice = 0; /* default is prefix */
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
     
     if(nbytes == 0) return 0; /* sanity check */
 
@@ -1072,17 +987,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
     rank = params->zfp.rank;
     rate = params->zfp.rate;
     accuracy = params->zfp.tolerance;
-<<<<<<< HEAD
-    ndimalg = params->zfp.ndimalg;
-
-    for(totalsize=1,i=0;i<rank;i++) {
-	chunksizes[i] = params->zfp.chunksizes[i];
-	totalsize *= chunksizes[i];
-    }
-
-    switch (ndimalg) {
-    case NC_NDIM_CHOOSE:
-=======
 
     for(choice=0,totalsize=1,i=0;i<rank;i++) {
 	chunksizes[i] = params->zfp.chunksizes[i];
@@ -1092,7 +996,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
     choice = (choice == 3 && rank > 3 ? 1 : 0);
 
     if(choice) {
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         nx = ny = nz = 1;
         for(i=0;i<rank;i++) {
             if(chunksizes[i] > 1) {
@@ -1105,12 +1008,7 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 		}
             }
         }
-<<<<<<< HEAD
-	break;
-    case NC_NDIM_PREFIX:
-=======
     } else { /*prefix*/
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
         /* Do some computations */
         nzsize = 0;
         if(rank > 2) {
@@ -1118,12 +1016,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
                 nzsize *= chunksizes[i];
             }
         }
-<<<<<<< HEAD
-	break;
-    case NC_NDIM_SUFFIX:
-	break;
-=======
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
     }
 
     /* Element size (in bytes) */
@@ -1139,21 +1031,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
         /* Allocated size of the target buffer */
         bufbytes = 1024 + inbytes; /* see fpzip? */
 
-<<<<<<< HEAD
-	switch (ndimalg) {
-	case NC_NDIM_CHOOSE:
-	    zfp.nx = nz;
-	    zfp.ny = ny;
-	    zfp.nz = nz;
-	    break;
-	case NC_NDIM_PREFIX:
-	    zfp.nx = chunksizes[0];
-	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
-	    zfp.nz = (rank >= 3 ? nzsize : 1);
-	    break;
-	case NC_NDIM_SUFFIX:
-	    break;
-=======
 	if(choice) {
 	    zfp.nx = nz;
 	    zfp.ny = ny;
@@ -1162,7 +1039,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 	    zfp.nx = chunksizes[0];
 	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
 	    zfp.nz = (rank >= 3 ? nzsize : 1);
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	}
 
         zfp.type = isdouble ? ZFP_TYPE_DOUBLE : ZFP_TYPE_FLOAT;
@@ -1194,21 +1070,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
          **/
 
         /* fill in zfp */
-<<<<<<< HEAD
-	switch (ndimalg) {
-	case NC_NDIM_CHOOSE:
-	    zfp.nx = nz;
-	    zfp.ny = ny;
-	    zfp.nz = nz;
-	    break;
-	case NC_NDIM_PREFIX:
-	    zfp.nx = chunksizes[0];
-	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
-	    zfp.nz = (rank >= 3 ? nzsize : 1);
-	    break;
-	case NC_NDIM_SUFFIX:
-	    break;
-=======
 	if(choice) {
 	    zfp.nx = nz;
 	    zfp.ny = ny;
@@ -1217,7 +1078,6 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
 	    zfp.nx = chunksizes[0];
 	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
 	    zfp.nz = (rank >= 3 ? nzsize : 1);
->>>>>>> 3c6571e08bc56cf4c944f00129d932fdaa076001
 	}
 
         zfp.type = isdouble ? ZFP_TYPE_DOUBLE : ZFP_TYPE_FLOAT;
@@ -1254,6 +1114,187 @@ cleanupAndFail:
 
 /**************************************************/
 
+static int
+jp2_register(const NCC_COMPRESSOR* info, H5Z_class2_t* h5info)
+{
+    herr_t status = 0;
+#ifdef JP2_FILTER
+    /* finish the H5Z_class2_t instance */
+    h5info->filter = (H5Z_func_t)H5Z_filter_jp2;
+    status = H5Zregister(h5info);
+    registered[info->nccid] = (status ? 0 : 1);
+#endif
+    return THROW((status ? NC_ECOMPRESS : NC_NOERR));
+}
+    
+static int
+jp2_attach(const NCC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
+{
+    int status = NC_NOERR;
+    if(!registered[info->nccid]) {status = NC_ECOMPRESS; goto done;}
+    if((status = jp2_valid(info,parms)) != NC_NOERR) goto done;
+    if(H5Pset_filter(plistid,info->h5id,H5Z_FLAG_MANDATORY,NC_NELEMS_JP2,parms->params))
+	status = NC_ECOMPRESS;
+done:
+    return THROW(status);
+}
+    
+static int
+jp2_valid(const NCC_COMPRESSOR* info, nc_compression_t* parms)
+{
+    int status = NC_NOERR;
+    if(parms->jp2.rank < 0 || parms->jp2.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
+done:
+    return THROW(status);
+}
+
+#ifdef JP2_FILTER
+/**
+Assumptions:
+1. Each incoming block represents 1 complete chunk
+*/
+static size_t
+H5Z_filter_jp2(unsigned int flags, size_t cd_nelmts,
+                     const unsigned int argv[], size_t nbytes,
+                     size_t *buf_size, void **buf)
+{
+    int i;
+    jp2_params jp2;
+    nc_compression_t* params;
+    int rank;
+    size_t outbuflen;
+    char *outbuf = NULL;
+    size_t inbytes;
+    size_t bufbytes;
+    size_t elemsize;
+    size_t totalsize;
+    size_t chunksizes[NC_MAX_VAR_DIMS];
+    int nx,ny,nz;
+    size_t nzsize;
+    int choice = 0; /* default is prefix */
+    
+    if(nbytes == 0) return 0; /* sanity check */
+
+    params = (nc_compression_t*)argv;
+
+    for(choice=0,totalsize=1,i=0;i<rank;i++) {
+	chunksizes[i] = params->jp2.chunksizes[i];
+	totalsize *= chunksizes[i];
+	if(chunksizes[i] > 1) choice++;
+    }
+    choice = (choice == 2 && rank > 2 ? 1 : 0);
+
+    if(choice) {
+        nx = ny = 1;
+        for(i=0;i<rank;i++) {
+            if(chunksizes[i] > 1) {
+                if(nx == 1) nx = chunksizes[i];
+                else if(ny == 1) ny = chunksizes[i];
+		else {
+	  	    fprintf(stderr,"At most, 2 jp2 chunksizes can be > 1\n");
+		    return NC_ECOMPRESS;
+		}
+            }
+        }
+    } else { /*prefix*/
+        /* Do some computations */
+        nzsize = 0;
+        if(rank >= 2) {
+            for(nzsize=1,i=1;i<rank;i++) {
+                nzsize *= chunksizes[i];
+            }
+        }
+    }
+
+    /* Element size (in bytes) */
+    elemsize = (isdouble ? sizeof(double) : sizeof(float));
+
+    if(flags & H5Z_FLAG_REVERSE) {
+        /** Decompress data.
+         **/
+	struct jp2_decompress* jparms = &params->jp2.decompress;
+
+        /* Number of uncompressed bytes */
+        inbytes = totalsize * elemsize;
+
+        /* Allocated size of the target buffer */
+        bufbytes = 1024 + inbytes;
+
+	if(choice) {
+	    jp2.nx = nz;
+	    jp2.ny = ny;
+	    jp2.nz = nz;
+	} else {/* prefix */
+	    jp2.nx = chunksizes[0];
+	    jp2.ny = (rank >= 2 ? chunksizes[1] : 1);
+	    jp2.nz = (rank >= 3 ? nzsize : 1);
+	}
+
+        /* Create the decompressed data buffer */
+        outbuf = (char*)malloc(bufbytes);
+
+        /* Decompress into the compressed data buffer */
+        outbuflen = jp2_decompress(&jp2,outbuf,*buf,nbytes);
+        if(outbuflen == 0)
+            goto cleanupAndFail;
+
+        /* Replace the buffer given to us with our decompressed data buffer */
+        free(*buf);
+        *buf = outbuf;
+        *buf_size = bufbytes;
+        outbuf = NULL;
+        return outbuflen; /* # valid bytes */
+
+    } else {
+  
+        /** Compress data.
+         **/
+
+        /* fill in jp2 */
+	if(choice) {
+	    jp2.nx = nz;
+	    jp2.ny = ny;
+	    jp2.nz = nz;
+	} else { /*prefix*/
+	    jp2.nx = chunksizes[0];
+	    jp2.ny = (rank >= 2 ? chunksizes[1] : 1);
+	    jp2.nz = (rank >= 3 ? nzsize : 1);
+	}
+
+        jp2.type = isdouble ? JP2_TYPE_DOUBLE : JP2_TYPE_FLOAT;
+
+        jp2_set_precision(&jp2,(unsigned int)prec);
+        if(rate != 0)
+            jp2_set_rate(&jp2,rate);
+        if(accuracy != 0)
+            jp2_set_accuracy(&jp2,accuracy);
+
+        /* Create the compressed data buffer */
+        bufbytes = jp2_estimate_compressed_size(&jp2);
+        outbuf = (char*)malloc(bufbytes);
+
+        /* Compress into the compressed data buffer */
+        outbuflen = jp2_compress(&jp2,*buf,outbuf,bufbytes);
+        if(outbuflen == 0)
+            goto cleanupAndFail;
+
+        /* Replace the buffer given to us with our decompressed data buffer */
+        free(*buf);
+        *buf = outbuf;
+        *buf_size = bufbytes;
+        outbuf = NULL;
+        return outbuflen; /* # valid bytes */
+    }
+
+cleanupAndFail:
+    if(outbuf)
+        free(outbuf);
+    return 0;
+}
+#endif    
+
+/**************************************************/
+
 /* Provide access to all the compressors */
 static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
     {NC_ZIP, "zip", NC_NELEMS_ZIP, H5Z_FILTER_DEFLATE, zip_register, zip_attach, generic_inq, zip_valid},
@@ -1261,5 +1302,6 @@ static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
     {NC_BZIP2, "bzip2", NC_NELEMS_BZIP2, H5Z_FILTER_BZIP2, bzip2_register, bzip2_attach, generic_inq, bzip2_valid},
     {NC_FPZIP, "fpzip", NC_NELEMS_FPZIP, H5Z_FILTER_FPZIP, fpzip_register, fpzip_attach, generic_inq, fpzip_valid},
     {NC_ZFP, "zfp", NC_NELEMS_ZFP, H5Z_FILTER_ZFP, zfp_register, zfp_attach, generic_inq, zfp_valid},
+    {NC_JP2, "jp2", NC_NELEMS_JP2, H5Z_FILTER_JP2, jp2_register, jp2_attach, generic_inq, jp2_valid},
     {NC_NOZIP, "\0", 0, 0, NULL, NULL, NULL, NULL} /* must be last */
 };
