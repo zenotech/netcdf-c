@@ -1,0 +1,60 @@
+/*********************************************************************
+ *   Copyright 2010, UCAR/Unidata
+ *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ *********************************************************************/
+
+#ifndef NCS3_H
+#define NCS3_H
+
+#include "config.h"
+#include <curl/curl.h>
+
+/*
+S3 Metadata:
+     length -- length in bytes of the object
+     type -- mime type of the object content e.g. text/plain
+     last_modified -- date of last modification of the object
+     etag -- entity hash: hash of the object content
+     version_id -- object version
+     server -- server providing the object
+     connected -- open(=1) | closed(=0)
+*/
+
+typedef struct S3_Metadata {
+    int   initialized;
+    char* bucket;
+    char* object;
+    char* version_id;
+    long long length;
+    char* type;
+    char* last_modified;
+    char* etag;
+    char* server;
+    int connected;
+} S3_Metadata;
+
+typedef struct S3_Range {
+    size_t start;
+    size_t count;
+    void* buffer; /* Assert |buffer| <= count */
+    size_t offset; /* read/write point into buffer */
+} S3_Range;
+
+typedef struct S3 {
+    CURL* curl;
+    char* s3url;
+    char* trueurl;
+    S3_Metadata meta;
+    long code; /* last code received */
+    S3_Range range;
+} S3;
+
+extern int ncs3_read_metadata(S3*);
+extern int ncs3_create_metadata(S3*);
+extern int ncs3_read_data(S3* s3, void* buffer, off_t start, size_t count);
+extern int ncs3_write_data(S3* s3, void* buffer, off_t start, size_t count)
+extern int ncs3_create(S3** s3p);
+extern int ncs3_free(S3* s3);
+extern int ncs3_open(S3** s3);
+
+#endif /*NCS3_H*/

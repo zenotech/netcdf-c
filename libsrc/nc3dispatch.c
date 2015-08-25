@@ -29,7 +29,6 @@
 #define NC_STRING (12)
 #endif
 
-
 static int NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
                int *ndimsp, int *dimidsp, int *nattsp, 
                int *shufflep, int *deflatep, int *deflate_levelp,

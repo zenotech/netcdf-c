@@ -305,10 +305,22 @@ AC_ARG_ENABLE([dap],
 test "x$enable_dap" = xno || enable_dap=yes
 AC_MSG_RESULT($enable_dap)
 
+# Does the user want to use the s3 module?
+AC_MSG_CHECKING([whether S3 will be used])
+AC_ARG_ENABLE([s3],
+              [AS_HELP_STRING([--enable-s3],
+                              [support Amazon s3 IO])])
+test "x$enable_s3" = xyes || enable_s3=no
+AC_MSG_RESULT($enable_s3)
+if test "x$enable_s3" = xyes; then
+   AC_DEFINE([USE_S3], [1], [if true, support Amazon s3 IO])
+fi
+
 # Curl support is required if and only if any of these flags are set:
 # 1. --enable-dap
+# 2. --enable-s3
 
-if test "x$enable_dap" = "xyes" ; then
+if test "x$enable_dap" = xyes -o "x$enable_s3" = xyes; then
 require_curl=yes
 else
 require_curl=no
@@ -320,13 +332,10 @@ AC_CHECK_LIB([curl],[curl_easy_setopt],[found_curl=yes],[found_curl=no])
 #AC_CHECK_LIB([curl.dll],[curl_easy_setopt])
 # If curl is required but there is no curl, then complain
 if test $require_curl = yes ; then
-  # Removed. Why assume no curl if we are building DLL?
-  #if test $enable_dll = yes ; then
-  #  AC_MSG_NOTICE([libcurl not found; continuing])
-  #elif test $found_curl = no ; then
   if test $found_curl = no ; then
     AC_MSG_NOTICE([libcurl not found; disabling remote protocol(s) support])
     enable_dap=no
+    enable_s3=no
   elif test $found_curl = yes ; then
     # Redo the check lib to actually add -lcurl
     #AC_CHECK_LIB([curl], [curl_easy_setopt])
@@ -762,8 +771,8 @@ test "x$enable_diskless" = xno || enable_diskless=yes
 AC_MSG_RESULT($enable_diskless)
 
 # Check for enable DAP
-if test "x$enable_dap" = "xyes"; then
-enable_diskless=yes
+if test "x$enable_dap" = "xyes" -a "x$enable_diskless" = "xno" ; then
+enable_diskless=no
 AC_MSG_NOTICE([--enable-dap requires --enable-diskless])
 AC_MSG_NOTICE([dap support disabled])
 fi
@@ -1050,7 +1059,9 @@ fi
 AM_CONDITIONAL(BUILD_PARALLEL, [test x$enable_parallel = xyes])
 AM_CONDITIONAL(TEST_PARALLEL4, [test "x$enable_parallel4" = xyes -a "x$enable_parallel_tests" = xyes])
 AM_CONDITIONAL(BUILD_DAP, [test "x$enable_dap" = xyes])
+AM_CONDITIONAL(USE_S3, [test "x$enable_s3" = xyes])
 AM_CONDITIONAL(USE_DAP, [test "x$enable_dap" = xyes]) # Alias
+AM_CONDITIONAL(USE_CURL, [test "x$enable_dap" = xyes -o "x$enable_s3" = xyes])
 AM_CONDITIONAL(ENABLE_DAP_REMOTE_TESTS, [test "x$enable_dap_remote_tests" = xyes])
 AM_CONDITIONAL(ENABLE_DAP_AUTH_TESTS, [test "x$enable_dap_auth_tests" = xyes])
 AM_CONDITIONAL(ENABLE_DAP_LONG_TESTS, [test "x$enable_dap_long_tests" = xyes])
@@ -1147,6 +1158,7 @@ fi
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])
 AC_SUBST(HAS_DAP,[$enable_dap])
+AC_SUBST(HAS_S3,[$enable_s3])
 AC_SUBST(HAS_NC2,[$nc_build_v2])
 AC_SUBST(HAS_NC4,[$enable_netcdf_4])
 AC_SUBST(HAS_SZIP,[$ac_cv_func_H5Z_SZIP])
@@ -1216,6 +1228,7 @@ AX_SET_META([NC_HAS_HDF4],[$enable_hdf4],[yes])
 AX_SET_META([NC_HAS_HDF5],[$enable_netcdf_4],[yes])
 AX_SET_META([NC_HAS_SZIP],[$ac_cv_func_H5Z_SZIP],[yes])
 AX_SET_META([NC_HAS_DAP],[$enable_dap],[yes])
+AX_SET_META([NC_HAS_S3],[$enable_s3],[yes])
 AX_SET_META([NC_HAS_DISKLESS],[$enable_diskless],[yes])
 AX_SET_META([NC_HAS_MMAP],[$enable_mmap],[yes])
 AX_SET_META([NC_HAS_JNA],[$enable_jna],[yes])

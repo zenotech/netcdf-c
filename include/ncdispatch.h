@@ -6,8 +6,8 @@
 /* $Id: ncdispatch.h,v 1.18 2010/06/01 20:11:59 dmh Exp $ */
 /* $Header: /upc/share/CVS/netcdf-3/libdispatch/ncdispatch.h,v 1.18 2010/06/01 20:11:59 dmh Exp $ */
 
-#ifndef _DISPATCH_H
-#define _DISPATCH_H
+#ifndef NCDISPATCH_H
+#define NCDISPATCH_H
 
 #include "config.h"
 #include <stdlib.h>
@@ -22,7 +22,6 @@
 #endif
 #include "netcdf.h"
 #include "nc.h"
-#include "ncuri.h"
 
 #define longtype ((sizeof(long) == sizeof(int) ? NC_INT : NC_INT64))
 
@@ -59,6 +58,13 @@
 #define T_ulong   ulongtype
 
 /**************************************************/
+
+/* Define the flags2 flags for nc_open and nc_create in dispatch table */
+/* Flags2 is avoid polluting cmode */
+#define NC_FLAGS2_PARALLEL 1
+#define NC_FLAGS2_STDIO    2
+#define NC_FLAGS2_S3       4
+
 #if 0
 /* Define the known classes of dispatchers */
 /* Flags may be or'd => powers of 2*/
@@ -66,6 +72,7 @@
 #define NC_DISPATCH_NC4    2
 #define NC_DISPATCH_NCD    4
 #define NC_DISPATCH_NCP    8
+#define NC_DISPATCH_NCS3   16
 #endif
 
 /* Define a type for use when doing e.g. nc_get_vara_long, etc. */
@@ -94,6 +101,9 @@ typedef int MPI_Info;
 #define MPI_INFO_NULL 0
 #endif
 
+/*Forward*/
+typedef struct NC_Dispatch NC_Dispatch;
+
 /* Define a struct to hold the MPI info so it can be passed down the
  * call stack. This is used internally by the netCDF library. It
  * should not be used by netcdf users. */
@@ -107,10 +117,15 @@ typedef struct NC_MEM_INFO {
     void* memory;
 } NC_MEM_INFO;
 
-/* Define known dispatch tables and initializers */
+typedef struct NC_INIT_INFO {
+    char* path;
+    int mode;
+    int model;
+    NC* nc;
+    NC_Dispatch* dispatcher;
+} NC_INIT_INFO;
 
-/*Forward*/
-typedef struct NC_Dispatch NC_Dispatch;
+/* Define known dispatch tables and initializers */
 
 extern int NCDISPATCH_initialize(void);
 extern int NCDISPATCH_finalize(void);
@@ -139,12 +154,6 @@ extern int NCP_finalize(void);
 extern NC_Dispatch* NC4_dispatch_table;
 extern int NC4_initialize(void);
 extern int NC4_finalize(void);
-#endif
-
-#ifdef USE_DAP
-extern NC_Dispatch* NCD4_dispatch_table;
-extern int NCD4_initialize(void);
-extern int NCD4_finalize(void);
 #endif
 
 /* Vectors of ones and zeros */
@@ -194,13 +203,16 @@ struct NC_Dispatch {
 
 int model; /* one of the NC_FORMATX #'s */
 
+/* WARNING: SIGNATURE CHANGE */
 int (*create)(const char *path, int cmode,
 	  size_t initialsz, int basepe, size_t *chunksizehintp, 
-	  int use_parallel, void* parameters,
+	  int flags2, void* parameters,
 	  struct NC_Dispatch* table, NC* ncp);
+
+/* WARNING: SIGNATURE CHANGE */
 int (*open)(const char *path, int mode,
 	    int basepe, size_t *chunksizehintp,
-	    int use_parallel, void* parameters,
+	    int flags2, void* parameters,
 	    struct NC_Dispatch* table, NC* ncp);
 
 int (*redef)(int);
@@ -308,8 +320,8 @@ const char* (*nc_inq_libvers)(void);
 const char* (*nc_strerror)(int);
 int (*nc_delete)(const char*path);
 int (*nc_delete_mp)(const char*path,intbasepe);
-int (*nc_initialize)();
-int (*nc_finalize)();
+int (*nc_initialize)(void*);
+int (*nc_finalize)(void*);
 #endif /*NONDISPATCH*/
 
 /* Define the common fields for NC and NC_FILE_INFO_T etc */
@@ -334,32 +346,6 @@ extern int NC_dispatch_overlay(const NC_Dispatch* overlay,
 extern NC_Dispatch* NC_get_dispatch_override(void);
 extern void NC_set_dispatch_override(NC_Dispatch*);
 
-/* Does the path look like a url? */
-extern int NC_testurl(const char* path);
-/* Return model (0 or 3 or 4) as specified by the url */
-extern int NC_urlmodel(const char* path);
-
-/* allow access url parse and params without exposing nc_url.h */
-extern int NCDAP_urlparse(const char* s, void** dapurl);
-extern void NCDAP_urlfree(void* dapurl);
-extern const char* NCDAP_urllookup(void* dapurl, const char* param);
-
-/* Test for specific set of servers */
-#if defined(DLL_NETCDF) /* Defined when library is a DLL */
-# if defined(DLL_EXPORT) /* Define when building the library. */
-#  define MSC_NCDISPATCH_EXTRA __declspec(dllexport)
-# else
-#  define MSC_NCDISPATCH_EXTRA __declspec(dllimport)
-# endif
-MSC_NCDISPATCH_EXTRA extern char* NC_findtestserver(const char*, const char**);
-MSC_NCDISPATCH_EXTRA extern int nc_open_mem(const char*, int, size_t, void*, int*);
-#else
-extern char* NC_findtestserver(const char*,const char**);
-#endif
-
-/* Ping a specific server */
-extern int NCDAP_ping(const char*);
-
 /* Misc */
 
 extern int NC_getshape(int ncid, int varid, int ndims, size_t* shape);
@@ -375,7 +361,8 @@ extern int NC_argc;
 extern char* NC_argv[];
 extern int NC_initialized;
 extern int NC_finalized;
-extern int nc_initialize();
+extern int nc_initialize(void);
+extern int nc_finalize(void);
 
-#endif /* _DISPATCH_H */
+#endif /* NCDISPATCH_H */
 

@@ -24,6 +24,14 @@ Research/Unidata. See COPYRIGHT file for more info.
 #endif
 #include "ncdispatch.h"
 
+#if defined(USE_DAP) || defined(USE_S3)
+#include "nchttp.h"
+#endif
+#if defined(USE_S3)
+#include "libs3.h"
+#endif
+
+
 extern int NC_initialized;
 extern int NC_finalized;
 
@@ -65,7 +73,7 @@ of the interfaces for these operations.
 /**@{*/
 
 static int
-NC_interpret_magic_number(char* magic, int* model, int* version, int use_parallel)
+NC_interpret_magic_number(char* magic, int* model, int* version)
 {
     int status = NC_NOERR;
     /* Look at the magic number */
@@ -77,7 +85,7 @@ NC_interpret_magic_number(char* magic, int* model, int* version, int use_paralle
 #ifdef USE_HDF4
     } else if(magic[0] == '\016' && magic[1] == '\003'
               && magic[2] == '\023' && magic[3] == '\001') {
-	*model = NC_FORMATX_NC4;
+	*model = NC_FORMATX_HDF4;
 	*version = 4;
 #endif
     } else
@@ -91,7 +99,7 @@ NC_interpret_magic_number(char* magic, int* model, int* version, int use_paralle
 	    *model = NC_FORMATX_NC3;
          } else if(magic[3] == '\005') {
             *version = 5; /* cdf5 (including pnetcdf) file */
-	    *model = NC_FORMATX_NC3;
+	    *model = NC_FORMATX_CDF5;
 	 } else
 	    {status = NC_ENOTNC; goto done;}
      } else
@@ -100,28 +108,31 @@ done:
      return status;
 }
 
-/**
-Given an existing file, figure out its format 
-and return that format value (NC_FORMATX_XXX)
-in model arg.
-*/
 static int
-NC_check_file_type(const char *path, int flags, void *parameters,
-		   int* model, int* version)
+NC_read_magic_number(const char *path, int xmode, int flags2, void *parameters, char* magic)
 {
-   char magic[MAGIC_NUMBER_LEN];
-   int status = NC_NOERR;
-   int diskless = ((flags & NC_DISKLESS) == NC_DISKLESS);
-   int use_parallel = ((flags & NC_MPIIO) == NC_MPIIO);
-   int inmemory = (diskless && ((flags & NC_INMEMORY) == NC_INMEMORY));
-
-   *model = 0;
+    int status = NC_NOERR;
+    int diskless = ((xmode & NC_DISKLESS) == NC_DISKLESS);
+    int use_parallel = ((xmode & NC_MPIIO) == NC_MPIIO);
+    int inmemory = (diskless && ((xmode & NC_INMEMORY) == NC_INMEMORY));
+    int s3 = (flags2 & NC_FLAGS2_S3) == NC_FLAGS2_S3;
+    
+    /* assert  |magic| >== MAGIC_NUMBER_LEN */
 
     if(inmemory)  {
 	NC_MEM_INFO* meminfo = (NC_MEM_INFO*)parameters;
 	if(meminfo == NULL || meminfo->size < MAGIC_NUMBER_LEN)
 	    {status = NC_EDISKLESS; goto done;}
 	memcpy(magic,meminfo->memory,MAGIC_NUMBER_LEN);
+#ifdef USE_S3
+    } else if(s3) {
+	S3* s3 = NULL;
+	status = ls3_open(path,&s3);
+        if(status) goto done;
+	status = ls3_read_data(s3,(void*)magic,0,MAGIC_NUMBER_LEN);	
+        (void)ls3_close(s3);
+        if(status) goto done;
+#endif
     } else {/* presumably a real file */
        /* Get the 4-byte magic from the beginning of the file. Don't use posix
         * for parallel, use the MPI functions instead. */
@@ -183,10 +194,29 @@ NC_check_file_type(const char *path, int flags, void *parameters,
 	    if(i != 1)
 		{status = errno; goto done;}
 	}
-    } /* !inmemory */
+    }
 
-    /* Look at the magic number */
-    status = NC_interpret_magic_number(magic,model,version,use_parallel);
+done:
+    return status;
+}
+
+/**
+Given an existing file, figure out its format 
+and return that format value (NC_FORMATX_XXX)
+in model arg.
+*/
+static int
+NC_check_file_type(const char *path, int xmode, int flags2, void *parameters,
+		   int* model, int* version)
+{
+   int status = NC_NOERR;
+   char magic[MAGIC_NUMBER_LEN];
+
+   *model = 0;
+   status = NC_read_magic_number(path,xmode,flags2,parameters,magic);
+   if(status) goto done;   
+   /* Look at the magic number */
+   status = NC_interpret_magic_number(magic,model,version);
 
 done:
    return status;
@@ -499,7 +529,7 @@ to open a netCDF classic, 64-bit offset, or netCDF-4 file.
 
 \param path File name for netCDF dataset to be opened. When DAP
 support is enabled, then the path may be an OPeNDAP URL rather than a
-file path.
+file path. Similarly for Amazon S3.
 
 \param mode The mode flag may include NC_WRITE (for read/write
 access) and NC_SHARE (see below) and NC_DISKLESS (see below).
@@ -615,7 +645,7 @@ Open a netCDF file with extra performance parameters for the classic
 library.
 
 \param path File name for netCDF dataset to be opened. When DAP
-support is enabled, then the path may be an OPeNDAP URL rather than a
+support is enabled, then the path may be an URL rather than a
 file path.
 
 \param mode The mode flag may include NC_WRITE (for read/write
@@ -755,7 +785,7 @@ nc__open_mp(const char *path, int mode, int basepe,
 }
 
 /**
-Get the file pathname (or the opendap URL) which was used to
+Get the file pathname (or the URL) which was used to
 open/create the ncid's file.
 
 \param ncid NetCDF ID, from a previous call to nc_open() or
@@ -1533,6 +1563,7 @@ possible inquiry functions on an enum type.
            if (nc_close(ncid)) ERR;
 \endcode
  */
+
 int
 nc_inq_type(int ncid, nc_type xtype, char *name, size_t *size)
 {
@@ -1595,8 +1626,8 @@ time. This only applies to classic and 64-bit offset files.
 \param chunksizehintp A pointer to the chunk size hint. This only
 applies to classic and 64-bit offset files.
 
-\param useparallel Non-zero if parallel I/O is to be used on this
-file.
+\param flags2 Extra control flags to avoid polluting cmode;
+              was useparallel- which is now flag value 1.
 
 \param parameters Pointer to MPI comm and info.
 
@@ -1607,20 +1638,21 @@ stored.
 */
 int
 NC_create(const char *path, int cmode, size_t initialsz,
-	  int basepe, size_t *chunksizehintp, int useparallel,
+	  int basepe, size_t *chunksizehintp, int flags2,
 	  void* parameters, int *ncidp)
 {
    int stat = NC_NOERR;
    NC* ncp = NULL;
    NC_Dispatch* dispatcher = NULL;
    /* Need three pieces of information for now */
-   int model = NC_FORMATX_UNDEFINED; /* one of the NC_FORMATX values */
+   int model = NC_FORMATX_UNDEFINED;
    int isurl = 0;   /* dap or cdmremote or neither */
    int xcmode = 0; /* for implied cmode flags */
 
    /* Initialize the dispatch table. The function pointers in the
     * dispatch table will depend on how netCDF was built
     * (with/without netCDF-4, DAP, CDMREMOTE). */
+
    if(!NC_initialized)
    {
       if ((stat = nc_initialize()))
@@ -1640,35 +1672,32 @@ NC_create(const char *path, int cmode, size_t initialsz,
    /* Look to the incoming cmode for hints */
    if(model == NC_FORMATX_UNDEFINED) {
 #ifdef USE_NETCDF4
-      if((cmode & NC_NETCDF4) == NC_NETCDF4)
+      if((cmode & NC_NETCDF4) == NC_NETCDF4) {
 	model = NC_FORMATX_NC4;
-      else
+      } else
 #endif
 #ifdef USE_PNETCDF
       /* pnetcdf is used for parallel io on CDF-1, CDF-2, and CDF-5 */
-      if((cmode & NC_MPIIO) == NC_MPIIO)
+      if((cmode & NC_MPIIO) == NC_MPIIO) {
 	model = NC_FORMATX_PNETCDF;
-      else
+      } else /* still undefined */
 #endif
-	{}
-    }
-    if(model == NC_FORMATX_UNDEFINED) {
-      /* Check default format (not formatx) */
-      int format = nc_get_default_format();
-      switch (format) {
+      {	/* Check default format (not formatx) */
+	int format = nc_get_default_format();
+	switch (format) {
 #ifdef USE_NETCDF4
-	 case NC_FORMAT_NETCDF4:
+	case NC_FORMAT_NETCDF4:
 	    xcmode |= NC_NETCDF4;
 	    model = NC_FORMATX_NC4;
 	    break;
-	 case NC_FORMAT_NETCDF4_CLASSIC:
+	case NC_FORMAT_NETCDF4_CLASSIC:
 	    xcmode |= NC_CLASSIC_MODEL;
 	    model = NC_FORMATX_NC4;
 	    break;
 #endif
 	 case NC_FORMAT_CDF5:
 	    xcmode |= NC_64BIT_DATA;
-	    model = NC_FORMATX_NC3;
+	    model = NC_FORMATX_CDF5;
 	    break;
 	 case NC_FORMAT_64BIT_OFFSET:
 	    xcmode |= NC_64BIT_OFFSET;
@@ -1680,22 +1709,22 @@ NC_create(const char *path, int cmode, size_t initialsz,
 	 default:
 	    model = NC_FORMATX_NC3;
 	    break;
-      }
-   }
-
-   /* Add inferred flags */
-   cmode |= xcmode;
+         }
+       }
+     }
+   
+     /* Add inferred flags */
+     cmode |= xcmode;
 
    /* Clean up illegal combinations */
    if((cmode & (NC_64BIT_OFFSET|NC_64BIT_DATA)) == (NC_64BIT_OFFSET|NC_64BIT_DATA))
-	cmode &= ~(NC_64BIT_OFFSET); /*NC_64BIT_DATA=>NC_64BIT_OFFSET*/
-
    if((cmode & NC_MPIIO) && (cmode & NC_MPIPOSIX))
       return  NC_EINVAL;
 
+#if 0 /* Apparently never used */
    if (!(dispatcher = NC_get_dispatch_override()))
+#endif
    {
-
       /* Figure out what dispatcher to use */
 #ifdef USE_NETCDF4
       if(model == (NC_FORMATX_NC4))
@@ -1706,6 +1735,15 @@ NC_create(const char *path, int cmode, size_t initialsz,
       if(model == (NC_FORMATX_PNETCDF))
 	dispatcher = NCP_dispatch_table;
       else
+#endif
+#ifdef USE_S3
+      if(model == (NC_FORMATX_S3)) {
+	/* See if NC_NETCDF4 |NC_NETCDF4_CLASSIC is set */
+	if((cmode & NC_NETCDF4) == NC_NETCDF4)
+	    dispatcher = NC4_dispatch_table;
+	else
+	    dispatcher = NC3_dispatch_table;
+      } else
 #endif
       if(model == (NC_FORMATX_NC3))
  	dispatcher = NC3_dispatch_table;
@@ -1727,7 +1765,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 
    /* Assume create will fill in remaining ncp fields */
    if ((stat = dispatcher->create(path, cmode, initialsz, basepe, chunksizehintp,
-				   useparallel, parameters, dispatcher, ncp))) {
+				   flags2, parameters, dispatcher, ncp))) {
 	del_from_NCList(ncp); /* oh well */
 	free_NC(ncp);
      } else {
@@ -1748,13 +1786,14 @@ For open, we have the following pieces of information to use to determine the di
 - path
 - cmode
 - the contents of the file (if it exists), basically checking its magic number.
+- flags2
 
 \returns ::NC_NOERR No error.
 */
 int
 NC_open(const char *path, int cmode,
 	int basepe, size_t *chunksizehintp,
-        int useparallel, void* parameters,
+        int flags2, void* parameters,
         int *ncidp)
 {
    int stat = NC_NOERR;
@@ -1765,11 +1804,19 @@ NC_open(const char *path, int cmode,
    int model = 0;
    int isurl = 0;
    int version = 0;
-   int flags = 0;
+   int xmode = 0;
+   int useparallel = (flags2 & NC_FLAGS2_PARALLEL) == NC_FLAGS2_PARALLEL;
+   int uses3 = (flags2 & NC_FLAGS2_S3) == NC_FLAGS2_S3;
+   int usestdio = (flags2 & NC_FLAGS2_STDIO) == NC_FLAGS2_STDIO;
 
-   if(!NC_initialized) {
-      stat = nc_initialize();
-      if(stat) return stat;
+   /* Initialize the dispatch table. The function pointers in the
+    * dispatch table will depend on how netCDF was built
+    * (with/without netCDF-4, DAP, CDMREMOTE). */
+
+   if(!NC_initialized)
+   {
+      if ((stat = nc_initialize()))
+	 return stat; 
    }
 
 #ifdef USE_REFCOUNT
@@ -1787,12 +1834,13 @@ NC_open(const char *path, int cmode,
        if(isurl)
            model = NC_urlmodel(path);
     }
-    if(model == 0) {
+    if(model == NC_FORMATX_UNDEFINED) {
 	version = 0;
+	xmode = cmode;
 	/* Try to find dataset type */
-	if(useparallel) flags |= NC_MPIIO;
-	if(inmemory) flags |= NC_INMEMORY;
-	stat = NC_check_file_type(path,flags,parameters,&model,&version);
+	if(useparallel) xmode |= NC_MPIIO;
+	if(inmemory) xmode |= NC_INMEMORY;
+	stat = NC_check_file_type(path,xmode,flags2,parameters,&model,&version);
         if(stat == NC_NOERR) {
    	if(model == 0)
 	    return NC_ENOTNC;
@@ -1836,16 +1884,13 @@ NC_open(const char *path, int cmode,
    if((cmode & NC_MPIIO && cmode & NC_MPIPOSIX))
       return  NC_EINVAL;
 
+#if 0 /* Apparently never used */
    /* override any other table choice */
    dispatcher = NC_get_dispatch_override();
    if(dispatcher != NULL) goto havetable;
+#endif
 
    /* Figure out what dispatcher to use */
-#if  defined(USE_CDMREMOTE)
-   if(model == (NC_DISPATCH_NC4 | NC_DISPATCH_NCR))
-	dispatcher = NCCR_dispatch_table;
-   else
-#endif
 #if defined(USE_DAP)
    if(model == (NC_FORMATX_DAP2))
 	dispatcher = NCD2_dispatch_table;
@@ -1854,6 +1899,11 @@ NC_open(const char *path, int cmode,
 #if  defined(USE_PNETCDF)
    if(model == (NC_FORMATX_PNETCDF))
 	dispatcher = NCP_dispatch_table;
+   else
+#endif
+#if  defined(USE_S3)
+   if(model == (NC_FORMATX_S3))
+	dispatcher = NC3_dispatch_table;
    else
 #endif
 #if defined(USE_NETCDF4)
@@ -1865,8 +1915,6 @@ NC_open(const char *path, int cmode,
 	dispatcher = NC3_dispatch_table;
    else
       return  NC_ENOTNC;
-
-havetable:
 
    /* Create the NC* instance and insert its dispatcher */
    stat = new_NC(dispatcher,path,cmode,&ncp);
@@ -1882,7 +1930,7 @@ havetable:
 
    /* Assume open will fill in remaining ncp fields */
    stat = dispatcher->open(path, cmode, basepe, chunksizehintp,
-			   useparallel, parameters, dispatcher, ncp);
+			   flags2, parameters, dispatcher, ncp);
    if(stat == NC_NOERR) {
      if(ncidp) *ncidp = ncp->ext_ncid;
    } else {

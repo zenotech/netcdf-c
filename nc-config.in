@@ -11,6 +11,7 @@ includedir=${prefix}/include
 cc="@CC@"
 cflags=" -I${includedir} @CPPFLAGS@" 
 has_dap="@HAS_DAP@"
+has_s3="@HAS_S3@"
 has_nc2="@HAS_NC2@"
 has_nc4="@HAS_NC4@"
 has_hdf4="@HAS_HDF4@"
@@ -112,6 +113,7 @@ all()
         echo "  --has-f90   -> $has_f90"
         echo
         echo "  --has-dap   -> $has_dap"
+        echo "  --has-s3    -> $has_s3"
         echo "  --has-nc2   -> $has_nc2"
         echo "  --has-nc4   -> $has_nc4"
         echo "  --has-hdf5  -> $has_hdf5"
@@ -157,6 +159,10 @@ while test $# -gt 0; do
 
     --has-dap)
        	echo $has_dap
+       	;;
+
+    --has-s3)
+       	echo $has_s3
        	;;
 
     --has-nc2)

@@ -30,12 +30,16 @@ endif BUILD_DISKLESS
 if USE_FFIO
 libnetcdf3_la_SOURCES += ffio.c
 else !USE_FFIO
+libnetcdf3_la_SOURCES += posixio.c
+endif !USE_FFIO
+
+if USE_S3
+libnetcdf3_la_SOURCES += s3io.c libs3.c libs3uri.c libs3uri.h
+endif
+
 if USE_STDIO
 libnetcdf3_la_SOURCES += stdio.c
-else !USE_STDIO
-libnetcdf3_la_SOURCES += posixio.c
-endif !USE_STDIO
-endif !USE_FFIO
+endif
 
 noinst_LTLIBRARIES = libnetcdf3.la
 

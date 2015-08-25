@@ -45,7 +45,7 @@ extern "C" {
 EXTERNL int
 NCD2_open(const char *path, int mode,
          int basepe, size_t *chunksizehintp,
-         int use_parallel, void* mpidata,
+         int flags2, void* mpidata,
          struct NC_Dispatch* dispatch, NC* ncp);
 
 EXTERNL int
@@ -57,7 +57,8 @@ NCD2_inq_format_extended(int ncid, int* formatp, int* modep);
 
 /* End _var */
 
-extern int NCD2_initialize(void);
+EXTERNL int NCD2_initialize(void);
+EXTERNL int NCD2_finalize(void);
 
 #if defined(__cplusplus)
 }

@@ -17,8 +17,8 @@ IF(USE_DAP)
   SET(liblib_LIBS ${liblib_LIBS} oc2 dap2)
 ENDIF()
 
-IF(BUILD_CDMREMOTE)
-  SET(liblib_LIBS ${liblib_LIBS} cdmr)
+IF(USE_S3)
+  SET(liblib_LIBS ${liblib_LIBS} s3)
 ENDIF()
 
 FOREACH(LIBS ${liblib_LIBS})
@@ -68,6 +68,10 @@ IF(USE_HDF5 OR USE_NETCDF4)
 ENDIF()
 
 IF(USE_DAP)
+  SET(TLL_LIBS ${TLL_LIBS} ${CURL_LIBRARY})
+ENDIF()
+
+IF(USE_S3)
   SET(TLL_LIBS ${TLL_LIBS} ${CURL_LIBRARY})
 ENDIF()
 

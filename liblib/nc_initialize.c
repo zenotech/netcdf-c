@@ -45,7 +45,7 @@ It also initializes appropriate external libraries.
 */
 
 int
-nc_initialize()
+nc_initialize(void)
 {
     int stat = NC_NOERR;
 

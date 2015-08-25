@@ -29,6 +29,10 @@ libdispatch_la_SOURCES += dgroup.c dvlen.c dcompound.c dtype.c denum.c	\
 dopaque.c ncaux.c
 endif # USE_NETCDF4
 
+if USE_CURL
+libdispatch_la_SOURCES += dhttp.c
+endif
+
 # Turn on pre-processor flag when building a DLL for windows.
 if BUILD_DLL
 libdispatch_la_CPPFLAGS += -DDLL_EXPORT

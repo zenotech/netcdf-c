@@ -188,29 +188,30 @@ Use this in mode flags for both nc_create() and nc_open(). */
 /**@}*/
 
 /** Extended format specifier returned by  nc_inq_format_extended()
- *  Added in version 4.3.1. This returns the true format of the
+ *  Added in version 4.3.1. This returns the access mechanims for the
  *  underlying data.
  * The function returns two values
- * 1. a small integer indicating the underlying source type
- *    of the data. Note that this may differ from what the user
+ * 1. a small integer indicating the underlying access mechanism
+ *    for the data. Note that this may differ from what the user
  *    sees from nc_inq_format() because this latter function
  *    returns what the user can expect to see thru the API.
  * 2. A mode value indicating what mode flags are effectively
  *    set for this dataset. This usually will be a superset
  *    of the mode flags used as the argument to nc_open
  *    or nc_create.
- * More or less, the #1 values track the set of dispatch tables.
- * The #1 values are as follows.
- * Note that CDF-5 returns NC_FORMAT_NC3, but sets the mode flag properly.
+ * 
+ * The #1 values are as follows. They overlap and extend the NC_FORMAT_X values.
  */
 /**@{*/
-#define NC_FORMATX_NC3       (1)
-#define NC_FORMATX_NC_HDF5   (2) /* netCDF-4 subset of HDF5 */
-#define NC_FORMATX_NC4       NC_FORMATX_NC_HDF5 /* alias */
-#define NC_FORMATX_NC_HDF4   (3) /* netCDF-4 subset of HDF4 */
-#define NC_FORMATX_PNETCDF   (4)
-#define NC_FORMATX_DAP2      (5)
-#define NC_FORMATX_DAP4      (6)
+#define NC_FORMATX_NC3       (NC_FORMAT_CLASSIC)
+#define NC_FORMATX_NC_HDF5   (NC_FORMAT_NETCDF4) /* netCDF-4 subset of HDF5 */
+#define NC_FORMATX_NC4       (NC_FORMATX_NC_HDF5) /* alias */
+#define NC_FORMATX_NC_HDF4   (6) /* netCDF-4 subset of HDF4 */
+#define NC_FORMATX_PNETCDF   (7)
+#define NC_FORMATX_DAP2      (8)
+#define NC_FORMATX_DAP4      (9)
+#define NC_FORMATX_S3        (10)
+#define NC_FORMATX_CDF5      (NC_FORMAT_CDF5)
 #define NC_FORMATX_UNDEFINED (0)
 /**@}*/
 
@@ -385,8 +386,8 @@ by the desired type. */
 #define NC_EDAS		(-71)      /**< Malformed or inaccessible DAS */
 #define NC_EDDS		(-72)      /**< Malformed or inaccessible DDS */
 #define NC_EDATADDS	(-73)      /**< Malformed or inaccessible DATADDS */
-#define NC_EDAPURL	(-74)      /**< Malformed DAP URL */
-#define NC_EDAPCONSTRAINT (-75)    /**< Malformed DAP Constraint*/
+#define NC_EDAPURL	  (-74)      /**< Malformed URL */
+#define NC_EDAPCONSTRAINT (-75)      /**< Malformed Constraint*/
 #define NC_ETRANSLATION (-76)      /**< Untranslatable construct */
 #define NC_EACCESS      (-77)      /**< Access Failure */
 #define NC_EAUTH        (-78)      /**< Authorization Failure */

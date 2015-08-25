@@ -105,6 +105,30 @@ fi
 
 CXXFLAGS="$CPPFLAGS $CXXFLAGS"
 
+cfbuild() {
+export PATH
+export CC
+export CPPFLAGS
+export CFLAGS
+export LDFLAGS
+export LD_LIBRARY_PATH
+export MALLOC_CHECK
+export CXXFLAGS
+
+if test -z "$NB" ; then
+#${MAKE} maintainer-clean >/dev/null 2>&1
+if autoreconf -i --force ; then ok=1; else exit ; fi
+fi
+
+if test "x$FAST" = x ; then
+  if test -f Makefile ; then ${MAKE} distclean >/dev/null 2>&1 ; fi
+fi
+sh $X ./configure ${FLAGS}
+for c in $cmds; do
+  ${MAKE} ${FORCE} $c
+done
+}
+
 FLAGS="--prefix ${PREFIX}"
 #FLAGS="$FLAGS --disable-f77 --disable-f90"
 #FLAGS="$FLAGS --disable-cxx"
@@ -169,29 +193,10 @@ FLAGS="$FLAGS --enable-parallel-tests"
 fi
 
 #FLAGS="${FLAGS} --enable-stdio"
-
-export PATH
-export CC
-export CPPFLAGS
-export CFLAGS
-export LDFLAGS
-export LD_LIBRARY_PATH
-export MALLOC_CHECK
-export CXXFLAGS
+FLAGS="${FLAGS} --enable-s3"
 
 DISTCHECK_CONFIGURE_FLAGS="$FLAGS"
 export DISTCHECK_CONFIGURE_FLAGS
 
-if test -z "$NB" ; then
-#${MAKE} maintainer-clean >/dev/null 2>&1
-if autoreconf -i --force ; then ok=1; else exit ; fi
-fi
-
-if test "x$FAST" = x ; then
-  if test -f Makefile ; then ${MAKE} distclean >/dev/null 2>&1 ; fi
-fi
-sh $X ./configure ${FLAGS}
-for c in $cmds; do
-  ${MAKE} ${FORCE} $c
-done
+cfbuild
 exit 0

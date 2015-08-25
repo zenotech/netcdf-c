@@ -40,7 +40,7 @@ static const int LEGAL_OPEN_FLAGS = (NC_WRITE | NC_NOCLOBBER | NC_SHARE | NC_LOC
 static int
 NCP_create(const char *path, int cmode,
 	  size_t initialsz, int basepe, size_t *chunksizehintp,
-	  int use_parallel, void* mpidata,
+	  int flags2, void* mpidata,
 	  struct NC_Dispatch* table, NC* nc)
 {
     int res, default_format;
@@ -106,7 +106,7 @@ NCP_create(const char *path, int cmode,
 static int
 NCP_open(const char *path, int cmode,
 	    int basepe, size_t *chunksizehintp,
-	    int use_parallel, void* mpidata,
+	    int flags2, void* mpidata,
 	    struct NC_Dispatch* table, NC* nc)
 {
     int res;

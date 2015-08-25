@@ -954,7 +954,7 @@ int
 NC3_create(const char *path, int ioflags,
 		size_t initialsz, int basepe,
 		size_t *chunksizehintp,
-		int use_parallel, void* parameters,
+		int flags2, void* parameters,
                 NC_Dispatch* dispatch, NC* nc)
 {
 	int status;
@@ -1091,7 +1091,7 @@ nc_set_default_format(int format, int *old_formatp)
 int
 NC3_open(const char * path, int ioflags,
                int basepe, size_t *chunksizehintp,
-	       int use_parallel,void* parameters,
+	       int flags2 ,void* parameters,
                NC_Dispatch* dispatch, NC* nc)
 {
 	int status;
