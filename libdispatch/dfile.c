@@ -78,19 +78,14 @@ NC_interpret_magic_number(char* magic, int* model, int* version)
     int status = NC_NOERR;
     /* Look at the magic number */
     /* Ignore the first byte for HDF */
-#ifdef USE_NETCDF4
     if(magic[1] == 'H' && magic[2] == 'D' && magic[3] == 'F') {
 	*model = NC_FORMATX_NC4;
 	*version = 5;
-#ifdef USE_HDF4
     } else if(magic[0] == '\016' && magic[1] == '\003'
               && magic[2] == '\023' && magic[3] == '\001') {
-	*model = NC_FORMATX_HDF4;
+	*model = NC_FORMATX_NC_HDF4;
 	*version = 4;
-#endif
-    } else
-#endif
-    if(magic[0] == 'C' && magic[1] == 'D' && magic[2] == 'F') {
+    } else if(magic[0] == 'C' && magic[1] == 'D' && magic[2] == 'F') {
         if(magic[3] == '\001') {
             *version = 1; /* netcdf classic version 1 */
 	    *model = NC_FORMATX_NC3;
@@ -220,6 +215,20 @@ NC_check_file_type(const char *path, int xmode, int flags2, void *parameters,
 
 done:
    return status;
+}
+
+static int
+cmode2model(int cmode)
+{
+    int parallel = ((cmode & NC_MPIIO) == NC_MPIIO || (cmode & NC_MPIPOSIX) == NC_MPIPOSIX);
+    if((cmode & NC_NETCDF4) == NC_NETCDF4) {
+	return NC_FORMATX_NC4;
+    } else if(parallel) {
+	return NC_FORMATX_PNETCDF;
+    } else if((cmode & NC_CDF5) == NC_CDF5) {
+	return NC_FORMATX_CDF5;
+    }
+    return NC_FORMATX_NC3;
 }
 
 /**  \ingroup datasets
@@ -1666,55 +1675,59 @@ NC_create(const char *path, int cmode, size_t initialsz,
 	return NC_ENFILE;
 #endif
 
+#ifdef USING_CURL
    if((isurl = NC_testurl(path)))
 	model = NC_urlmodel(path);
+#endif
 
-   /* Look to the incoming cmode for hints */
-   if(model == NC_FORMATX_UNDEFINED) {
-#ifdef USE_NETCDF4
-      if((cmode & NC_NETCDF4) == NC_NETCDF4) {
-	model = NC_FORMATX_NC4;
-      } else
-#endif
-#ifdef USE_PNETCDF
-      /* pnetcdf is used for parallel io on CDF-1, CDF-2, and CDF-5 */
-      if((cmode & NC_MPIIO) == NC_MPIIO) {
-	model = NC_FORMATX_PNETCDF;
-      } else /* still undefined */
-#endif
-      {	/* Check default format (not formatx) */
+    if(model == NC_FORMATX_UNDEFINED) {
+        /* Look to the incoming cmode for hints: */
+        model = cmode2model(cmode);       
+    }
+    if(model == NC_FORMATX_UNDEFINED) {
+	/* Check default format (not formatx) */
 	int format = nc_get_default_format();
 	switch (format) {
-#ifdef USE_NETCDF4
 	case NC_FORMAT_NETCDF4:
-	    xcmode |= NC_NETCDF4;
+	    cmode |= NC_NETCDF4;
 	    model = NC_FORMATX_NC4;
 	    break;
 	case NC_FORMAT_NETCDF4_CLASSIC:
-	    xcmode |= NC_CLASSIC_MODEL;
+	    cmode |= (NC_NETCDF4 | NC_CLASSIC_MODEL);
 	    model = NC_FORMATX_NC4;
 	    break;
-#endif
-	 case NC_FORMAT_CDF5:
-	    xcmode |= NC_64BIT_DATA;
+	case NC_FORMAT_CDF5:
+	    cmode |= NC_64BIT_DATA;
 	    model = NC_FORMATX_CDF5;
 	    break;
-	 case NC_FORMAT_64BIT_OFFSET:
-	    xcmode |= NC_64BIT_OFFSET;
+	case NC_FORMAT_64BIT_OFFSET:
+	    cmode |= NC_64BIT_OFFSET;
 	    model = NC_FORMATX_NC3;
 	    break;
-	 case NC_FORMAT_CLASSIC:
+	case NC_FORMAT_CLASSIC:
+	default:
 	    model = NC_FORMATX_NC3;
 	    break;
-	 default:
-	    model = NC_FORMATX_NC3;
-	    break;
-         }
-       }
-     }
-   
-     /* Add inferred flags */
-     cmode |= xcmode;
+	}
+    }
+    if(model == NC_FORMATX_UNDEFINED)
+	return NC_ENOTNC; /* Can't figure it out */
+    /* validate */
+    stat = NC_NOERR;
+    if(model == NC_FORMATX_NC4) {
+#ifndef USE_NETCDF4
+	stat = NC_ENOTNC;
+#endif
+    } else if(model == NC_FORMATX_CDF5) {
+#ifndef USE_NETCDF4
+	stat = NC_ENOTNC;
+#endif
+    } else if(model == NC_FORMATX_PNETCDF) {
+#ifndef USE_PNETCDF
+	stat = NC_ENOTNC;
+#endif
+    }
+    if(stat) return stat;
 
    /* Clean up illegal combinations */
    if((cmode & (NC_64BIT_OFFSET|NC_64BIT_DATA)) == (NC_64BIT_OFFSET|NC_64BIT_DATA))
@@ -1724,43 +1737,36 @@ NC_create(const char *path, int cmode, size_t initialsz,
 #if 0 /* Apparently never used */
    if (!(dispatcher = NC_get_dispatch_override()))
 #endif
-   {
-      /* Figure out what dispatcher to use */
+
+    /* Convert model => dispatcher */
+    switch (model) {
 #ifdef USE_NETCDF4
-      if(model == (NC_FORMATX_NC4))
+    case NC_FORMATX_NC4:
  	dispatcher = NC4_dispatch_table;
-      else
+	break;
 #endif /*USE_NETCDF4*/
 #ifdef USE_PNETCDF
-      if(model == (NC_FORMATX_PNETCDF))
+    case NC_FORMATX_PNETCDF:
 	dispatcher = NCP_dispatch_table;
-      else
+	break;
 #endif
-#ifdef USE_S3
-      if(model == (NC_FORMATX_S3)) {
-	/* See if NC_NETCDF4 |NC_NETCDF4_CLASSIC is set */
-	if((cmode & NC_NETCDF4) == NC_NETCDF4)
-	    dispatcher = NC4_dispatch_table;
-	else
-	    dispatcher = NC3_dispatch_table;
-      } else
-#endif
-      if(model == (NC_FORMATX_NC3))
- 	dispatcher = NC3_dispatch_table;
-      else
-	 return NC_ENOTNC;
-   }
+    case NC_FORMATX_NC3:
+	dispatcher = NC3_dispatch_table;
+	break;
+    default:
+	return NC_ENOTNC;
+    }
 
-   /* Create the NC* instance and insert its dispatcher */
-   stat = new_NC(dispatcher,path,cmode,&ncp);
-   if(stat) return stat;
+    /* Create the NC* instance and insert its dispatcher */
+    stat = new_NC(dispatcher,path,cmode,&ncp);
+    if(stat) return stat;
 
-   /* Add to list of known open files and define ext_ncid */
-   add_to_NCList(ncp);
+    /* Add to list of known open files and define ext_ncid */
+    add_to_NCList(ncp);
 
 #ifdef USE_REFCOUNT
-   /* bump the refcount */
-   ncp->refcount++;
+    /* bump the refcount */
+    ncp->refcount++;
 #endif
 
    /* Assume create will fill in remaining ncp fields */
@@ -1829,11 +1835,13 @@ NC_open(const char *path, int cmode,
    }
 #endif
 
+#ifdef USING_CURL
    if(!inmemory) {
        isurl = NC_testurl(path);
        if(isurl)
            model = NC_urlmodel(path);
     }
+#endif
     if(model == NC_FORMATX_UNDEFINED) {
 	version = 0;
 	xmode = cmode;
@@ -1841,80 +1849,84 @@ NC_open(const char *path, int cmode,
 	if(useparallel) xmode |= NC_MPIIO;
 	if(inmemory) xmode |= NC_INMEMORY;
 	stat = NC_check_file_type(path,xmode,flags2,parameters,&model,&version);
-        if(stat == NC_NOERR) {
-   	if(model == 0)
-	    return NC_ENOTNC;
-	} else /* presumably not a netcdf file */
+        if(stat != NC_NOERR) 
 	    return stat;
+	
+#ifdef USE_PNETCDF
+retry:
+#endif
+	switch (model) {
+	case NC_FORMATX_NC4:
+#ifdef USE_NETCDF4
+	    cmode |= NC_NETCDF4; /* Force flag consistentcy */
+	    dispatcher = NC4_dispatch_table;
+	    break;
+#else
+	    return NC_ENOTNC;
+#endif
+	case NC_FORMATX_NC_HDF4:
+#ifdef USE_HDF4
+	    cmode |= NC_NETCDF4; /* Force flag consistentcy */
+	    break;
+#else
+	    return NC_ENOTNC;
+#endif
+	case NC_FORMATX_NC3:
+	case NC_FORMATX_CDF5:
+	    dispatcher = NC3_dispatch_table;
+	    cmode &= ~NC_NETCDF4; /* must be netcdf-3 (CDF-1, CDF-2, CDF-5) */
+	    /* User may want to open file using the pnetcdf library */
+#ifdef USE_PNETCDF
+            if(cmode & NC_PNETCDF) {
+                /* dispatch is determined by cmode, rather than file format */
+		model = NC_FORMATX_PNETCDF;
+		goto retry;
+	    }
+#endif
+	    /*
+	     * For opening an existing file, flags NC_64BIT_OFFSET and
+	     * NC_64BIT_DATA will be ignored, as the file is already in
+	     * either CDF-1, 2, or 5 format. However, below we add the file
+	     * format info to cmode so the internal netcdf file open
+	     * subroutine knows what file format to open.  The mode will be
+	     * saved in ncp->mode, to be used by nc_inq_format_extended()
+	     * to report the file format.  See NC3_inq_format_extended() in
+	     * libsrc/nc3internal.c for example.
+	     */
+            if(version == 2)
+		cmode |= NC_64BIT_OFFSET;
+	    else if(version == 5) {
+		cmode |= NC_64BIT_DATA;
+		cmode &= ~(NC_64BIT_OFFSET); /*NC_64BIT_DATA=>NC_64BIT_OFFSET*/
+	    }
+	    break;	    
+#ifdef USE_PNETCDF
+	case NC_FORMATX_PNETCDF:
+ 	    dispatcher = NCP_dispatch_table;
+	    cmode &= ~(NC_NETCDF4|NC_64BIT_OFFSET);
+	    cmode |= NC_64BIT_DATA;
+	    break;	    
+#endif
+#ifdef USE_DAP
+	case NC_FORMATX_DAP2:
+	    dispatcher = NCD2_dispatch_table;
+	    break;
+	case NC_FORMATX_DAP4:
+	    break;	    
+#endif
+	default:
+	    return NC_ENOTNC;	
+	}
     }
 
-   if(model == 0) {
-	fprintf(stderr,"Model == 0\n");
-	return NC_ENOTNC;
-   }
-
-   /* Force flag consistentcy */
-   if(model == NC_FORMATX_NC4)
-      cmode |= NC_NETCDF4;
-   else if(model == NC_FORMATX_NC3) {
-      cmode &= ~NC_NETCDF4; /* must be netcdf-3 (CDF-1, CDF-2, CDF-5) */
-      /* User may want to open file using the pnetcdf library */
-      if(cmode & NC_PNETCDF) {
-         /* dispatch is determined by cmode, rather than file format */
-         model = NC_FORMATX_PNETCDF;
-      }
-      /* For opening an existing file, flags NC_64BIT_OFFSET and NC_64BIT_DATA
-       * will be ignored, as the file is already in either CDF-1, 2, or 5
-       * format. However, below we add the file format info to cmode so the
-       * internal netcdf file open subroutine knows what file format to open.
-       * The mode will be saved in ncp->mode, to be used by
-       * nc_inq_format_extended() to report the file format.
-       * See NC3_inq_format_extended() in libsrc/nc3internal.c for example.
-       */
-      if(version == 2) cmode |= NC_64BIT_OFFSET;
-      else if(version == 5) {
-	cmode |= NC_64BIT_DATA;
-	cmode &= ~(NC_64BIT_OFFSET); /*NC_64BIT_DATA=>NC_64BIT_OFFSET*/
-     }
-   } else if(model == NC_FORMATX_PNETCDF) {
-      cmode &= ~(NC_NETCDF4|NC_64BIT_OFFSET);
-      cmode |= NC_64BIT_DATA;
-   }
-
-   if((cmode & NC_MPIIO && cmode & NC_MPIPOSIX))
-      return  NC_EINVAL;
+    if((cmode & NC_MPIIO && cmode & NC_MPIPOSIX))
+	return  NC_EINVAL;
 
 #if 0 /* Apparently never used */
-   /* override any other table choice */
-   dispatcher = NC_get_dispatch_override();
-   if(dispatcher != NULL) goto havetable;
+    /* override any other table choice */
+    dispatcher = NC_get_dispatch_override();
+    if(dispatcher != NULL) goto havetable;
 #endif
-
-   /* Figure out what dispatcher to use */
-#if defined(USE_DAP)
-   if(model == (NC_FORMATX_DAP2))
-	dispatcher = NCD2_dispatch_table;
-   else
-#endif
-#if  defined(USE_PNETCDF)
-   if(model == (NC_FORMATX_PNETCDF))
-	dispatcher = NCP_dispatch_table;
-   else
-#endif
-#if  defined(USE_S3)
-   if(model == (NC_FORMATX_S3))
-	dispatcher = NC3_dispatch_table;
-   else
-#endif
-#if defined(USE_NETCDF4)
-   if(model == (NC_FORMATX_NC4))
-	dispatcher = NC4_dispatch_table;
-   else
-#endif
-   if(model == (NC_FORMATX_NC3))
-	dispatcher = NC3_dispatch_table;
-   else
-      return  NC_ENOTNC;
 
    /* Create the NC* instance and insert its dispatcher */
    stat = new_NC(dispatcher,path,cmode,&ncp);
@@ -1937,6 +1949,7 @@ NC_open(const char *path, int cmode,
 	del_from_NCList(ncp);
 	free_NC(ncp);
    }
+
    return stat;
 }
 

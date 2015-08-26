@@ -131,6 +131,7 @@ NC_urlmodel(const char* path)
     return model;
 }
 
+#ifdef USING_LIBCURL
 static size_t
 PingCallback(void *input, size_t size, size_t nmemb, void* userdata)
 {
@@ -191,3 +192,4 @@ done:
     if(retval == 1) retval = (httpcode == 200 ? 1 : 0);
     return retval;
 }
+#endif

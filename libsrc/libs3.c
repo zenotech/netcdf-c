@@ -49,6 +49,9 @@ static char* s3totrue(const char* s3url, char** bucket, char** object);
 static char* truetos3(const char* turl);
 static void freeheaders(char** headers);
 static S3error errcvt(CURLcode cstat);
+static int s3strncmp(const char* s1, const char* s2, size_t len);
+static void s3strncpy(char* dst, const char* src, size_t len);
+static char* s3strndup(const char* s, size_t len);
 
 /**************************************************/
 /* Provide low level IO for S3:
@@ -127,17 +130,17 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
     if(strcasecmp(key,"content-length")==0) {
 	meta->length = strtoull(value,NULL,10);
     } else if(strcasecmp(key,"content-type")==0) {
-	meta->type = ls3_strndup(value,len);
+	meta->type = 3strndup(value,len);
     } else if(strcasecmp(key,"last-modified")==0) {
-	meta->last_modified = ls3_strndup(value,len);
+	meta->last_modified = s3strndup(value,len);
     } else if(strcasecmp(key,"etag")==0) {
-	meta->etag = ls3_strndup(value,len);
+	meta->etag = s3strndup(value,len);
     } else if(strcasecmp(key,"x-amz-version-id")==0) {
-	meta->version_id = ls3_strndup(value,len);
+	meta->version_id = s3strndup(value,len);
     } else if(strcasecmp(key,"server")==0) {
-	meta->server = ls3_strndup(value,len);
+	meta->server = s3strndup(value,len);
     } else if(strcasecmp(key,"connection")==0) {
-	if(strncmp(value,"open",len)==0)
+	if(s3strncmp(value,"open",len)==0)
 	    meta->connected = 1;
 	else
 	    meta->connected = 0;
@@ -568,3 +571,48 @@ ls3_get_nread(S3* s3)
 {
     return s3->range.offset;
 }
+
+/**************************************************/
+/* Utilities */
+
+/* Create private versions of some string functions */
+
+static char*
+s3strndup(const char* s, size_t len)
+{
+    char* dup;
+    if(s == NULL) return NULL;
+    dup = (char*)ocmalloc(len+1);
+    MEMCHECK(dup,NULL);
+    memcpy((void*)dup,s,len);
+    dup[len] = '\0';
+    return dup;
+}
+
+static void
+s3strncpy(char* dst, const char* src, size_t len)
+{
+    if(dst == NULL) return;
+    if(len == 0) {dst[0] = '\0' ; return;}
+    memcpy((void*)dst,src,len);
+    dst[len] = '\0';
+}
+
+/* Do not trust strncmp semantics; this one
+   compares upto len chars or to null terminators */
+static int
+s3strncmp(const char* s1, const char* s2, size_t len)
+{
+    const char *p,*q;
+    if(s1 == s2) return 0;
+    if(s1 == NULL) return -1;
+    if(s2 == NULL) return +1;
+    for(p=s1,q=s2;len > 0;p++,q++,len--) {
+	if(*p == 0 && *q == 0) return 0; /* *p == *q == 0 */
+	if(*p != *q)
+	    return (*p - *q);	
+    }
+    /* 1st len chars are same */
+    return 0;
+}
+

@@ -343,6 +343,18 @@ if test $require_curl = yes ; then
   fi
 fi
 
+# Define a test for curl specifically
+if test "x$require_curl" = xyes; then
+  if test "x$found_curl" = xyes; then
+    using_libcurl=yes
+  else
+    using_libcurl=no
+  fi
+fi
+if test "x$using_libcurl" = xyes ; then
+ AC_DEFINE([USING_LIBCURL], [1], [libcurl is available])
+fi
+
 # Default is now to always do the short remote tests
 AC_MSG_CHECKING([whether dap remote testing should be enabled (default on)])
 AC_ARG_ENABLE([dap-remote-tests],
@@ -1059,9 +1071,9 @@ fi
 AM_CONDITIONAL(BUILD_PARALLEL, [test x$enable_parallel = xyes])
 AM_CONDITIONAL(TEST_PARALLEL4, [test "x$enable_parallel4" = xyes -a "x$enable_parallel_tests" = xyes])
 AM_CONDITIONAL(BUILD_DAP, [test "x$enable_dap" = xyes])
-AM_CONDITIONAL(USE_S3, [test "x$enable_s3" = xyes])
 AM_CONDITIONAL(USE_DAP, [test "x$enable_dap" = xyes]) # Alias
-AM_CONDITIONAL(USE_CURL, [test "x$enable_dap" = xyes -o "x$enable_s3" = xyes])
+AM_CONDITIONAL(USE_S3, [test "x$enable_s3" = xyes])
+AM_CONDITIONAL(USING_LIBCURL, [test "x$using_libcurl" = xyes])
 AM_CONDITIONAL(ENABLE_DAP_REMOTE_TESTS, [test "x$enable_dap_remote_tests" = xyes])
 AM_CONDITIONAL(ENABLE_DAP_AUTH_TESTS, [test "x$enable_dap_auth_tests" = xyes])
 AM_CONDITIONAL(ENABLE_DAP_LONG_TESTS, [test "x$enable_dap_long_tests" = xyes])

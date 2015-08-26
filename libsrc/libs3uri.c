@@ -55,8 +55,8 @@ static char* queryallow =
 "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$&'()*+,-./:;=?@_~";
 
 /* Not all systems have strndup, so provide one*/
-char*
-ls3_strndup(const char* s, size_t len)
+static char*
+s3strndup(const char* s, size_t len)
 {
     char* dup;
     if(s == NULL) return NULL;
@@ -594,7 +594,7 @@ ls3_uridecodeparams(LS3URI* ls3uri)
     if(ls3uri == NULL) return 0;
     if(ls3uri->params == NULL) return 1;
 
-    params = ls3_strndup(ls3uri->params,
+    params = s3strndup(ls3uri->params,
 		     (strlen(ls3uri->params)+1)); /* so we can modify */
     if(!params)
       return S3_ENOMEM;

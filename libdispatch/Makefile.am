@@ -29,7 +29,7 @@ libdispatch_la_SOURCES += dgroup.c dvlen.c dcompound.c dtype.c denum.c	\
 dopaque.c ncaux.c
 endif # USE_NETCDF4
 
-if USE_CURL
+if USING_LIBCURL
 libdispatch_la_SOURCES += dhttp.c
 endif
 

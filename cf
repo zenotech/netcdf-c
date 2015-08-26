@@ -8,8 +8,8 @@ if test $# != 0 ; then
 cmds=$@
 fi
 
-HDF5=1
-DAP=1
+#HDF5=1
+#DAP=1
 #PNETCDF=1
 #PAR4=1
 #HDF4=1
@@ -192,8 +192,8 @@ FLAGS="$FLAGS --enable-pnetcdf"
 FLAGS="$FLAGS --enable-parallel-tests"
 fi
 
-#FLAGS="${FLAGS} --enable-stdio"
-FLAGS="${FLAGS} --enable-s3"
+FLAGS="${FLAGS} --enable-stdio"
+#FLAGS="${FLAGS} --enable-s3"
 
 DISTCHECK_CONFIGURE_FLAGS="$FLAGS"
 export DISTCHECK_CONFIGURE_FLAGS
