@@ -152,7 +152,7 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
 
 /* Convert metadata to headers */
 static char**
-buildheaders(S3_Metadata* md)
+buildcreateheaders(S3_Metadata* md)
 {
 #define NHDRS 3
     int i;
@@ -379,7 +379,7 @@ ls3_create(const char* url, S3** s3p)
 	char** pp = NULL;
         struct curl_slist *curlheaders=NULL; 
 
-        headers = buildheaders(md);
+        headers = buildcreateheaders(md);
         if(headers == NULL)
 	    {stat = S3_EMETA; goto done;}
         /* Install the headers */
@@ -473,6 +473,63 @@ ls3_close(S3* s3)
     return S3_OK;
 }
 
+/* S3 Accessors */
+
+CURL*
+ls3_get_curl(S3* s3)
+{
+    return s3->curl;
+}
+
+char*
+ls3_get_s3url(S3* s3)
+{
+    return s3->s3url;
+}
+
+char*
+ls3_get_trueurl(S3* s3)
+{
+    return s3->trueurl;
+}
+
+S3_Metadata*
+ls3_get_meta(S3* s3)
+{
+    return &s3->meta;
+}
+
+long
+ls3_get_code(S3* s3)
+{
+    return s3->code;
+}
+
+off_t
+ls3_get_nread(S3* s3)
+{
+    return s3->range.offset;
+}
+
+int
+ls3_delete(const string url)
+{
+    S3error stat = S3_NOERR;
+    S3* s3 = NULL;
+    CURLcode cstat = CURLE_OK;
+
+    /* Make sure the object exists */
+    stat = ls3_open(url, &s3);
+    if(stat || ls3_get_code(s3) >= 400)
+	return stat; 
+
+    /* Prepare to delete */
+    cstat = curl_easy_setopt(curl,CURLOPT_CUSTOMREQUEST,"delete");
+    if(cstat == CURLE_OK) {
+        cstat = curl_easy_perform(curl);
+    if(cstat) stat = errcvt(cstat);
+    return stat;
+}
 
 /**************************************************/
 /* Utilities */
@@ -534,45 +591,8 @@ freeheaders(md->char** headers)
     free(headers);
 }
 
-/* S3 Accessors */
-
-CURL*
-ls3_get_curl(S3* s3)
-{
-    return s3->curl;
-}
-
-char*
-ls3_get_s3url(S3* s3)
-{
-    return s3->s3url;
-}
-
-char*
-ls3_get_trueurl(S3* s3)
-{
-    return s3->trueurl;
-}
-
-S3_Metadata*
-ls3_get_meta(S3* s3)
-{
-    return &s3->meta;
-}
-
-long
-ls3_get_code(S3* s3)
-{
-    return s3->code;
-}
-
-off_t
-ls3_get_nread(S3* s3)
-{
-    return s3->range.offset;
-}
-
 /**************************************************/
+
 /* Utilities */
 
 /* Create private versions of some string functions */

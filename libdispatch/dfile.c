@@ -228,7 +228,7 @@ cmode2model(int cmode)
     } else if((cmode & NC_CDF5) == NC_CDF5) {
 	return NC_FORMATX_CDF5;
     }
-    return NC_FORMATX_NC3;
+    return NC_FORMATX_UNDEFINED;
 }
 
 /**  \ingroup datasets
@@ -1693,34 +1693,16 @@ NC_create(const char *path, int cmode, size_t initialsz,
         /* Look to the incoming cmode for hints: */
         model = cmode2model(cmode);       
     }
+    /* Add in the default mode flags */
     if(model == NC_FORMATX_UNDEFINED) {
-	/* Check default format (not formatx) */
 	int format = nc_get_default_format();
-	switch (format) {
-	case NC_FORMAT_NETCDF4:
-	    cmode |= NC_NETCDF4;
-	    model = NC_FORMATX_NC4;
-	    break;
-	case NC_FORMAT_NETCDF4_CLASSIC:
-	    cmode |= (NC_NETCDF4 | NC_CLASSIC_MODEL);
-	    model = NC_FORMATX_NC4;
-	    break;
-	case NC_FORMAT_CDF5:
-	    cmode |= NC_64BIT_DATA;
-	    model = NC_FORMATX_CDF5;
-	    break;
-	case NC_FORMAT_64BIT_OFFSET:
-	    cmode |= NC_64BIT_OFFSET;
-	    model = NC_FORMATX_NC3;
-	    break;
-	case NC_FORMAT_CLASSIC:
-	default:
-	    model = NC_FORMATX_NC3;
-	    break;
-	}
+	cmode |= format;
+	/* try again */
+        model = cmode2model(cmode);           
     }
-    if(model == NC_FORMATX_UNDEFINED)
-	return NC_ENOTNC; /* Can't figure it out */
+    if(model == NC_FORMATX_UNDEFINED) {
+	model = NC_FORMATX_NC3; /* final default */
+    }
     /* validate */
     stat = NC_NOERR;
     if(model == NC_FORMATX_NC4) {

@@ -61,6 +61,7 @@ extern S3error ls3_write_data(S3* s3, void* buffer, off_t start, size_t count);
 extern S3error ls3_create(const char* url, S3** s3p);
 extern S3error ls3_open(const char* url, S3** s3);
 extern S3error ls3_close(S3* s3);
+extern int ls3_delete(const string url);
 
 /* S3 Accessors */
 extern CURL* ls3_get_curl(S3*);
