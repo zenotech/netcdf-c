@@ -58,12 +58,25 @@
 #define T_ulong   ulongtype
 
 /**************************************************/
+/**
+   The top 8bits of cmode
+   are currently reserved for flags that should not be
+   set by users; they specify inferred informat.
+   They should be assigned from the top bit down.
+   currently available:   
+        0x01000000
+	0x02000000
+	0x04000000
+	0x08000000
 
-/* Define the flags2 flags for nc_open and nc_create in dispatch table */
-/* Flags2 is avoid polluting cmode */
-#define NC_FLAGS2_PARALLEL 1
-#define NC_FLAGS2_STDIO    2
-#define NC_FLAGS2_S3       4
+	0x10000000
+*/
+
+#define NC_INMEMORY      (0x80000000) /**< Use inmemory io */
+#define NC_S3            (0x40000000) /**< Use libsrc/s3io */
+#define NC_PARALLEL      (0x20000000) /**< Use parallel io */
+
+/**************************************************/
 
 #if 0
 /* Define the known classes of dispatchers */
@@ -176,11 +189,11 @@ struct NC;
 
 int NC_create(const char *path, int cmode,
 	      size_t initialsz, int basepe, size_t *chunksizehintp, 
-	      int useparallel, void* parameters,
+	      void* parameters,
 	      int *ncidp);
 int NC_open(const char *path, int cmode,
 	    int basepe, size_t *chunksizehintp,
-	    int useparallel, void* parameters,
+	    void* parameters,
 	    int *ncidp);
 
 /* Expose the default vars and varm dispatch entries */
@@ -206,13 +219,13 @@ int model; /* one of the NC_FORMATX #'s */
 /* WARNING: SIGNATURE CHANGE */
 int (*create)(const char *path, int cmode,
 	  size_t initialsz, int basepe, size_t *chunksizehintp, 
-	  int flags2, void* parameters,
+	  void* parameters,
 	  struct NC_Dispatch* table, NC* ncp);
 
 /* WARNING: SIGNATURE CHANGE */
 int (*open)(const char *path, int mode,
 	    int basepe, size_t *chunksizehintp,
-	    int flags2, void* parameters,
+	    void* parameters,
 	    struct NC_Dispatch* table, NC* ncp);
 
 int (*redef)(int);

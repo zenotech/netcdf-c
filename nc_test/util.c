@@ -680,13 +680,13 @@ init_gvars (void)
 
 	for (rank = 0, vn = 0, xtype = 0, an = 0;  rank <= MAX_RANK; rank++)
 	{
-			/* number variables of a type and rank */
+		/* number variables of a type and rank */
 		const size_t nvars = product(rank, max_dim_len);
 		int jj;
 
 		for (jj = 0; jj < nvars; jj++)
 		{
-				/* number types of this shape */
+			/* number types of this shape */
 			const int ntypes = rank < 2 ? numTypes : 1;
 
 			int tc;
@@ -761,6 +761,9 @@ def_vars(int ncid)
     int var_id;
 
     for (i = 0; i < numVars; i++) {
+if(i==6) {
+int x = 0;
+}	
 	err = nc_def_var(ncid, var_name[i], var_type[i], var_rank[i],
 	    var_dimid[i], &var_id);
 	IF (err) error("nc_def_var: %s", nc_strerror(err));
@@ -859,6 +862,9 @@ write_file(char *filename)
 {
     int  ncid; /* netCDF id */
     int  err;  /* status */
+if(strcmp(filename,"nc_test_cdf5.nc")==0) {
+int x = 0;
+}
     err = file_create(filename, NC_CLOBBER, &ncid);
     IF (err) 
 	error("nc_create: %s", nc_strerror(err));

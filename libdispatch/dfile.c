@@ -104,13 +104,13 @@ done:
 }
 
 static int
-NC_read_magic_number(const char *path, int xmode, int flags2, void *parameters, char* magic)
+NC_read_magic_number(const char *path, int xmode, void *parameters, char* magic)
 {
     int status = NC_NOERR;
     int diskless = ((xmode & NC_DISKLESS) == NC_DISKLESS);
     int use_parallel = ((xmode & NC_MPIIO) == NC_MPIIO);
     int inmemory = (diskless && ((xmode & NC_INMEMORY) == NC_INMEMORY));
-    int s3 = (flags2 & NC_FLAGS2_S3) == NC_FLAGS2_S3;
+    int s3 = (xmode & NC_S3) == NC_S3;
     
     /* assert  |magic| >== MAGIC_NUMBER_LEN */
 
@@ -201,14 +201,14 @@ and return that format value (NC_FORMATX_XXX)
 in model arg.
 */
 static int
-NC_check_file_type(const char *path, int xmode, int flags2, void *parameters,
+NC_check_file_type(const char *path, int xmode, void *parameters,
 		   int* model, int* version)
 {
    int status = NC_NOERR;
    char magic[MAGIC_NUMBER_LEN];
 
    *model = 0;
-   status = NC_read_magic_number(path,xmode,flags2,parameters,magic);
+   status = NC_read_magic_number(path,xmode,parameters,magic);
    if(status) goto done;   
    /* Look at the magic number */
    status = NC_interpret_magic_number(magic,model,version);
@@ -510,7 +510,7 @@ nc__create(const char *path, int cmode, size_t initialsz,
 	   size_t *chunksizehintp, int *ncidp)
 {
    return NC_create(path, cmode, initialsz, 0, 
-		    chunksizehintp, 0, NULL, ncidp);
+		    chunksizehintp, NULL, ncidp);
 
 }
 /**
@@ -526,7 +526,7 @@ nc__create_mp(const char *path, int cmode, size_t initialsz,
 	      int basepe, size_t *chunksizehintp, int *ncidp)
 {
    return NC_create(path, cmode, initialsz, basepe,
-		    chunksizehintp, 0, NULL, ncidp);
+		    chunksizehintp, NULL, ncidp);
 }
 
 /**
@@ -646,7 +646,7 @@ if (status != NC_NOERR) handle_error(status);
 int
 nc_open(const char *path, int mode, int *ncidp)
 {
-   return NC_open(path, mode, 0, NULL, 0, NULL, ncidp);
+   return NC_open(path, mode, 0, NULL, NULL, ncidp);
 }
 
 /**
@@ -708,8 +708,7 @@ nc__open(const char *path, int mode,
     * flags, such as NC_PNETCDF, NC_MPIIO, or NC_MPIPOSIX, before entering
     * NC_open()? Note nc_open_par() also calls NC_open().
     */
-   return NC_open(path, mode, 0, chunksizehintp, 0, 
-		  NULL, ncidp);
+   return NC_open(path, mode, 0, chunksizehintp, NULL, ncidp);
 }
 
 /**
@@ -717,7 +716,7 @@ Open a netCDF file with the contents taken from a block of memory.
 
 \param path Must be non-null, but otherwise only used to set the dataset name.
 
-\param mode the mode flags; Note that this procedure uses a limited set of flags because it forcibly sets NC_NOWRITE|NC_DISKLESS|NC_INMEMORY.
+\param mode the mode flags; Note that this procedure uses a limited set of flags because it forcibly sets NC_NOWRITE|NC_DISKLESS.
 
 \param size The length of the block of memory being passed.
 
@@ -768,10 +767,10 @@ nc_open_mem(const char* path, int mode, size_t size, void* memory, int* ncidp)
  	return NC_EINVAL;
     if(mode & (NC_WRITE|NC_MPIIO|NC_MPIPOSIX|NC_MMAP))
 	return NC_EINVAL;
-    mode |= (NC_INMEMORY|NC_DISKLESS);
+    mode |= (NC_DISKLESS|NC_INMEMORY);
     meminfo.size = size;
     meminfo.memory = memory;
-    return NC_open(path, mode, 0, NULL, 0, &meminfo, ncidp);
+    return NC_open(path, mode, 0, NULL, &meminfo, ncidp);
 #else
     return NC_EDISKLESS;
 #endif
@@ -790,7 +789,7 @@ nc__open_mp(const char *path, int mode, int basepe,
 	    size_t *chunksizehintp, int *ncidp)
 {
    return NC_open(path, mode, basepe, chunksizehintp,
-		  0, NULL, ncidp);
+		  NULL, ncidp);
 }
 
 /**
@@ -1635,9 +1634,6 @@ time. This only applies to classic and 64-bit offset files.
 \param chunksizehintp A pointer to the chunk size hint. This only
 applies to classic and 64-bit offset files.
 
-\param flags2 Extra control flags to avoid polluting cmode;
-              was useparallel- which is now flag value 1.
-
 \param parameters Pointer to MPI comm and info.
 
 \param ncidp Pointer to location where returned netCDF ID is to be
@@ -1647,7 +1643,7 @@ stored.
 */
 int
 NC_create(const char *path, int cmode, size_t initialsz,
-	  int basepe, size_t *chunksizehintp, int flags2,
+	  int basepe, size_t *chunksizehintp,
 	  void* parameters, int *ncidp)
 {
    int stat = NC_NOERR;
@@ -1655,7 +1651,8 @@ NC_create(const char *path, int cmode, size_t initialsz,
    NC_Dispatch* dispatcher = NULL;
    /* Need three pieces of information for now */
    int model = NC_FORMATX_UNDEFINED;
-   int isurl = 0;   /* dap or cdmremote or neither */
+   int isurl = 0;   /* dap  */
+   int iss3 = 0;   /* s3 */
    int xcmode = 0; /* for implied cmode flags */
 
    /* Initialize the dispatch table. The function pointers in the
@@ -1678,6 +1675,18 @@ NC_create(const char *path, int cmode, size_t initialsz,
 #ifdef USING_CURL
    if((isurl = NC_testurl(path)))
 	model = NC_urlmodel(path);
+	/* handle some cases specially */
+	switch (model) {
+	case NC_FORMATX_S3:
+#ifdef USE_S3
+	cmode |= NC_S3; /* remember  */
+	model = NC_FORMAT_UNDEFINED; /* make other code figure it out */
+	break;
+#else
+	return NC_ENOTNC;		
+#endif
+	default: break;
+	}
 #endif
 
     if(model == NC_FORMATX_UNDEFINED) {
@@ -1718,10 +1727,6 @@ NC_create(const char *path, int cmode, size_t initialsz,
 #ifndef USE_NETCDF4
 	stat = NC_ENOTNC;
 #endif
-    } else if(model == NC_FORMATX_CDF5) {
-#ifndef USE_NETCDF4
-	stat = NC_ENOTNC;
-#endif
     } else if(model == NC_FORMATX_PNETCDF) {
 #ifndef USE_PNETCDF
 	stat = NC_ENOTNC;
@@ -1750,6 +1755,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 	dispatcher = NCP_dispatch_table;
 	break;
 #endif
+    case NC_FORMATX_CDF5:
     case NC_FORMATX_NC3:
 	dispatcher = NC3_dispatch_table;
 	break;
@@ -1771,7 +1777,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 
    /* Assume create will fill in remaining ncp fields */
    if ((stat = dispatcher->create(path, cmode, initialsz, basepe, chunksizehintp,
-				   flags2, parameters, dispatcher, ncp))) {
+				   parameters, dispatcher, ncp))) {
 	del_from_NCList(ncp); /* oh well */
 	free_NC(ncp);
      } else {
@@ -1792,14 +1798,13 @@ For open, we have the following pieces of information to use to determine the di
 - path
 - cmode
 - the contents of the file (if it exists), basically checking its magic number.
-- flags2
 
 \returns ::NC_NOERR No error.
 */
 int
 NC_open(const char *path, int cmode,
 	int basepe, size_t *chunksizehintp,
-        int flags2, void* parameters,
+        void* parameters,
         int *ncidp)
 {
    int stat = NC_NOERR;
@@ -1811,9 +1816,8 @@ NC_open(const char *path, int cmode,
    int isurl = 0;
    int version = 0;
    int xmode = 0;
-   int useparallel = (flags2 & NC_FLAGS2_PARALLEL) == NC_FLAGS2_PARALLEL;
-   int uses3 = (flags2 & NC_FLAGS2_S3) == NC_FLAGS2_S3;
-   int usestdio = (flags2 & NC_FLAGS2_STDIO) == NC_FLAGS2_STDIO;
+   int useparallel = (cmode & NC_PARALLEL) == NC_PARALLEL;
+   int uses3 = 0;
 
    /* Initialize the dispatch table. The function pointers in the
     * dispatch table will depend on how netCDF was built
@@ -1837,9 +1841,22 @@ NC_open(const char *path, int cmode,
 
 #ifdef USING_CURL
    if(!inmemory) {
-       isurl = NC_testurl(path);
-       if(isurl)
+        isurl = NC_testurl(path);
+        if(isurl) {
            model = NC_urlmodel(path);
+	   /* handle some cases specially */
+	   switch (model) {
+	   case NC_FORMATX_S3:
+#ifdef USE_S3
+		cmode |= NC_S3; /* record */
+		model = NC_FORMAT_UNDEFINED; /* make check_file_type find it */
+		break;
+#else
+		return NC_ENOTNC;		
+#endif
+	   default: break;
+	   }
+	}
     }
 #endif
     if(model == NC_FORMATX_UNDEFINED) {
@@ -1847,12 +1864,11 @@ NC_open(const char *path, int cmode,
 	xmode = cmode;
 	/* Try to find dataset type */
 	if(useparallel) xmode |= NC_MPIIO;
-	if(inmemory) xmode |= NC_INMEMORY;
-	stat = NC_check_file_type(path,xmode,flags2,parameters,&model,&version);
+	stat = NC_check_file_type(path,xmode,parameters,&model,&version);
         if(stat != NC_NOERR) 
 	    return stat;
 	
-#ifdef USE_PNETCDF
+#ifdef USE_DAP
 retry:
 #endif
 	switch (model) {
@@ -1942,7 +1958,7 @@ retry:
 
    /* Assume open will fill in remaining ncp fields */
    stat = dispatcher->open(path, cmode, basepe, chunksizehintp,
-			   flags2, parameters, dispatcher, ncp);
+			   parameters, dispatcher, ncp);
    if(stat == NC_NOERR) {
      if(ncidp) *ncidp = ncp->ext_ncid;
    } else {

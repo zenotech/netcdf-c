@@ -66,7 +66,7 @@ static NCerror applyclientparams(NCDAPCOMMON*);
 static int
 NCD2_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-	   int flags2, void* mpidata,
+	   int paramflags, void* mpidata,
            NC_Dispatch*,NC* ncp);
 
 static int NCD2_redef(int ncid);
@@ -251,7 +251,7 @@ NCD2_abort(int ncid)
 static int
 NCD2_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-	   int flags2, void* mpidata,
+	   int paramflags, void* mpidata,
            NC_Dispatch* dispatch, NC* ncp)
 {
    return NC_EPERM;
@@ -297,7 +297,7 @@ NCD2_get_vars(int ncid, int varid,
 int
 NCD2_open(const char * path, int mode,
                int basepe, size_t *chunksizehintp,
- 	       int flags2, void* mpidata,
+ 	       int paramflags, void* mpidata,
                NC_Dispatch* dispatch, NC* drno)
 {
     NCerror ncstat = NC_NOERR;

@@ -45,7 +45,7 @@ extern "C" {
 EXTERNL int
 NCD2_open(const char *path, int mode,
          int basepe, size_t *chunksizehintp,
-         int flags2, void* mpidata,
+         int paramflags, void* mpidata,
          struct NC_Dispatch* dispatch, NC* ncp);
 
 EXTERNL int

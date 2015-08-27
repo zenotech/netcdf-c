@@ -954,7 +954,7 @@ int
 NC3_create(const char *path, int ioflags,
 		size_t initialsz, int basepe,
 		size_t *chunksizehintp,
-		int flags2, void* parameters,
+		void* parameters,
                 NC_Dispatch* dispatch, NC* nc)
 {
 	int status;
@@ -1010,7 +1010,8 @@ NC3_create(const char *path, int ioflags,
 	assert(nc3->xsz == ncx_len_NC(nc3,sizeof_off_t));
 
         status =  ncio_create(path, ioflags, initialsz,
-			      0, nc3->xsz, &nc3->chunk, NULL,
+			      0, nc3->xsz, &nc3->chunk,
+			      NULL,
 			      &nc3->nciop, &xp);
 	if(status != NC_NOERR)
 	{
@@ -1091,7 +1092,7 @@ nc_set_default_format(int format, int *old_formatp)
 int
 NC3_open(const char * path, int ioflags,
                int basepe, size_t *chunksizehintp,
-	       int flags2 ,void* parameters,
+	       void* parameters,
                NC_Dispatch* dispatch, NC* nc)
 {
 	int status;
@@ -1117,8 +1118,9 @@ NC3_open(const char * path, int ioflags,
         return NC_EINVAL;
     }
 #endif
-        status = ncio_open(path, ioflags, 0, 0, &nc3->chunk, parameters,
-			       &nc3->nciop, NULL);
+        status = ncio_open(path, ioflags, 0, 0, &nc3->chunk,
+			   parameters,
+			   &nc3->nciop, NULL);
 	if(status)
 		goto unwind_alloc;
 

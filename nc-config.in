@@ -58,6 +58,7 @@ Available values for OPTION include:
   --has-hdf5    whether HDF5 is used in build (always the same as --has-nc4)
   --has-hdf4    whether HDF4 was used in build
   --has-pnetcdf whether parallel-netcdf (a.k.a. pnetcdf) was used in build
+  --has-s3      whether Amazon S3 file io is supported
   --libs        library linking information for netcdf
   --prefix      Install prefix
   --includedir  Include directory

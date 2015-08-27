@@ -2,6 +2,9 @@
 # This shell script runs the ncdump tests.
 # $Id: tst_64bit.sh,v 1.9 2006/03/04 18:50:15 ed Exp $
 
+if test "x$srcdir" = x ; then srcdir="."; fi
+if test "x$builddir" = x ; then builddir="."; fi
+
 echo ""
 echo "*** Testing ncgen and ncdump with 64-bit offset format."
 set -e

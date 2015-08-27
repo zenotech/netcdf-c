@@ -1,7 +1,8 @@
 # Test c output
-T=test0
+T=t
 K=1
-#VG=valgrind --leak-check=full
+#CMD=valgrind --leak-check=full
+#CMD=gdb --args
 
 STDLIB=/usr/local
 #STDLIB=/share/ed/local/${HOST}

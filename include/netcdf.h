@@ -121,10 +121,18 @@ extern "C" {
 
 /* Define the ioflags bits for nc_create and nc_open.
    currently unused:
+   lower half:
         0x0002
 	0x0040
 	0x0080
-   and the whole upper 16 bits
+	0x8000
+   upper half: 
+	0x00010000 - 0x00800000
+
+   Currently the top 8 bits of cmode are used
+   for flags that should not be set by callers.
+   They record inferred information.
+   They are defined in ncdispatch.h
 */
 
 #define NC_NOWRITE	 0x0000	/**< Set read-only access for nc_open(). */
@@ -160,9 +168,8 @@ Use this in mode flags for both nc_create() and nc_open(). */
 Use this in mode flags for both nc_create() and nc_open(). */
 #define NC_MPIPOSIX      0x4000 /**< \deprecated As of libhdf5 1.8.13. */
 
-#define NC_INMEMORY      0x8000  /**< Read from memory. Mode flag for nc_open() or nc_create(). */
-
 #define NC_PNETCDF       (NC_MPIIO) /**< Use parallel-netcdf library; alias for NC_MPIIO. */
+
 
 /** Format specifier for nc_set_default_format() and returned
  *  by nc_inq_format. This returns the format as provided by

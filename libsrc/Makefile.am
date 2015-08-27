@@ -37,10 +37,6 @@ if USE_S3
 libnetcdf3_la_SOURCES += s3io.c libs3.c libs3uri.c libs3uri.h
 endif
 
-if USE_STDIO
-libnetcdf3_la_SOURCES += stdio.c
-endif
-
 noinst_LTLIBRARIES = libnetcdf3.la
 
 # These files are cleaned on developer workstations (and then rebuilt
