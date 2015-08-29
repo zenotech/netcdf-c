@@ -18,9 +18,6 @@
 #include "nc.h"
 #include "ncdispatch.h"
 
-/* This is the default create format for nc_create and nc__create. */
-static int default_create_format = NC_FORMAT_CLASSIC;
-
 /* These have to do with version numbers. */
 #define MAGIC_NUM_LEN 4
 #define VER_CLASSIC 1
@@ -71,35 +68,3 @@ new_NC(NC_Dispatch* dispatcher, const char* path, int mode, NC** ncpp)
     return NC_NOERR;
 }
 
-/* This function sets a default create flag that will be logically
-   or'd to whatever flags are passed into nc_create for all future
-   calls to nc_create.
-   Valid default create flags are NC_64BIT_OFFSET, NC_CLOBBER,
-   NC_LOCK, NC_SHARE. */
-int
-nc_set_default_format(int format, int *old_formatp)
-{
-    /* Return existing format if desired. */
-    if (old_formatp)
-      *old_formatp = default_create_format;
-
-    /* Make sure only valid format is set. */
-#ifdef USE_NETCDF4
-    if (format != NC_FORMAT_CLASSIC && format != NC_FORMAT_64BIT_OFFSET &&
-        format != NC_FORMAT_NETCDF4 && format != NC_FORMAT_NETCDF4_CLASSIC &&
-	format != NC_FORMAT_CDF5)
-      return NC_EINVAL;
- #else
-    if (format != NC_FORMAT_CLASSIC && format != NC_FORMAT_64BIT_OFFSET &&
-        format != NC_FORMAT_CDF5)
-       return NC_EINVAL;
- #endif
-    default_create_format = format;
-    return NC_NOERR;
-}
-
-int
-nc_get_default_format(void)
-{
-    return default_create_format;
-}

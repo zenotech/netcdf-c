@@ -35,6 +35,9 @@ Research/Unidata. See COPYRIGHT file for more info.
 extern int NC_initialized;
 extern int NC_finalized;
 
+/* This is the default create format for nc_create and nc__create. */
+static int default_create_format = NC_FORMAT_CLASSIC;
+
 /** \defgroup datasets NetCDF Files
 
 NetCDF opens datasets as files or remote access URLs.
@@ -202,19 +205,47 @@ in model arg.
 */
 static int
 NC_check_file_type(const char *path, int xmode, void *parameters,
-		   int* model, int* version)
+		   int* modelp, int* versionp)
 {
    int status = NC_NOERR;
+   int model,version;
    char magic[MAGIC_NUMBER_LEN];
+#ifdef USE_DAP
+   int isurl;
+#endif
 
-   *model = 0;
-   status = NC_read_magic_number(path,xmode,parameters,magic);
-   if(status) goto done;   
-   /* Look at the magic number */
-   status = NC_interpret_magic_number(magic,model,version);
+   model = NC_FORMATX_UNDEFINED;
+   version = 0;
 
+#ifdef USING_LIBCURL
+   if((isurl = NC_testurl(path))) {
+	model = NC_urlmodel(path,&version);
+   } else
+#endif
+   if(model == NC_FORMATX_UNDEFINED) {
+       status = NC_read_magic_number(path,xmode,parameters,magic);
+       if(status) goto done;   
+       /* Look at the magic number */
+       status = NC_interpret_magic_number(magic,&model,&version);
+   }
 done:
+   if(modelp) *modelp = model;
+   if(versionp) *versionp = version;
    return status;
+}
+
+static int
+format2cmode(int format)
+{
+    switch (format) {
+    case NC_FORMAT_CLASSIC: return 0;
+    case NC_FORMAT_64BIT_OFFSET: return NC_64BIT_OFFSET;
+    case NC_FORMAT_64BIT_DATA: return NC_64BIT_DATA;
+    case NC_FORMAT_NETCDF4: return NC_NETCDF4;
+    case NC_FORMAT_NETCDF4_CLASSIC: return (NC_NETCDF4|NC_CLASSIC_MODEL);
+    default: break;
+    }
+    return 0;
 }
 
 static int
@@ -1411,6 +1442,64 @@ nc_inq_format(int ncid, int *formatp)
 }
 
 /**
+Set/get default file format.
+
+This function sets a default create indicator that
+specifies the default file format when nc_create
+cannot otherwise determine it. See NC_FORMAT_XXX
+values in netcdf.h.
+
+\param format the desired default
+\param old_formatp the format before the change;
+if NULL, then ignore.
+
+\returns ::NC_NOERR No error.
+\returns ::NC_EINVAL If format is invalid.
+
+<h1>Example</h1>
+
+Here is an example showing how to obtain the current default
+format without permanently changing it.
+
+\code
+    int current;
+    ...
+    (void)nc_set_default_format(NC_FORMAT_CLASSIC, &current);
+    (void)nc_set_default_format(current, NULL);
+\endcode
+*/
+
+int
+nc_set_default_format(int format, int *old_formatp)
+{
+    /* Return existing format if desired. */
+    if (old_formatp)
+      *old_formatp = default_create_format;
+
+    /* Make sure only valid format is set. */
+    switch (format) {
+    case NC_FORMAT_CLASSIC:
+    case NC_FORMAT_64BIT_OFFSET:
+    case NC_FORMAT_64BIT_DATA:
+	break;
+#ifdef USE_NETCDF4
+    case NC_FORMAT_NETCDF4:
+    case NC_FORMAT_NETCDF4_CLASSIC:
+	break;
+#endif
+    default: return NC_EINVAL;
+    }
+    default_create_format = format;
+    return NC_NOERR;
+}
+
+int
+nc_get_default_format(void)
+{
+    return default_create_format;
+}
+
+/**
 Obtain more detailed (vis-a-vis nc_inq_format)
 format information about an open dataset.
 Note that the netcdf API will present the file
@@ -1672,7 +1761,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 	return NC_ENFILE;
 #endif
 
-#ifdef USING_CURL
+#ifdef USING_LIBCURL
    if((isurl = NC_testurl(path)))
 	model = NC_urlmodel(path);
 	/* handle some cases specially */
@@ -1680,7 +1769,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 	case NC_FORMATX_S3:
 #ifdef USE_S3
 	cmode |= NC_S3; /* remember  */
-	model = NC_FORMAT_UNDEFINED; /* make other code figure it out */
+	model = NC_FORMATX_UNDEFINED; /* make other code figure it out */
 	break;
 #else
 	return NC_ENOTNC;		
@@ -1696,7 +1785,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
     /* Add in the default mode flags */
     if(model == NC_FORMATX_UNDEFINED) {
 	int format = nc_get_default_format();
-	cmode |= format;
+	cmode |= format2cmode(format);
 	/* try again */
         model = cmode2model(cmode);           
     }

@@ -66,7 +66,7 @@ static NCerror applyclientparams(NCDAPCOMMON*);
 static int
 NCD2_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-	   int paramflags, void* mpidata,
+	   void* mpidata,
            NC_Dispatch*,NC* ncp);
 
 static int NCD2_redef(int ncid);
@@ -188,6 +188,22 @@ NC_Dispatch* NCD2_dispatch_table = NULL; /* moved here from ddispatch.c */
 
 static NC_Dispatch NCD2_dispatcher; /* overlay result */
 
+static int
+NCD2_proto_test(int dfalt, NCURI* uri, int* modelp, int* versionp)
+{
+    if(strcmp(uri->protocol,"dods") == 0
+       || strcmp(uri->protocol,"dodss") == 0
+       || strcmp(uri->protocol,"file") == 0)
+	return 1;
+    if(strcmp(uri->protocol,"http") == 0
+       || strcmp(uri->protocol,"http") == 0) {
+	/* Look further */
+	if(ncurilookup(uri,"dap",NULL) || ncurilookup(uri,"dap2",NULL)
+	    return 1;
+    }
+    return dfalt;
+}
+
 int
 NCD2_initialize(void)
 {
@@ -202,6 +218,7 @@ NCD2_initialize(void)
 	dap_one[i] = 1;
 	dap_zero[i] = 0;
     }
+    (void)NC_protocol_register(NCD2_proto_test,1); /* currently the default */
     ncd2initialized = 1;
 #ifdef DEBUG
     /* force logging to go to stderr */
@@ -251,7 +268,7 @@ NCD2_abort(int ncid)
 static int
 NCD2_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-	   int paramflags, void* mpidata,
+	   void* mpidata,
            NC_Dispatch* dispatch, NC* ncp)
 {
    return NC_EPERM;
@@ -297,7 +314,7 @@ NCD2_get_vars(int ncid, int varid,
 int
 NCD2_open(const char * path, int mode,
                int basepe, size_t *chunksizehintp,
- 	       int paramflags, void* mpidata,
+ 	       void* mpidata,
                NC_Dispatch* dispatch, NC* drno)
 {
     NCerror ncstat = NC_NOERR;

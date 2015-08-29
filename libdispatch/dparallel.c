@@ -26,7 +26,7 @@ nc_create_par(const char *path, int cmode, MPI_Comm comm,
 
    data.comm = comm;
    data.info = info;
-   return NC_create(path, cmode, 0, 0, NULL, 1, &data, ncidp);
+   return NC_create(path, cmode, 0, 0, NULL, &data, ncidp);
 #endif /* USE_PARALLEL */
 }
 
@@ -52,7 +52,7 @@ nc_open_par(const char *path, int mode, MPI_Comm comm,
    mpi_data.comm = comm;
    mpi_data.info = info;
 
-   return NC_open(path, mode, 0, NULL, 1, &mpi_data, ncidp);
+   return NC_open(path, mode, 0, NULL, &mpi_data, ncidp);
 #endif /* USE_PARALLEL */
 }
 

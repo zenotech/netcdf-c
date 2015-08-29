@@ -1061,34 +1061,6 @@ unwind_alloc:
 	return status;
 }
 
-#if 0
-/* This function sets a default create flag that will be logically
-   or'd to whatever flags are passed into nc_create for all future
-   calls to nc_create.
-   Valid default create flags are NC_64BIT_OFFSET, NC_CDF5, NC_CLOBBER,
-   NC_LOCK, NC_SHARE. */
-int
-nc_set_default_format(int format, int *old_formatp)
-{
-    /* Return existing format if desired. */
-    if (old_formatp)
-      *old_formatp = default_create_format;
-
-    /* Make sure only valid format is set. */
-#ifdef USE_NETCDF4
-    if (format != NC_FORMAT_CLASSIC && format != NC_FORMAT_64BIT_OFFSET &&
-	format != NC_FORMAT_NETCDF4 && format != NC_FORMAT_NETCDF4_CLASSIC)
-      return NC_EINVAL;
-#else
-    if (format != NC_FORMAT_CLASSIC && format != NC_FORMAT_64BIT_OFFSET &&
-        format != NC_FORMAT_CDF5)
-      return NC_EINVAL;
-#endif
-    default_create_format = format;
-    return NC_NOERR;
-}
-#endif
-
 int
 NC3_open(const char * path, int ioflags,
                int basepe, size_t *chunksizehintp,

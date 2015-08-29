@@ -56,7 +56,7 @@
 #define S3IO_DEFAULT_PAGESIZE 4096
 #endif
 
-/* Borrow the buffer structure from posixio.c */
+/* Borrow the buffer structure from posixio.c
    blksz - block size for reads and writes to file.
    pos - current read/write position in file.
    bf_offset - file offset corresponding to start of memory buffer
@@ -226,7 +226,7 @@ s3_pgin(ncio* const nciop,
     status = ls3_read_data(s3,vp,offset,extent);
     if(status)
 	return status;
-    nread = ls3_get_nread(s3);
+    nread = ls3_get_iocount(s3);
     if(nread < extent) /* it's okay we read less than asked for */
 	(void) memset((char *)vp + nread, 0, (ssize_t)extent - nread);
     *nreadp = nread;
@@ -829,20 +829,15 @@ ncio_s3_free(ncio* nciop)
 static ncio* 
 ncio_s3_new(const char *path, int ioflags)
 {
-    size_t sz_ncio = M_RNDUP(sizeof(ncio));
-    size_t sz_path = M_RNDUP(strlen(path) +1);
-    size_t sz_ncio_pvt;
     ncio* nciop;
 
-    sz_ncio_pvt = sizeof(ncio_s3);
-    nciop = (ncio* ) malloc(sz_ncio + sz_path + sz_ncio_pvt);
+    nciop = (ncio* )calloc(1,sizeof(ncio));
     if(nciop == NULL)
 	return NULL;
-
-    nciop->path = (char *) ((char *)nciop + sz_ncio);
+    nciop->path = strdup(path);
     (void) strcpy((char *)nciop->path, path); /* cast away const */
     /* cast away const */
-    *((void **)&nciop->pvt) = (void *)(nciop->path + sz_path);
+    *((void **)&nciop->pvt) = (void *)calloc(1,sizeof(ncio_s3));
     ncio_s3_init(nciop);
     return nciop;
 }

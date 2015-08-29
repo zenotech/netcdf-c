@@ -92,3 +92,21 @@ NC_dispatch_overlay(const NC_Dispatch* overlay, const NC_Dispatch* base, NC_Disp
     return NC_NOERR;
 }
 
+int
+ncstrncmp(const char* s1, const char* s2, size_t len)
+{
+    int i;
+
+    if(s1 == NULL) return (s2 == NULL ? 0 : -1);
+    if(s2 == NULL) return 1;
+
+    for(i=0;i<len;i++) {
+	int diff;
+	if(s1[i] == 0) return (s2[i] == 0 ? 0 : -1);
+	else if(s2[i] == 0) return +1;
+	diff = (s1[i] - s2[i]);
+	if(diff != 0) return diff;
+    }
+    return 0;		
+}
+

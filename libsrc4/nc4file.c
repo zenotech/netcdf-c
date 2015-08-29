@@ -461,7 +461,6 @@ Create a netCDF-4/HDF5 file.
 \param initialsz Ignored by this function.
 \param basepe Ignored by this function.
 \param chunksizehintp Ignored by this function.
-\param paramflags non-cmode flags; (paramflags&NC_PARAMS_PARALLEL) == 0 for sequential, 1 for parallel I/O.
 \param parameters pointer to struct holding extra data (e.g. for parallel I/O)
 layer. Ignored if NULL.
 \param dispatch Pointer to the dispatch table for this file.
@@ -470,7 +469,7 @@ layer. Ignored if NULL.
 */
 int
 NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
-	   size_t *chunksizehintp, int paramflags, void *parameters,
+	   size_t *chunksizehintp, void *parameters,
 	   NC_Dispatch *dispatch, NC* nc_file)
 {
    MPI_Comm comm = MPI_COMM_WORLD;
@@ -2768,7 +2767,7 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 
 int
 NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
-	 int paramflags, void *parameters, NC_Dispatch *dispatch, NC *nc_file)
+	 void *parameters, NC_Dispatch *dispatch, NC *nc_file)
 {
    int res;
    int hdf_file = 0;
@@ -2778,7 +2777,7 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 #if defined USE_PARALLEL4 || defined USE_HDF4
    int inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
 #endif
-   int use_parallel = (paramflags & NC_PARAMS_PARALLEL) == NC_PARAMS_PARALLEL;
+   int use_parallel = (mode & NC_MPIIO) == NC_MPIIO;
 
    assert(nc_file && path);
 

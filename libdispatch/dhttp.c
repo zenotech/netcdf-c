@@ -5,71 +5,70 @@
 #include "nchttp.h"
 
 #define MAXSERVERURL 4096
+#define MAXMODELS 4
 
-/* Define the known protocols and their manipulations */
-static struct NCPROTOCOLLIST {
-    char* protocol;
-    char* substitute;
-    int   model;
-} ncprotolist[] = {
-    {"http",NULL,0},
-    {"https",NULL,0},
-    {"file",NULL,NC_FORMATX_DAP2},
-    {"dods","http",NC_FORMATX_DAP2},
-    {"dodss","https",NC_FORMATX_DAP2},
-    {"dap4","http",NC_FORMATX_DAP4},
-    {"dap4s","https",NC_FORMATX_DAP4},
-    {"s3","http",NC_FORMATX_S3},
-    {"s3s","https",NC_FORMATX_S3},
-    {NULL,NULL,0} /* Terminate search */
-};
 
-/* Define the default servers to ping in order;
-   make the order attempt to optimize
-   against future changes.
-*/
-static const char* default_servers[] = {
-"http://remotetest.unidata.ucar.edu",
-NULL
-};
+static NClist* registry = NULL;
+static nc_protocol_test default_protocol = NULL;
 
-/* search list of servers and return first that succeeds when
-   concatenated with the specified path part.
-   Search list can be prefixed by the second argument.
-*/
-char*
-NC_findtestserver(const char* path, const char** servers)
+ /* Define the default servers to ping in order;
+    make the order attempt to optimize
+    against future changes.
+ */
+ static const char* default_servers[] = {
+ "http://remotetest.unidata.ucar.edu",
+ NULL
+ };
+
+ /* search list of servers and return first that succeeds when
+    concatenated with the specified path part.
+    Search list can be prefixed by the second argument.
+ */
+ char*
+ NC_findtestserver(const char* path, const char** servers)
+ {
+ #ifdef USE_DAP
+ #ifdef ENABLE_DAP_REMOTE_TESTS
+     /* NCDAP_ping is defined in libdap2/ncdap.c */
+     const char** svc;
+     int stat;
+     char* url = (char*)malloc(MAXSERVERURL);
+
+     if(path == NULL) path = "";
+     if(strlen(path) > 0 && path[0] == '/')
+	 path++;
+
+     if(servers != NULL) {
+	 for(svc=servers;*svc != NULL;svc++) {
+	     snprintf(url,MAXSERVERURL,"%s/%s",*svc,path);
+	     if(NC_ping(url))
+		 return url;
+	 }
+     }
+     /* not found in user supplied list; try defaults */
+     for(svc=default_servers;*svc != NULL;svc++) {
+	 snprintf(url,MAXSERVERURL,"%s/%s",*svc,path);
+	 if(NC_ping(url))
+	     return url;
+     }
+     if(url) free(url);
+ #endif
+ #endif
+     return NULL;
+ }
+
+int
+NC_register_protocol(nc_protocol_test callback, int dfalt)
 {
-#ifdef USE_DAP
-#ifdef ENABLE_DAP_REMOTE_TESTS
-    /* NCDAP_ping is defined in libdap2/ncdap.c */
-    const char** svc;
-    int stat;
-    char* url = (char*)malloc(MAXSERVERURL);
-
-    if(path == NULL) path = "";
-    if(strlen(path) > 0 && path[0] == '/')
-	path++;
-
-    if(servers != NULL) {
-        for(svc=servers;*svc != NULL;svc++) {
-            snprintf(url,MAXSERVERURL,"%s/%s",*svc,path);
-            if(NC_ping(url))
-                return url;
-        }
-    }
-    /* not found in user supplied list; try defaults */
-    for(svc=default_servers;*svc != NULL;svc++) {
-        snprintf(url,MAXSERVERURL,"%s/%s",*svc,path);
-        if(NC_ping(url))
-            return url;
-    }
-    if(url) free(url);
-#endif
-#endif
-    return NULL;
+    if(callback == NULL)
+	return NC_EINVAL;
+    if(registry == NULL)
+	registry = nclistnew();
+    nclistpush(registry,(void*)callback);
+    if(dfalt)
+	default_protocol = callback;
+    return NC_NOERR;
 }
-
 
 /* return 1 if path looks like a url; 0 otherwise */
 int
@@ -88,46 +87,38 @@ NC_testurl(const char* path)
     if(*p == '/') return 0; /* probably an absolute file path */
 
     /* Ok, try to parse as a url */
-    if(ncuriparse(path,&tmpurl)) {
-	/* Do some extra testing to make sure this really is a url */
-        /* Look for a known protocol */
-        struct NCPROTOCOLLIST* protolist;
-        for(protolist=ncprotolist;protolist->protocol;protolist++) {
-	    if(strcmp(tmpurl->protocol,protolist->protocol) == 0) {
-	        isurl=1;
-		break;
-	    }
-	}
-	ncurifree(tmpurl);
-	return isurl;
-    }
-    return 0;
+    isurl = ncuriparse(path,&tmpurl)?0:1;
+    ncurifree(tmpurl);
+    return isurl;
 }
 
 /*
-Return an NC_FORMATX_... value.
-Assumes that the path is known to be a url.
+Return an NC_FORMATX_... value  and possible version in modelp and versionp.
 Return NC_FORMATX_UNDEFINED if we cannot tell.
 */
 
 int
-NC_urlmodel(const char* path)
+NC_urlmodel(const char* path, int* versionp)
 {
-    int model = NC_FORMATX_UNDEFINED;
     NCURI* tmpurl = NULL;
-    struct NCPROTOCOLLIST* protolist;
+    int i, match;
+    int isurl = ncuriparse(path,&tmpurl)?0:1;
+    int model = 0;
 
-    if(ncuriparse(path,&tmpurl)) {
-        /* Look for a known protocol */
-        struct NCPROTOCOLLIST* protolist;
-        for(protolist=ncprotolist;protolist->protocol;protolist++) {
-	    if(strcmp(tmpurl->protocol,protolist->protocol) == 0) {
-		model = protolist->model;
-		break;
-	    }
-	}
-	ncurifree(tmpurl);
+    if(!isurl) return NC_EINVAL;
+    if(registry == NULL || nclistlength(registry) == 0)
+	return NC_EURL;
+
+    for(i=0;i<nclistlength(registry);i++) {
+	nc_protocol_test callback = (nc_protocol_test)nclistget(registry,i);
+	match = callback(0,tmpuri,&modelp,versionp);
+	if(match) break;
     }
+    if(!match) {
+	model =NC_FORMATX_UNDEFINED;
+	default_protocol(1,tmpuri,&model,versionp);
+    }
+    ncurifree(tmpurl);
     return model;
 }
 

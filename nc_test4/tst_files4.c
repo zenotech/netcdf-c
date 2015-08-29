@@ -8,11 +8,11 @@
    $Id: tst_files4.c,v 1.4 2010/05/18 12:30:05 ed Exp $
 */
 
-#include <config.h>
+#include "config.h"
 #include <stdio.h>
-#include <nc_tests.h>
-#include "netcdf.h"
 #include <string.h>
+#include "nc_tests.h"
+#include "netcdf.h"
 
 #define FILE_NAME "tst_files4.nc"
 #define SNAPSHOT_LEN NC_UNLIMITED
@@ -24,7 +24,7 @@
 #define CLASSICAL "classical"
 
 int
-main() {/* create data.nc */
+main(int argc, char** argv) {/* create data.nc */
 
     int  ncid;  
     int classical_grp;

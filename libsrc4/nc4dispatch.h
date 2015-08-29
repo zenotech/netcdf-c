@@ -28,13 +28,13 @@ extern "C" {
 EXTERNL int
 NC4_create(const char *path, int cmode,
            size_t initialsz, int basepe, size_t *chunksizehintp,
-	   int useparallel, void* parameters,
+	   void* parameters,
 	   NC_Dispatch*, NC*);
 
 EXTERNL int
 NC4_open(const char *path, int mode,
          int basepe, size_t *chunksizehintp, 
-	 int use_parallel, void* parameters,
+	 void* parameters,
 	 NC_Dispatch*, NC*);
 
 EXTERNL int

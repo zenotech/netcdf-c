@@ -39,18 +39,15 @@ struct S3 {
     char* trueurl;
     S3_Metadata meta;
     long code; /* last code received */
-#if 0
-    S3_XRange range;
-#endif
+    S3_Range range;
+    size_t iocount; /* # of bytes read/written */
 };
 
 /*Forward*/
 static char* s3totrue(const char* s3url, char** bucket, char** object);
-static char* truetos3(const char* turl);
 static void freeheaders(char** headers);
 static S3error errcvt(CURLcode cstat);
 static int s3strncmp(const char* s1, const char* s2, size_t len);
-static void s3strncpy(char* dst, const char* src, size_t len);
 static char* s3strndup(const char* s, size_t len);
 
 /**************************************************/
@@ -130,7 +127,7 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
     if(strcasecmp(key,"content-length")==0) {
 	meta->length = strtoull(value,NULL,10);
     } else if(strcasecmp(key,"content-type")==0) {
-	meta->type = 3strndup(value,len);
+	meta->type = s3strndup(value,len);
     } else if(strcasecmp(key,"last-modified")==0) {
 	meta->last_modified = s3strndup(value,len);
     } else if(strcasecmp(key,"etag")==0) {
@@ -171,7 +168,7 @@ buildcreateheaders(S3_Metadata* md)
 		break;
 	case 1: /*content-length*/
 	    if(md->length >= 0)
-	        snprintf(line,sizeof(line),"Content-Length: %lld",
+	        snprintf(line,sizeof(line),"Content-Length: %ld",
                                             md->length);
 		break;
 	case 2: /*version_id*/
@@ -263,6 +260,10 @@ ls3_read_data(S3* s3, void* buffer, off_t start, size_t count)
     char srange[1024];
     RWcallback rw;
 
+    s3->range.start = start;
+    s3->range.start = count;
+    s3->iocount = 0;
+
     /* If metadata has not been read, do it now */
     if(!s3->meta.initialized) {
 	s3stat = ls3_read_metadata(s3);
@@ -272,12 +273,12 @@ ls3_read_data(S3* s3, void* buffer, off_t start, size_t count)
     cstat = curl_easy_setopt(curl, CURLOPT_URL, (void*)s3->trueurl);
     if(cstat != CURLE_OK) goto done;
 
-    rw.range.start = start;
-    rw.range.count = count;
+    rw.s3 = s3;
+    rw.range = s3->range;
     rw.offset = 0;
     rw.buffer = buffer;
 
-    snprintf(srange,sizeof(srange),"%lld-%lld",
+    snprintf(srange,sizeof(srange),"%ld-%ld",
              rw.range.start,rw.range.start+rw.range.count);
 
     /* send all data to this function */
@@ -293,6 +294,9 @@ ls3_read_data(S3* s3, void* buffer, off_t start, size_t count)
 
     cstat = curl_easy_perform(curl);
     if(cstat != CURLE_OK) goto done;
+
+    /* save read count */
+    s3->iocount = rw.offset;
 
     /* Get the return code */
     cstat = curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&s3->code);
@@ -316,6 +320,10 @@ ls3_write_data(S3* s3, void* buffer, off_t start, size_t count)
 
     assert(s3->meta.initialized);
 
+    s3->range.start = start;
+    s3->range.start = count;
+    s3->iocount = 0;
+
     cstat = curl_easy_setopt(curl, CURLOPT_URL, (void*)s3->trueurl);
     if(cstat != CURLE_OK) goto done;
 
@@ -327,18 +335,21 @@ ls3_write_data(S3* s3, void* buffer, off_t start, size_t count)
     cstat = curl_easy_setopt(curl, CURLOPT_PUT, (long)1);// PUT operation
     if(cstat != CURLE_OK) goto done;
 
-    rw.range.start = start;
-    rw.range.count = count;
+    rw.s3 = s3;
+    rw.range = s3->range;
     rw.offset = 0;
     rw.buffer = buffer;
 
-    snprintf(srange,sizeof(srange),"%lld-%lld",
+    snprintf(srange,sizeof(srange),"%ld-%ld",
 	     rw.range.start,rw.range.start+rw.range.count);
     cstat = curl_easy_setopt(curl, CURLOPT_RANGE, (void*)srange);
     if(cstat != CURLE_OK) goto done;
 
     cstat = curl_easy_perform(curl);
     if(cstat != CURLE_OK) goto done;
+
+    /* Get count of bytes writtent */
+    s3->iocount = rw.offset;
 
     /* Get the return code */
     cstat = curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&s3->code);
@@ -506,15 +517,15 @@ ls3_get_code(S3* s3)
 }
 
 off_t
-ls3_get_nread(S3* s3)
+ls3_get_iocount(S3* s3)
 {
-    return s3->range.offset;
+    return s3->iocount;
 }
 
 int
-ls3_delete(const string url)
+ls3_delete(const char* url)
 {
-    S3error stat = S3_NOERR;
+    S3error stat = S3_OK;
     S3* s3 = NULL;
     CURLcode cstat = CURLE_OK;
 
@@ -524,9 +535,10 @@ ls3_delete(const string url)
 	return stat; 
 
     /* Prepare to delete */
-    cstat = curl_easy_setopt(curl,CURLOPT_CUSTOMREQUEST,"delete");
-    if(cstat == CURLE_OK) {
-        cstat = curl_easy_perform(curl);
+    cstat = curl_easy_setopt(s3->curl,CURLOPT_CUSTOMREQUEST,"delete");
+    if(cstat == CURLE_OK)
+        cstat = curl_easy_perform(s3->curl);
+    (void)ls3_close(s3);
     if(cstat) stat = errcvt(cstat);
     return stat;
 }
@@ -550,6 +562,7 @@ s3totrue(const char* s3url, char** bucket, char** object)
     return strdup(trueurl);
 }
 
+#if 0
 static char*
 truetos3(const char* turl)
 {
@@ -565,11 +578,12 @@ truetos3(const char* turl)
     if(p == NULL || p == tmpuri->host)
 	{ls3_urifree(tmpuri); return NULL;}
     len = (size_t)(p - tmpuri->host);
-    s3strncpy(bucket,sizeof(bucket),tmpuri->host,len);
-    snprintf(s3url,sizeof(s3url),TEMPLATE,bucket,tmpuri->file);
+    s3strncpy(bucket,tmpuri->host,len);
+    snprintf(s3url,sizeof(s3url),S3TEMPLATE,bucket,tmpuri->file);
     ls3_urifree(tmpuri);
     return strdup(s3url);
 }
+#endif
 
 static S3error
 errcvt(CURLcode cstat)
@@ -583,11 +597,11 @@ errcvt(CURLcode cstat)
 }
 
 static void
-freeheaders(md->char** headers)
+freeheaders(char** headers)
 {
     char** pp = headers;
     if(pp == NULL) return;
-    while(*pp) {free(pp); pp++;{
+    while(*pp) {free(pp); pp++;}
     free(headers);
 }
 
@@ -602,13 +616,15 @@ s3strndup(const char* s, size_t len)
 {
     char* dup;
     if(s == NULL) return NULL;
-    dup = (char*)ocmalloc(len+1);
-    MEMCHECK(dup,NULL);
+    dup = (char*)malloc(len+1);
+    if(dup == NULL)
+	return NULL;
     memcpy((void*)dup,s,len);
     dup[len] = '\0';
     return dup;
 }
 
+#if 0
 static void
 s3strncpy(char* dst, const char* src, size_t len)
 {
@@ -617,6 +633,7 @@ s3strncpy(char* dst, const char* src, size_t len)
     memcpy((void*)dst,src,len);
     dst[len] = '\0';
 }
+#endif
 
 /* Do not trust strncmp semantics; this one
    compares upto len chars or to null terminators */

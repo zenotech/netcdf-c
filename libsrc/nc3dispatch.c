@@ -171,10 +171,23 @@ NC3_get_var_chunk_cache,
 
 NC_Dispatch* NC3_dispatch_table = NULL; /*!< NC3 Dispatch table, moved here from ddispatch.c */
 
+#ifdef USE_S3
+static int
+NC3_proto_test(int dfalt, NCURI* uri, int* modelp, int* versionp)
+{
+    if(strcmp(uri->protocol,"s3") == 0
+       || strcmp(uri->protocol,"s3s") == 0)
+	return 1;
+    return dfalt;
+}
+
 int
 NC3_initialize(void)
 {
     NC3_dispatch_table = &NC3_dispatcher;
+#ifdef USE_S3
+    (void)NC_protocol_register(NC3_proto_test,0);/* for S3 */
+#endif
     return NC_NOERR;
 }
 

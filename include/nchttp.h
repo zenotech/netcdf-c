@@ -10,7 +10,6 @@
 #define NCHTTP_H
 
 #include "config.h"
-#include "oc.h"
 #include "netcdf.h"
 #include "ncuri.h"
 

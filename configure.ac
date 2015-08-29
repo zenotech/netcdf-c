@@ -759,6 +759,7 @@ AC_HEADER_STDBOOL
 # Check for these functions...
 AC_CHECK_FUNCS([strlcat strerror snprintf strchr strrchr strcat strcpy \
                 strdup strcasecmp strtod strtoll strtoull strstr \
+		strncmp strndup \
 		mkstemp rand memcmp \
 		getrlimit gettimeofday fsync MPI_Comm_f2c])
 

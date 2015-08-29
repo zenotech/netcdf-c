@@ -64,9 +64,9 @@ static char* fileallow =
 static char* queryallow =
 "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$&'()*+,-./:;=?@_~";
 
-#ifndef HAVE_STRNCMP
-#define strndup ncstrndup
-/* Not all systems have strndup, so provide one*/
+#ifdef HAVE_STRNDUP
+#define ncstrndup strndup
+#else
 char*
 ncstrndup(const char* s, size_t len)
 {
@@ -79,6 +79,7 @@ ncstrndup(const char* s, size_t len)
     return dup;
 }
 #endif
+
 /* Forward */
 static void ncparamfree(char** params);
 static int ncfind(char** params, const char* key);
@@ -606,7 +607,7 @@ ncuridecodeparams(NCURI* ncuri)
     if(ncuri == NULL) return 0;
     if(ncuri->params == NULL) return 1;
 
-    params = strndup(ncuri->params,
+    params = ncstrndup(ncuri->params,
 		     (strlen(ncuri->params)+1)); /* so we can modify */
     if(!params)
       return NC_ENOMEM;

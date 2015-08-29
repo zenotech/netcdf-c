@@ -6,9 +6,9 @@
    $Id: tst_files.c,v 1.42 2010/05/18 12:30:05 ed Exp $
 */
 
-#include <config.h>
+#include "config.h"
 #include "netcdf.h"
-#include <nc_tests.h>
+#include "nc_tests.h"
 
 #ifdef IGNORE
 extern NC_FILE_INFO_T *nc_file;
@@ -30,6 +30,11 @@ int test_redef(int format);
 int
 main(int argc, char **argv)
 {
+
+#ifdef USE_PARALLEL
+    MPI_Init(&argc,&argv);
+#endif
+
    printf("\n*** Testing netcdf-4 file functions.\n");
    {
       char str[NC_MAX_NAME+1];
@@ -353,6 +358,9 @@ main(int argc, char **argv)
    }
    SUMMARIZE_ERR;
    FINAL_RESULTS;
+#ifdef USE_PARALLEL
+    MPI_Finalize();
+#endif
 }
 #define REDEF_ATT1_NAME "CANTERBURY"
 #define REDEF_ATT2_NAME "ELY"

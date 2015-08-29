@@ -128,7 +128,7 @@ ls3_uriparse(const char* uri0, LS3URI** durip)
     */
     for(p=uri;*p;p++) {
 	if(*p == '\\' || *p < ' ')
-	    nclshift1(p); /* compress out */
+	    s3lshift1(p); /* compress out */
     }
 
     p = uri;
@@ -144,7 +144,7 @@ ls3_uriparse(const char* uri0, LS3URI** durip)
         for(;*p;p++) {
 	    if(p[0] == RBRACKET && p[1] == LBRACKET) {
 		p[0] = '&';
-		nclshift1(p+1);
+		s3lshift1(p+1);
 	    } else if(p[0] == RBRACKET && p[1] != LBRACKET)
 		break;
 	}
@@ -196,7 +196,7 @@ ls3_uriparse(const char* uri0, LS3URI** durip)
 	if(p == NULL) {
 	    file = endof(host); /* there is no file section */
 	} else {
-	    ncrshift1(p); /* make room to terminate the host section
+	    s3rshift1(p); /* make room to terminate the host section
                              without overwriting the leading character */
 	    terminate(p); /* terminate the host section */
 	    file = p+1; /* +1 becauseof the shift */
@@ -290,7 +290,7 @@ ls3_uriparse(const char* uri0, LS3URI** durip)
         for(;*p;p++) {
 	    if(p[0] == RBRACKET && p[1] == LBRACKET) {
 	        p[0] = '&';
-		nclshift1(p+1);
+		s3lshift1(p+1);
 	    } else if(p[0] == RBRACKET && p[1] != LBRACKET) {
 		/* terminate suffixparams */
 		*p = EOFCHAR;
@@ -371,7 +371,7 @@ ls3_urifree(LS3URI* duri)
     if(duri == NULL) return;
     if(duri->uri != NULL) {free(duri->uri);}
     if(duri->params != NULL) {free(duri->params);}
-    if(duri->paramlist != NULL) ncparamfree(duri->paramlist);
+    if(duri->paramlist != NULL) s3paramfree(duri->paramlist);
     if(duri->strings != NULL) {free(duri->strings);}
     if(duri->constraint != NULL) {free(duri->constraint);}
     if(duri->projection != NULL) {free(duri->projection);}
@@ -398,7 +398,7 @@ ls3_urisetconstraints(LS3URI* duri,const char* constraints)
 
     duri->constraint = nulldup(constraints);
     if(*duri->constraint == '?')
-	nclshift1(duri->constraint);
+	s3lshift1(duri->constraint);
 
     p = duri->constraint;
     proj = (char*) p;
@@ -510,7 +510,7 @@ ls3_uribuild(LS3URI* duri, const char* prefix, const char* suffix, int flags)
     newuri[0] = EOFCHAR;
     if(prefix != NULL) strcat(newuri,prefix);
     if(withprefixparams) {
-	ncappendparams(newuri,duri->paramlist);
+	s3appendparams(newuri,duri->paramlist);
     }
     if(duri->protocol != NULL)
 	strcat(newuri,duri->protocol);
@@ -539,7 +539,7 @@ ls3_uribuild(LS3URI* duri, const char* prefix, const char* suffix, int flags)
     }
     if(withsuffixparams & !withprefixparams) {
 	strcat(newuri,"#");
-	ncappendparams(newuri,duri->paramlist);
+	s3appendparams(newuri,duri->paramlist);
     }
     return newuri;
 }
@@ -630,7 +630,7 @@ ls3_uridecodeparams(LS3URI* ls3uri)
     plist[2*nparams] = NULL;
     free(params);
     if(ls3uri->paramlist != NULL)
-	ncparamfree(ls3uri->paramlist);
+	s3paramfree(ls3uri->paramlist);
     ls3uri->paramlist = plist;
     return 1;
 }
@@ -646,7 +646,7 @@ ls3_urilookup(LS3URI* uri, const char* key, const char** resultp)
 	if(!i) return 0;
     }
     /* Coverity[FORWARD_NULL] */
-    i = ncfind(uri->paramlist,key);
+    i = s3find(uri->paramlist,key);
     if(i < 0)
 	return 0;
     value = uri->paramlist[(2*i)+1];
@@ -658,7 +658,7 @@ int
 ls3_urisetparams(LS3URI* uri, const char* newparams)
 {
     if(uri == NULL) return 0;
-    if(uri->paramlist != NULL) ncparamfree(uri->paramlist);
+    if(uri->paramlist != NULL) s3paramfree(uri->paramlist);
     uri->paramlist = NULL;
     if(uri->params != NULL) free(uri->params);
     uri->params = nulldup(newparams);

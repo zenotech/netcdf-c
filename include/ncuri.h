@@ -14,7 +14,7 @@ typedef struct NCURI {
     char* projection; /*!< without leading '?'*/
     char* selection;  /*!< with leading '&'*/
     char* strings;    /* first char of strings is always '\0' */
-    /* Following all point into the strings field */
+    /* Following all point into the strings field; so do not free() */
     char* protocol;
     char* user; /* from user:password@ */
     char* password; /* from user:password@ */

@@ -1,5 +1,5 @@
-#TOP="/home/dmh/git/netcdf-c"
-TOP="/cygdrive/f/git/netcdf-c"
+TOP="/home/dmh/git/netcdf-c"
+#TOP="/cygdrive/f/git/netcdf-c"
 
 alias xx="cd ..;make; cd libdap2"
 

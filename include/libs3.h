@@ -61,15 +61,15 @@ extern S3error ls3_write_data(S3* s3, void* buffer, off_t start, size_t count);
 extern S3error ls3_create(const char* url, S3** s3p);
 extern S3error ls3_open(const char* url, S3** s3);
 extern S3error ls3_close(S3* s3);
-extern int ls3_delete(const string url);
+extern int ls3_delete(const char* url);
 
 /* S3 Accessors */
 extern CURL* ls3_get_curl(S3*);
 extern char* ls3_get_s3url(S3*);
 extern char* ls3_get_trueurl(S3*);
-extern S3_Metadata ls3_get_meta(S3*);
+extern S3_Metadata* ls3_get_meta(S3*);
 extern long ls3_get_code(S3*);
 extern S3_Range ls3_get_range(S3*);
-extern off_t ls3_get_nread(S3*);
+extern off_t ls3_get_iocount(S3*);
 
 #endif /*LIBS3_H*/
