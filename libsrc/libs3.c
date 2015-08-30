@@ -168,7 +168,7 @@ buildcreateheaders(S3_Metadata* md)
 		break;
 	case 1: /*content-length*/
 	    if(md->length >= 0)
-	        snprintf(line,sizeof(line),"Content-Length: %ld",
+	        snprintf(line,sizeof(line),"Content-Length: %lld",
                                             md->length);
 		break;
 	case 2: /*version_id*/
@@ -278,7 +278,7 @@ ls3_read_data(S3* s3, void* buffer, off_t start, size_t count)
     rw.offset = 0;
     rw.buffer = buffer;
 
-    snprintf(srange,sizeof(srange),"%ld-%ld",
+    snprintf(srange,sizeof(srange),"%lld-%lld",
              rw.range.start,rw.range.start+rw.range.count);
 
     /* send all data to this function */
@@ -340,7 +340,7 @@ ls3_write_data(S3* s3, void* buffer, off_t start, size_t count)
     rw.offset = 0;
     rw.buffer = buffer;
 
-    snprintf(srange,sizeof(srange),"%ld-%ld",
+    snprintf(srange,sizeof(srange),"%lld-%lld",
 	     rw.range.start,rw.range.start+rw.range.count);
     cstat = curl_easy_setopt(curl, CURLOPT_RANGE, (void*)srange);
     if(cstat != CURLE_OK) goto done;

@@ -5,6 +5,7 @@
 
 #include "ncdap.h"
 #include "ncd2dispatch.h"
+#include "nchttp.h"
 #include "dapalign.h"
 
 #ifdef _MSC_VER
@@ -198,7 +199,7 @@ NCD2_proto_test(int dfalt, NCURI* uri, int* modelp, int* versionp)
     if(strcmp(uri->protocol,"http") == 0
        || strcmp(uri->protocol,"http") == 0) {
 	/* Look further */
-	if(ncurilookup(uri,"dap",NULL) || ncurilookup(uri,"dap2",NULL)
+	if(ncurilookup(uri,"dap",NULL) || ncurilookup(uri,"dap2",NULL))
 	    return 1;
     }
     return dfalt;
@@ -218,7 +219,7 @@ NCD2_initialize(void)
 	dap_one[i] = 1;
 	dap_zero[i] = 0;
     }
-    (void)NC_protocol_register(NCD2_proto_test,1); /* currently the default */
+    (void)NC_register_protocol(NCD2_proto_test,1); /* currently the default */
     ncd2initialized = 1;
 #ifdef DEBUG
     /* force logging to go to stderr */

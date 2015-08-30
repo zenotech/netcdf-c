@@ -2,6 +2,7 @@
 #include "curl/curl.h"
 #include "ncdispatch.h"
 #include "ncuri.h"
+#include "nclist.h"
 #include "nchttp.h"
 
 #define MAXSERVERURL 4096
@@ -9,7 +10,7 @@
 
 
 static NClist* registry = NULL;
-static nc_protocol_test default_protocol = NULL;
+static NC_protocol_test default_protocol = NULL;
 
  /* Define the default servers to ping in order;
     make the order attempt to optimize
@@ -58,7 +59,7 @@ static nc_protocol_test default_protocol = NULL;
  }
 
 int
-NC_register_protocol(nc_protocol_test callback, int dfalt)
+NC_register_protocol(NC_protocol_test callback, int dfalt)
 {
     if(callback == NULL)
 	return NC_EINVAL;
@@ -87,7 +88,7 @@ NC_testurl(const char* path)
     if(*p == '/') return 0; /* probably an absolute file path */
 
     /* Ok, try to parse as a url */
-    isurl = ncuriparse(path,&tmpurl)?0:1;
+    isurl = ncuriparse(path,&tmpurl);
     ncurifree(tmpurl);
     return isurl;
 }
@@ -102,7 +103,7 @@ NC_urlmodel(const char* path, int* versionp)
 {
     NCURI* tmpurl = NULL;
     int i, match;
-    int isurl = ncuriparse(path,&tmpurl)?0:1;
+    int isurl = ncuriparse(path,&tmpurl);
     int model = 0;
 
     if(!isurl) return NC_EINVAL;
@@ -110,13 +111,13 @@ NC_urlmodel(const char* path, int* versionp)
 	return NC_EURL;
 
     for(i=0;i<nclistlength(registry);i++) {
-	nc_protocol_test callback = (nc_protocol_test)nclistget(registry,i);
-	match = callback(0,tmpuri,&modelp,versionp);
+	NC_protocol_test callback = (NC_protocol_test)nclistget(registry,i);
+	match = callback(0,tmpurl,&model,versionp);
 	if(match) break;
     }
     if(!match) {
 	model =NC_FORMATX_UNDEFINED;
-	default_protocol(1,tmpuri,&model,versionp);
+	default_protocol(1,tmpurl,&model,versionp);
     }
     ncurifree(tmpurl);
     return model;

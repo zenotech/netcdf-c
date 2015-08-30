@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "netcdf.h"
+#include "nchttp.h"
 #include "nc3internal.h"
 #include "nc3dispatch.h"
 
@@ -180,13 +181,14 @@ NC3_proto_test(int dfalt, NCURI* uri, int* modelp, int* versionp)
 	return 1;
     return dfalt;
 }
+#endif
 
 int
 NC3_initialize(void)
 {
     NC3_dispatch_table = &NC3_dispatcher;
 #ifdef USE_S3
-    (void)NC_protocol_register(NC3_proto_test,0);/* for S3 */
+    (void)NC_register_protocol(NC3_proto_test,0);/* for S3 */
 #endif
     return NC_NOERR;
 }

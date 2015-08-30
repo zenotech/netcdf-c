@@ -218,7 +218,7 @@ NC_check_file_type(const char *path, int xmode, void *parameters,
    version = 0;
 
 #ifdef USING_LIBCURL
-   if((isurl = NC_testurl(path))) {
+   if(NC_testurl(path)) {
 	model = NC_urlmodel(path,&version);
    } else
 #endif
@@ -1740,6 +1740,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
    NC_Dispatch* dispatcher = NULL;
    /* Need three pieces of information for now */
    int model = NC_FORMATX_UNDEFINED;
+   int version = 0;
    int isurl = 0;   /* dap  */
    int iss3 = 0;   /* s3 */
    int xcmode = 0; /* for implied cmode flags */
@@ -1763,7 +1764,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
 
 #ifdef USING_LIBCURL
    if((isurl = NC_testurl(path)))
-	model = NC_urlmodel(path);
+	model = NC_urlmodel(path,&version);
 	/* handle some cases specially */
 	switch (model) {
 	case NC_FORMATX_S3:
@@ -1796,11 +1797,11 @@ NC_create(const char *path, int cmode, size_t initialsz,
     stat = NC_NOERR;
     if(model == NC_FORMATX_NC4) {
 #ifndef USE_NETCDF4
-	stat = NC_ENOTNC;
+	stat = NC_EINVAL;
 #endif
     } else if(model == NC_FORMATX_PNETCDF) {
 #ifndef USE_PNETCDF
-	stat = NC_ENOTNC;
+	stat = NC_EINVAL;
 #endif
     }
     if(stat) return stat;
@@ -1939,7 +1940,7 @@ NC_open(const char *path, int cmode,
         if(stat != NC_NOERR) 
 	    return stat;
 	
-#ifdef USE_DAP
+#ifdef USE_PNETCDF
 retry:
 #endif
 	switch (model) {

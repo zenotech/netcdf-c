@@ -22,6 +22,7 @@
 #endif
 #include "netcdf.h"
 #include "nc.h"
+#include "ncuri.h"
 
 #define longtype ((sizeof(long) == sizeof(int) ? NC_INT : NC_INT64))
 
@@ -376,17 +377,6 @@ extern int NC_initialized;
 extern int NC_finalized;
 extern int nc_initialize(void);
 extern int nc_finalize(void);
-
-/**
-Provide a way for modules to register itself
-so that it can be used to convert a url to a model.
-*/
-
-/* Expected callback signature */
-typedef int (*nc_protocol_test)(int dfalt, const NCURI* url, int* model, int* version);
-
-/* Registry function: first means insert into front of list */
-extern int NC_register_protocol(nc_protocol_test callback, int dfalt);
 
 #endif /* NCDISPATCH_H */
 

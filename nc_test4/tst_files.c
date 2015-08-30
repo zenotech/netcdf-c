@@ -60,7 +60,8 @@ main(int argc, char **argv)
       if (nc_open(FILE_NAME, NC_MPIIO|NC_MPIPOSIX, &ncid) != NC_EINVAL) ERR;
 
       if (nc_create(FILE_NAME, NC_64BIT_OFFSET|NC_NETCDF4, &ncid) != NC_EINVAL) ERR;
-      if (nc_create(FILE_NAME, NC_CLASSIC_MODEL|NC_MPIIO|NC_MPIPOSIX, &ncid) != NC_EINVAL) ERR;
+int xxx;
+      if ((xxx=nc_create(FILE_NAME, NC_CLASSIC_MODEL|NC_MPIIO|NC_MPIPOSIX, &ncid)) != NC_EINVAL) ERR;
       if (nc_create(FILE_NAME, NC_MPIIO|NC_MPIPOSIX, &ncid) != NC_EINVAL) ERR;
    }
    SUMMARIZE_ERR;

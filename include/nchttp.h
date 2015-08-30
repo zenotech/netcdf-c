@@ -15,8 +15,9 @@
 
 /* Does the path look like a url? */
 extern int NC_testurl(const char* path);
-/* Return model (0 or 3 or 4) as specified by the url */
-extern int NC_urlmodel(const char* path);
+
+/* Return model as specified by the url; NC_FORMATX_UNDEFINED if unknown */
+extern int NC_urlmodel(const char* path, int* version);
 
 #if 0
 /* allow access url parse and params without exposing ncurl.h */
@@ -40,5 +41,16 @@ MSC_NCDISPATCH_EXTRA extern int nc_open_mem(const char*, int, size_t, void*, int
 #else
 extern char* NC_findtestserver(const char*,const char**);
 #endif
+
+/**
+Provide a way for modules to register itself
+so that it can be used to convert a url to a model.
+*/
+
+/* Expected callback signature */
+typedef int (*NC_protocol_test)(int dfalt, NCURI* url, int* model, int* version);
+
+/* Registry function: first means insert into front of list */
+extern int NC_register_protocol(NC_protocol_test callback, int dfalt);
 
 #endif /*NCHTTP_H*/
