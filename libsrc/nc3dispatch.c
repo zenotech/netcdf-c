@@ -13,6 +13,9 @@
 #include "nchttp.h"
 #include "nc3internal.h"
 #include "nc3dispatch.h"
+#ifdef USE_S3
+#include "libs3.h"
+#endif
 
 #ifndef NC_CONTIGUOUS
 #define NC_CONTIGUOUS 1
@@ -174,12 +177,28 @@ NC_Dispatch* NC3_dispatch_table = NULL; /*!< NC3 Dispatch table, moved here from
 
 #ifdef USE_S3
 static int
-NC3_proto_test(int dfalt, NCURI* uri, int* modelp, int* versionp)
+NC3_proto_test(NCURI* uri, int* modelp, int* versionp, int* cmodep)
 {
+    S3* s3 = NULL;
+    char magic[MAGIC_NUMBER_LEN];
+    int status = NC_NOERR;
+    int s3status = NC_NOERR;
+
     if(strcmp(uri->protocol,"s3") == 0
-       || strcmp(uri->protocol,"s3s") == 0)
+       || strcmp(uri->protocol,"s3s") == 0) {
+	s3status = ls3_open(uri->uri,&s3);
+        if(s3status == S3_OK) {
+            s3status = ls3_read_data(s3,(void*)magic,0,MAGIC_NUMBER_LEN);	
+            (void)ls3_close(s3);
+	    if(s3status == S3_OK) {
+		status = NC_interpret_magic_number(magic, modelp, versionp);
+	        if(cmodep) *cmodep |= NC_S3;
+	    }
+	}
+        if(status && *modelp) *modelp = NC_FORMATX_UNDEFINED;
 	return 1;
-    return dfalt;
+    }
+    return 0;
 }
 #endif
 

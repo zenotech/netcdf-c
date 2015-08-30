@@ -3,7 +3,7 @@
 quiet=0
 leakcheck=0
 
-PARAMS="[log]"
+PARAMS="[dap2][log]"
 #PARAMS="${PARAMS}[fetch=memory]"
 #PARAMS="${PARAMS}[show=fetch]"
 

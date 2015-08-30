@@ -190,19 +190,24 @@ NC_Dispatch* NCD2_dispatch_table = NULL; /* moved here from ddispatch.c */
 static NC_Dispatch NCD2_dispatcher; /* overlay result */
 
 static int
-NCD2_proto_test(int dfalt, NCURI* uri, int* modelp, int* versionp)
+NCD2_proto_test(NCURI* uri, int* modelp, int* versionp, int* cmodep)
 {
     if(strcmp(uri->protocol,"dods") == 0
-       || strcmp(uri->protocol,"dodss") == 0
-       || strcmp(uri->protocol,"file") == 0)
+       || strcmp(uri->protocol,"dodss") == 0) {
+	if(modelp) *modelp = NC_FORMATX_DAP2;
+	if(versionp) *versionp = 2;
 	return 1;
+    }
     if(strcmp(uri->protocol,"http") == 0
-       || strcmp(uri->protocol,"http") == 0) {
+       || strcmp(uri->protocol,"https") == 0
+       || strcmp(uri->protocol,"file") == 0) {
 	/* Look further */
 	if(ncurilookup(uri,"dap",NULL) || ncurilookup(uri,"dap2",NULL))
+	    if(modelp) *modelp = NC_FORMATX_DAP2;
+	    if(versionp) *versionp = 2;
 	    return 1;
     }
-    return dfalt;
+    return 0;
 }
 
 int

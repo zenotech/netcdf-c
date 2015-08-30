@@ -13,7 +13,7 @@ echo "cannot locate test server for dts"
 exit
 fi
 
-PARAMS="[log]"
+PARAMS="[dap2][log]"
 #PARAMS="${PARAMS}[show=fetch]"
 
 
@@ -186,16 +186,9 @@ case "$mode" in
 3)
     EXPECTED="$expected3"
     TITLE="DAP to netCDF-3 translation"
-    PARAMS="${PARAMS}[netcdf3]"
+    PARAMS="${PARAMS}[dap2]"
     XFAILTESTS="$XFAILTESTS3"
     SVCFAILTESTS="$SVCFAILTESTS3"
-    ;;
-4)
-    EXPECTED="$expected4"
-    TITLE="DAP to netCDF-4 translation"
-    PARAMS="${PARAMS}[netcdf4]"
-    XFAILTESTS="$XFAILTESTS4"
-    SVCFAILTESTS="$SVCFAILTESTS4"
     ;;
 esac
 

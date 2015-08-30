@@ -10,7 +10,6 @@
 
 
 static NClist* registry = NULL;
-static NC_protocol_test default_protocol = NULL;
 
  /* Define the default servers to ping in order;
     make the order attempt to optimize
@@ -59,15 +58,16 @@ static NC_protocol_test default_protocol = NULL;
  }
 
 int
-NC_register_protocol(NC_protocol_test callback, int dfalt)
+NC_register_protocol(NC_protocol_test callback, int first)
 {
     if(callback == NULL)
 	return NC_EINVAL;
     if(registry == NULL)
 	registry = nclistnew();
-    nclistpush(registry,(void*)callback);
-    if(dfalt)
-	default_protocol = callback;
+    if(first)
+	nclistinsert(registry,0,(void*)callback);
+    else
+        nclistpush(registry,(void*)callback);
     return NC_NOERR;
 }
 
@@ -99,7 +99,7 @@ Return NC_FORMATX_UNDEFINED if we cannot tell.
 */
 
 int
-NC_urlmodel(const char* path, int* versionp)
+NC_urlmodel(const char* path, int* versionp, int* cmodep)
 {
     NCURI* tmpurl = NULL;
     int i, match;
@@ -108,17 +108,15 @@ NC_urlmodel(const char* path, int* versionp)
 
     if(!isurl) return NC_EINVAL;
     if(registry == NULL || nclistlength(registry) == 0)
-	return NC_EURL;
+	return NC_FORMATX_UNDEFINED;
 
     for(i=0;i<nclistlength(registry);i++) {
 	NC_protocol_test callback = (NC_protocol_test)nclistget(registry,i);
-	match = callback(0,tmpurl,&model,versionp);
+	match = callback(tmpurl,&model,versionp,cmodep);
 	if(match) break;
     }
-    if(!match) {
-	model =NC_FORMATX_UNDEFINED;
-	default_protocol(1,tmpurl,&model,versionp);
-    }
+    if(!match)
+	model = NC_FORMATX_UNDEFINED;
     ncurifree(tmpurl);
     return model;
 }

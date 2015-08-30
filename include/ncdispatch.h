@@ -362,6 +362,8 @@ extern void NC_set_dispatch_override(NC_Dispatch*);
 
 /* Misc */
 
+extern int NC_interpret_magic_number(char* magic, int*, int*);
+
 extern int NC_getshape(int ncid, int varid, int ndims, size_t* shape);
 extern int NC_is_recvar(int ncid, int varid, size_t* nrecs);
 extern int NC_inq_recvar(int ncid, int varid, int* nrecdims, int* is_recdim);

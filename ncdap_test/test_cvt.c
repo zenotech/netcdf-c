@@ -126,7 +126,7 @@ int main()
         fprintf(stderr,"*** FAIL: $abs_top_srcdir not defined: location= %s:%d\n",__FILE__,__LINE__);
         exit(1);
     }    
-    len = strlen("file://") + strlen(topsrcdir) + strlen("/ncdap_test/testdata3/test.02") + 1;
+    len = strlen("file://") + strlen(topsrcdir) + strlen("/ncdap_test/testdata3/test.02") + strlen("#dap2") + 1;
 #ifdef DEBUG
     len += strlen("[log][show=fetch]");
 #endif
@@ -140,6 +140,7 @@ int main()
     strcat(url,"file://");
     strcat(url,topsrcdir);
     strcat(url,"/ncdap_test/testdata3/test.02");
+    strcat(url,"#dap2");
 
     printf("*** Test: var conversions on URL: %s\n",url);
 

@@ -27,10 +27,6 @@ Research/Unidata. See COPYRIGHT file for more info.
 #if defined(USE_DAP) || defined(USE_S3)
 #include "nchttp.h"
 #endif
-#if defined(USE_S3)
-#include "libs3.h"
-#endif
-
 
 extern int NC_initialized;
 extern int NC_finalized;
@@ -74,8 +70,8 @@ interfaces, the rest of this chapter presents a detailed description
 of the interfaces for these operations.
 */
 /**@{*/
-
-static int
+/* Make Accessible for url testors */
+int
 NC_interpret_magic_number(char* magic, int* model, int* version)
 {
     int status = NC_NOERR;
@@ -113,7 +109,6 @@ NC_read_magic_number(const char *path, int xmode, void *parameters, char* magic)
     int diskless = ((xmode & NC_DISKLESS) == NC_DISKLESS);
     int use_parallel = ((xmode & NC_MPIIO) == NC_MPIIO);
     int inmemory = (diskless && ((xmode & NC_INMEMORY) == NC_INMEMORY));
-    int s3 = (xmode & NC_S3) == NC_S3;
     
     /* assert  |magic| >== MAGIC_NUMBER_LEN */
 
@@ -122,15 +117,6 @@ NC_read_magic_number(const char *path, int xmode, void *parameters, char* magic)
 	if(meminfo == NULL || meminfo->size < MAGIC_NUMBER_LEN)
 	    {status = NC_EDISKLESS; goto done;}
 	memcpy(magic,meminfo->memory,MAGIC_NUMBER_LEN);
-#ifdef USE_S3
-    } else if(s3) {
-	S3* s3 = NULL;
-	status = ls3_open(path,&s3);
-        if(status) goto done;
-	status = ls3_read_data(s3,(void*)magic,0,MAGIC_NUMBER_LEN);	
-        (void)ls3_close(s3);
-        if(status) goto done;
-#endif
     } else {/* presumably a real file */
        /* Get the 4-byte magic from the beginning of the file. Don't use posix
         * for parallel, use the MPI functions instead. */
@@ -204,11 +190,11 @@ and return that format value (NC_FORMATX_XXX)
 in model arg.
 */
 static int
-NC_check_file_type(const char *path, int xmode, void *parameters,
-		   int* modelp, int* versionp)
+NC_check_file_type(const char *path, void *parameters,
+		   int* modelp, int* versionp, int* cmodep)
 {
    int status = NC_NOERR;
-   int model,version;
+   int model,version,cmode;
    char magic[MAGIC_NUMBER_LEN];
 #ifdef USE_DAP
    int isurl;
@@ -216,14 +202,15 @@ NC_check_file_type(const char *path, int xmode, void *parameters,
 
    model = NC_FORMATX_UNDEFINED;
    version = 0;
+   cmode = (cmodep?*cmodep:0);
 
 #ifdef USING_LIBCURL
    if(NC_testurl(path)) {
-	model = NC_urlmodel(path,&version);
+	model = NC_urlmodel(path,&version,&cmode);
    } else
 #endif
    if(model == NC_FORMATX_UNDEFINED) {
-       status = NC_read_magic_number(path,xmode,parameters,magic);
+       status = NC_read_magic_number(path,cmode,parameters,magic);
        if(status) goto done;   
        /* Look at the magic number */
        status = NC_interpret_magic_number(magic,&model,&version);
@@ -231,6 +218,7 @@ NC_check_file_type(const char *path, int xmode, void *parameters,
 done:
    if(modelp) *modelp = model;
    if(versionp) *versionp = version;
+   if(cmodep) *cmodep = cmode;
    return status;
 }
 
@@ -1742,7 +1730,6 @@ NC_create(const char *path, int cmode, size_t initialsz,
    int model = NC_FORMATX_UNDEFINED;
    int version = 0;
    int isurl = 0;   /* dap  */
-   int iss3 = 0;   /* s3 */
    int xcmode = 0; /* for implied cmode flags */
 
    /* Initialize the dispatch table. The function pointers in the
@@ -1763,22 +1750,10 @@ NC_create(const char *path, int cmode, size_t initialsz,
 #endif
 
 #ifdef USING_LIBCURL
-   if((isurl = NC_testurl(path)))
-	model = NC_urlmodel(path,&version);
-	/* handle some cases specially */
-	switch (model) {
-	case NC_FORMATX_S3:
-#ifdef USE_S3
-	cmode |= NC_S3; /* remember  */
-	model = NC_FORMATX_UNDEFINED; /* make other code figure it out */
-	break;
-#else
-	return NC_ENOTNC;		
+   if((isurl = NC_testurl(path))) {
+	model = NC_urlmodel(path,&version,&cmode);
+   }
 #endif
-	default: break;
-	}
-#endif
-
     if(model == NC_FORMATX_UNDEFINED) {
         /* Look to the incoming cmode for hints: */
         model = cmode2model(cmode);       
@@ -1889,7 +1864,6 @@ NC_open(const char *path, int cmode,
    int version = 0;
    int xmode = 0;
    int useparallel = (cmode & NC_PARALLEL) == NC_PARALLEL;
-   int uses3 = 0;
 
    /* Initialize the dispatch table. The function pointers in the
     * dispatch table will depend on how netCDF was built
@@ -1916,18 +1890,12 @@ NC_open(const char *path, int cmode,
         isurl = NC_testurl(path);
         if(isurl) {
            model = NC_urlmodel(path);
-	   /* handle some cases specially */
-	   switch (model) {
-	   case NC_FORMATX_S3:
 #ifdef USE_S3
-		cmode |= NC_S3; /* record */
-		model = NC_FORMAT_UNDEFINED; /* make check_file_type find it */
-		break;
+	if(model == NC_FORMATX_S3)
+	    cmode |= NC_S3; /* record */
 #else
-		return NC_ENOTNC;		
+	return NC_ENOTNC;		
 #endif
-	   default: break;
-	   }
 	}
     }
 #endif
@@ -1936,7 +1904,7 @@ NC_open(const char *path, int cmode,
 	xmode = cmode;
 	/* Try to find dataset type */
 	if(useparallel) xmode |= NC_MPIIO;
-	stat = NC_check_file_type(path,xmode,parameters,&model,&version);
+	stat = NC_check_file_type(path,parameters,&model,&version,&cmode);
         if(stat != NC_NOERR) 
 	    return stat;
 	

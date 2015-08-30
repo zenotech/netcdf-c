@@ -4,9 +4,8 @@ TOP="/home/dmh/git/netcdf-c"
 alias xx="cd ..;make; cd libdap2"
 
 PARMS=""; ARGS=""; CON="" ; CE="";  OCON="" ; VAR=""; SHARP='#'
-alias q0=;alias qq=;alias qv=;alias q=;alias  qh=;alias qqh=;alias qall=;alias qv=;alias qo=;
 
-F="http://remotetest.unidata.ucar.edu/dts/test.01"
+F="file:///home/dmh/git/netcdf-c/ncdap_test/testdata3/test.02"
 
 if test -f ./ncd ; then
 PROG=./ncd
@@ -16,17 +15,17 @@ fi
 
 P=`pwd`
 
+PRE="[dap2]"
 PARMS="log"
 #PARMS="${PARMS}&netcdf3"
 #PARMS="${PARMS}&fetch=disk"
-#PARMS="${PARMS}&cache"
+PARMS="${PARMS}&cache"
 #PARMS="${PARMS}&nocache"
 #PARMS="${PARMS}&wholevar"
 PARMS="${PARMS}&show=fetch"
-#PARMS="${PARMS}&noprefetch"
+PARMS="${PARMS}&noprefetch"
 #PARMS="${PARMS}&prefetch"
 #PARMS="${PARMS}&prefetch=eager"
-PARMS="[log][cache][noprefetch]"
 
 VARGS="--leak-check=full"
 
@@ -47,26 +46,51 @@ fi
 if test "x$PARMS" != "x" ; then PARMS="\#$PARMS"; fi
 U="$F"
 if test "x$CON" != "x" ; then U="$U?$CON"; fi
+if test "x$PRE" != "x" ; then U="$PRE$U"; fi
 UALL="$U${PARMS}"
 #ARGS="-h $ARGS"
 #ARGS="-w $ARGS"
 #ARGS="-c $ARGS"
 if test "x$VAR" != "x" ; then ARGS="$ARGS -v $VAR" ; fi
 
-alias qq="gdb --args $PROG $ARGS '$U'"
-alias qv="valgrind $VARGS PROG $ARGS '$U'"
-alias q0="$PROG $ARGS '$UALL'"
-alias qh="$PROG -h $ARGS '$UALL'"
-alias qk="$PROG -k $ARGS '$UALL'"
-alias qvar="$PROG -v $VAR $ARGS '$UALL'"
-alias qqh="gdb --args $PROG -h $ARGS '$UALL'"
-alias qall="$PROG -h $ARGS '${UALL}'"
-alias qv="valgrind $VARGS $PROG $ARGS '$UALL'"
+function qq() {
+gdb --args $PROG $ARGS "$UALL"
+}
+function qv() {
+valgrind $VARGS PROG $ARGS "$UALL"
+}
+function q0() {
+$PROG $ARGS "$UALL"
+}
+function qh() {
+$PROG -h $ARGS "$UALL"
+}
+function qk() {
+$PROG -k $ARGS "$UALL"
+}
+function qv() {
+$PROG -v $VAR $ARGS "$UALL"
+}
+function qq() {
+gdb --args $PROG -h $ARGS "$UALL"
+}
+function qa() {
+$PROG -h $ARGS "$UALL"
+}
+function qv() {
+valgrind $VARGS $PROG $ARGS "$UALL"
+}
 if test "x$CON" = "x" ; then
-alias qo="~/svn/oc/octest -p dds -p datadds -DN -DX1 $F"
+function qo() {
+~/svn/oc/octest -p dds -p datadds -DN -DX1 $F
+}
 else
-alias qo="~/svn/oc/octest -p dds -p datadds -DN -DX1 -C $CON $F"
+function qo() {
+~/svn/oc/octest -p dds -p datadds -DN -DX1 -C $CON $F
+}
 fi
+
+for f in qq qv q0 qh qk qv qq qa qv qo ; do export -f $f ; done
 
 if test 1 = 0; then
 F="http://nomads.ncep.noaa.gov:9090/dods/gfs_hd/gfs_hd20110908/gfs_hd_00z"

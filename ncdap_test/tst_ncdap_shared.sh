@@ -6,7 +6,7 @@
 
 # Define the complete URLS
 
-FILEURL="file://${testdata3}"
+FILEURL="file://${testdata3}#dap2"
 
 # Synth8 and Synth9 still fail
 

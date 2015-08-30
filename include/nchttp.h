@@ -17,7 +17,7 @@
 extern int NC_testurl(const char* path);
 
 /* Return model as specified by the url; NC_FORMATX_UNDEFINED if unknown */
-extern int NC_urlmodel(const char* path, int* version);
+extern int NC_urlmodel(const char* path, int* versionp, int* cmodep);
 
 #if 0
 /* allow access url parse and params without exposing ncurl.h */
@@ -48,9 +48,9 @@ so that it can be used to convert a url to a model.
 */
 
 /* Expected callback signature */
-typedef int (*NC_protocol_test)(int dfalt, NCURI* url, int* model, int* version);
+typedef int (*NC_protocol_test)(NCURI* url, int* model, int* version, int* cmodep);
 
 /* Registry function: first means insert into front of list */
-extern int NC_register_protocol(NC_protocol_test callback, int dfalt);
+extern int NC_register_protocol(NC_protocol_test callback, int first);
 
 #endif /*NCHTTP_H*/

@@ -20,7 +20,7 @@ netcdf-4.1-beta2-snapshot2009091100
 #include <stdio.h>
 #include <string.h>
 #include "netcdf.h"
-#include "ncdispatch.h"
+#include "nchttp.h"
 
 #undef STANDALONE
 
@@ -107,6 +107,7 @@ main()
     }
     strcpy(url,svc);
     strcat(url,TESTPATH);
+    strcat(url,"#dap2");
 
     printf("*** Test: varm on URL: %s\n",url);
 

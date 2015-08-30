@@ -31,7 +31,7 @@ else
 CACHEPARAM=""
 fi
 
-PARAMS="[netcdf3][log]${CACHEPARAM}"
+PARAMS="[dap2][log]${CACHEPARAM}"
 
 #OCLOGFILE=/dev/null
 OCLOGFILE="" ; export OCLOGFILE

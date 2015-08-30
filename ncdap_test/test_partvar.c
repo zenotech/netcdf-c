@@ -20,7 +20,7 @@ variables:
 }
 */
 
-#define PARAMS ""
+#define PARAMS "[dap2]"
 #define DTSTEST "/ingrid"
 #define VAR "v3H"
 #define ISTA 35

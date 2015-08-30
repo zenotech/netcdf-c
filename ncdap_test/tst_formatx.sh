@@ -13,7 +13,7 @@ if test "x$DTS" = "x" ; then
 echo "cannot locate test server for dts"
 exit
 fi
-URL="$DTS/test.03"
+URL="$DTS/test.03#dap2"
 
 ECODE=0
 echo "Test extended format output for a DAP2  file"

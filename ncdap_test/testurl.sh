@@ -42,9 +42,9 @@ NCDUMP=$builddir/ncdump/ncdump
 
 URL="http://remotetest.unidata.ucar.edu/dts/test.03"
 
-PREFIX="[log][show=fetch]"
-SUFFIX="log&show=fetch"
-BOTHP="[log][show=fetch]"
+PREFIX="[dap2][log][show=fetch]"
+SUFFIX="dap2&log&show=fetch"
+BOTHP="[dap2][log][show=fetch]"
 BOTHS="noprefetch&fetch=disk"
 
 locreset () {

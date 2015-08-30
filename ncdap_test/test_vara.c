@@ -87,6 +87,7 @@ main()
     strcpy(url,"file://");
     strcat(url,topsrcdir);
     strcat(url,"/ncdap_test/testdata3/test.06");
+    strcat(url,"#dap2");
 
     printf("test_vara: url=%s\n",url);
 

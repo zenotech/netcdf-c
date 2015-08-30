@@ -29,7 +29,7 @@ leakcheck=0
 # Pick one
 CACHE=""
 #CACHE="[cache]"
-PARAMS="[netcdf3][log]${CACHE}"
+PARAMS="[dap2][log]${CACHE}"
 
 #OCLOGFILE=/dev/null
 OCLOGFILE="" ; export OCLOGFILE
