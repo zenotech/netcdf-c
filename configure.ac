@@ -952,6 +952,12 @@ AC_ARG_ENABLE([pnetcdf], [AS_HELP_STRING([--enable-pnetcdf],
 test "x$enable_pnetcdf" = xyes || enable_pnetcdf=no
 AC_MSG_RESULT($enable_pnetcdf)
 
+# pnetcdf => ~S3
+if test "x$enable_pnetcdf" = xyes; then
+enable_s3=no
+AC_MSG_NOTICE([--enable-pnetcdf => --disable-s3])
+fi
+
 # See if the pnetcdf lib is available and of the
 # right version (1.6.0 or later)
 
