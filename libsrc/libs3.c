@@ -37,6 +37,8 @@ struct S3 {
     CURL* curl;
     char* s3url;
     char* trueurl;
+    long long eof; /* last offset actually written not necessarily == ontent-length*/
+    int readonly;
     S3_Metadata meta;
     long code; /* last code received */
     S3_Range range;
@@ -125,7 +127,7 @@ header_callback(char *buffer, size_t size, size_t nitems, void *userdata)
     value = p;
     len -= (p - buffer);
     if(strcasecmp(key,"content-length")==0) {
-	meta->length = strtoull(value,NULL,10);
+	meta->content_length = strtoull(value,NULL,10);
     } else if(strcasecmp(key,"content-type")==0) {
 	meta->type = s3strndup(value,len);
     } else if(strcasecmp(key,"last-modified")==0) {
@@ -167,9 +169,9 @@ buildcreateheaders(S3_Metadata* md)
                                             md->type);
 		break;
 	case 1: /*content-length*/
-	    if(md->length >= 0)
+	    if(md->content_length >= 0)
 	        snprintf(line,sizeof(line),"Content-Length: %lld",
-                                            md->length);
+                                            md->content_length);
 		break;
 	case 2: /*version_id*/
 	    if(md->version_id != NULL)
@@ -251,7 +253,7 @@ done:
 Caller must ensure buffer is big enough
 */
 S3error
-ls3_read_data(S3* s3, void* buffer, off_t start, size_t count)
+ls3_read_data(S3* s3, void* buffer, long long start, size_t count)
 {
     int status = S3_OK;
     CURLcode cstat = CURLE_OK;
@@ -302,6 +304,12 @@ ls3_read_data(S3* s3, void* buffer, off_t start, size_t count)
     cstat = curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&s3->code);
     if(cstat != CURLE_OK) goto done;
 
+    /* Update file length */
+    if(s3->eof < (start + count))
+	s3->eof = (start+count);    
+    if(s3->meta.content_length < s3->eof)
+        s3->meta.content_length = s3->eof;
+
 done:
     return errcvt(cstat);
 }
@@ -310,13 +318,16 @@ done:
 Caller must ensure buffer is big enough
 */
 S3error
-ls3_write_data(S3* s3, void* buffer, off_t start, size_t count)
+ls3_write_data(S3* s3, const void* buffer, long long start, size_t count)
 {
     int status = S3_OK;
     CURLcode cstat = CURLE_OK;
     CURL* curl = s3->curl;
     char srange[1024];
     RWcallback rw;
+
+    if(s3->readonly)
+	return S3_EPERM;
 
     assert(s3->meta.initialized);
 
@@ -338,7 +349,7 @@ ls3_write_data(S3* s3, void* buffer, off_t start, size_t count)
     rw.s3 = s3;
     rw.range = s3->range;
     rw.offset = 0;
-    rw.buffer = buffer;
+    rw.buffer = (void*)buffer;
 
     snprintf(srange,sizeof(srange),"%lld-%lld",
 	     rw.range.start,rw.range.start+rw.range.count);
@@ -355,34 +366,27 @@ ls3_write_data(S3* s3, void* buffer, off_t start, size_t count)
     cstat = curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&s3->code);
     if(cstat != CURLE_OK) goto done;
 
+    /* update file length */
+    if(s3->eof < (start + count))
+	s3->eof = (start+count);    
+    if(s3->meta.content_length < s3->eof)
+        s3->meta.content_length = s3->eof;
+
 done:
     return errcvt(cstat);
 }
 
-/* Create S3 instance and corresponding file*/
 S3error
-ls3_create(const char* url, S3** s3p)
+s3create(const char* url, S3* s3)
 {
     S3error stat = S3_OK;
     CURLcode cstat = CURLE_OK;
-    S3* s3 = NULL;
     S3_Metadata* md = NULL;
     CURL* curl = NULL;
     int ustat = 0;
 
-    /* Fill in S3 and S3 metadata */
-    s3 = (S3*)calloc(1,sizeof(S3));    
-    if(s3 == NULL) {stat = S3_ENOMEM; goto done;}
-
-    s3->s3url = strdup(url);
-    stat = curlopen(&s3->curl);
-    if(stat) goto done;
-    md = &s3->meta;
-    s3->trueurl = s3totrue(url,&md->bucket,&md->object);
-    if(s3->trueurl == NULL)
-	{stat = S3_EURL; goto done;}
-
     /* Now, fill in the metadata prior to creation */
+    md = &s3->meta;
     memset(md,0,sizeof(S3_Metadata));
     
     {/* Fill in headers */
@@ -411,27 +415,49 @@ ls3_create(const char* url, S3** s3p)
     md->initialized = 0;
     stat = ls3_read_metadata(s3);
 
-done:
-    if(stat == S3_OK)
-	stat = errcvt(cstat);
-    if(stat != S3_OK && s3) {
-	if(s3->curl)
-	    (void)curl_easy_cleanup(s3->curl);
-	ls3_close(s3);
-        if(s3p != NULL) *s3p = NULL;
-    } else if(s3p != NULL)
-	*s3p = s3;
+    s3->eof = md->content_length;
 
-    return cstat;
+done:
+    if(cstat && !stat)
+	stat = errcvt(cstat);
+    return stat;
 }
 
+/**
+    mode - one of
+	"r" (readonly) 
+	"w" (truncate & read/write)
+	"rw" (read/write)
+*/
+
 S3error
-ls3_open(const char* url, S3** s3p)
+ls3_open(const char* url, const char* mode, S3** s3p)
 {
     CURLcode cstat = CURLE_OK;
     S3error s3stat = S3_OK;
     S3* s3 = NULL;
     S3_Metadata* md;
+    int readonly,truncate;
+
+    if(mode == NULL) mode = "r";
+    readonly = 0;
+    truncate = 0;
+    if(strcmp(mode,"r")==0)
+	{readonly = 1; truncate = 0;}
+    else if(strcmp(mode,"w")==0)
+	{readonly = 0; truncate = 1;}
+    else if(strcmp(mode,"rw")==0)
+	{readonly = 0; truncate = 0;}
+    else
+	return S3_EMODE;
+
+    if(truncate) {
+	/* delete then create */
+	s3stat = ls3_delete(url);
+	if(s3stat == S3_OK)
+	    s3stat = s3create(url,s3);		
+	if(s3stat != S3_OK) goto done;
+    }
 
     s3 = (S3*)calloc(1,sizeof(S3));    
     if(s3 == NULL) return S3_ENOMEM;
@@ -449,9 +475,13 @@ ls3_open(const char* url, S3** s3p)
     s3->trueurl = s3totrue(url,&md->bucket,&md->object);
     if(s3->trueurl == NULL)
 	{s3stat = S3_EURL; goto done;}
+    s3->readonly = readonly;
+
     /* Attempt to read the metadata */
     s3stat = ls3_read_metadata(s3);
     if(s3stat) goto done;    
+    /* Set eof to content_length */
+    s3->eof = md->content_length;
 
     if(s3p != NULL) *s3p = s3;
 
@@ -484,7 +514,40 @@ ls3_close(S3* s3)
     return S3_OK;
 }
 
+int
+ls3_delete(const char* url)
+{
+    S3error stat = S3_OK;
+    S3* s3 = NULL;
+    CURLcode cstat = CURLE_OK;
+
+    /* Make sure the object exists */
+    stat = ls3_open(url, "rw", &s3);
+    if(stat || ls3_get_code(s3) >= 400)
+	return stat; 
+
+    /* Prepare to delete */
+    cstat = curl_easy_setopt(s3->curl,CURLOPT_CUSTOMREQUEST,"delete");
+    if(cstat == CURLE_OK)
+        cstat = curl_easy_perform(s3->curl);
+    (void)ls3_close(s3);
+    if(cstat) stat = errcvt(cstat);
+    return stat;
+}
+
 /* S3 Accessors */
+
+long long
+ls3_get_eof(S3* s3)
+{
+    return s3->eof;
+}
+
+int
+ls3_set_length(S3* s3)
+{
+    return S3_OK;
+}
 
 CURL*
 ls3_get_curl(S3* s3)
@@ -492,13 +555,13 @@ ls3_get_curl(S3* s3)
     return s3->curl;
 }
 
-char*
+const char*
 ls3_get_s3url(S3* s3)
 {
     return s3->s3url;
 }
 
-char*
+const char*
 ls3_get_trueurl(S3* s3)
 {
     return s3->trueurl;
@@ -516,31 +579,10 @@ ls3_get_code(S3* s3)
     return s3->code;
 }
 
-off_t
+long long
 ls3_get_iocount(S3* s3)
 {
     return s3->iocount;
-}
-
-int
-ls3_delete(const char* url)
-{
-    S3error stat = S3_OK;
-    S3* s3 = NULL;
-    CURLcode cstat = CURLE_OK;
-
-    /* Make sure the object exists */
-    stat = ls3_open(url, &s3);
-    if(stat || ls3_get_code(s3) >= 400)
-	return stat; 
-
-    /* Prepare to delete */
-    cstat = curl_easy_setopt(s3->curl,CURLOPT_CUSTOMREQUEST,"delete");
-    if(cstat == CURLE_OK)
-        cstat = curl_easy_perform(s3->curl);
-    (void)ls3_close(s3);
-    if(cstat) stat = errcvt(cstat);
-    return stat;
 }
 
 /**************************************************/

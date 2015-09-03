@@ -185,7 +185,7 @@ FLAGS="$FLAGS --enable-pnetcdf"
 FLAGS="$FLAGS --enable-parallel-tests"
 fi
 
-#FLAGS="${FLAGS} --enable-s3"
+FLAGS="${FLAGS} --enable-s3"
 
 DISTCHECK_CONFIGURE_FLAGS="$FLAGS"
 export DISTCHECK_CONFIGURE_FLAGS

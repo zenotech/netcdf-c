@@ -877,6 +877,7 @@ s3io_create(const char *path, int cmode,
     int status;
     S3error s3stat = S3_OK;
     ncio_s3* nc3;
+    char* mode = "w";
 
     if(initialsz < (size_t)igeto + igetsz)
 	initialsz = (size_t)igeto + igetsz;
@@ -887,14 +888,17 @@ s3io_create(const char *path, int cmode,
 	return EINVAL;
 
     if(fIsSet(cmode, NC_NOCLOBBER)) {
+	mode = "rw";
+#if 0
 	S3* s3 = NULL;
-        s3stat = ls3_open(path,&s3);
+        s3stat = ls3_open(path,"rw",&s3);
 	if(s3stat && ls3_get_code(s3) == 200) {
 	    ls3_close(s3);
 	    /* exists */	    
 	    s3stat = S3_EEXIST;
 	    goto fail;
 	}
+#endif
     }
 
     nciop = ncio_s3_new(path, cmode);
@@ -902,7 +906,7 @@ s3io_create(const char *path, int cmode,
 	return ENOMEM;
 
     nc3 = (ncio_s3*)nciop->pvt;
-    s3stat = ls3_create(path,&nc3->s3);
+    s3stat = ls3_open(path,mode,&nc3->s3);
     if(s3stat) goto fail;
 
     if(*sizehintp < NCIO_MINBLOCKSIZE) {
@@ -998,7 +1002,7 @@ s3io_open(const char *path,
 	return ENOMEM;
 
     nc3 = (ncio_s3*)nciop->pvt;
-    s3stat = ls3_open(path,&nc3->s3);
+    s3stat = ls3_open(path,"rw",&nc3->s3);
     if(s3stat) goto fail;
 
     if(*sizehintp < NCIO_MINBLOCKSIZE) {

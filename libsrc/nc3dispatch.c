@@ -186,7 +186,7 @@ NC3_proto_test(NCURI* uri, int* modelp, int* versionp, int* cmodep)
 
     if(strcmp(uri->protocol,"s3") == 0
        || strcmp(uri->protocol,"s3s") == 0) {
-	s3status = ls3_open(uri->uri,&s3);
+	s3status = ls3_open(uri->uri,"r",&s3);
         if(s3status == S3_OK) {
             s3status = ls3_read_data(s3,(void*)magic,0,MAGIC_NUMBER_LEN);	
             (void)ls3_close(s3);

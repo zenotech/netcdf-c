@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "netcdf.h"
+#include "ncdispatch.h"
 #include "ncio.h"
 #include "fbits.h"
 
@@ -36,6 +37,11 @@ extern int ffio_open(const char*,int,off_t,size_t,size_t*,void*,ncio**,void** co
      extern int memio_open(const char*,int,off_t,size_t,size_t*,void*,ncio**,void** const);
 #endif
 
+#ifdef USE_S3
+extern int s3io_create(const char*,int,size_t,off_t,size_t,size_t*,void*,ncio**,void** const);
+extern int s3io_open(const char*,int,off_t,size_t,size_t*,void*,ncio**,void** const);
+#endif
+
 int
 ncio_create(const char *path, int ioflags, size_t initialsz,
                        off_t igeto, size_t igetsz, size_t *sizehintp,
@@ -50,6 +56,11 @@ ncio_create(const char *path, int ioflags, size_t initialsz,
       else
 #  endif /*USE_MMAP*/
         return memio_create(path,ioflags,initialsz,igeto,igetsz,sizehintp,parameters,iopp,mempp);
+    }
+#endif
+#ifdef USE_S3
+    if(fIsSet(ioflags,NC_S3)) {
+        return s3io_create(path,ioflags,initialsz,igeto,igetsz,sizehintp,parameters,iopp,mempp);
     }
 #endif
 
@@ -79,6 +90,11 @@ ncio_open(const char *path, int ioflags,
       else
 #  endif /*USE_MMAP*/
         return memio_open(path,ioflags,igeto,igetsz,sizehintp,parameters,iopp,mempp);
+    }
+#endif
+#ifdef USE_S3
+    if(fIsSet(ioflags,NC_S3)) {
+        return s3io_open(path,ioflags,igeto,igetsz,sizehintp,parameters,iopp,mempp);
     }
 #endif
 #ifdef USE_STDIO

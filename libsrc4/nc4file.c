@@ -12,7 +12,6 @@ COPYRIGHT file for copying and redistribution conditions.
 #include "config.h"
 #include <errno.h>  /* netcdf functions sometimes return system errors */
 
-
 #include "nc.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
@@ -26,6 +25,10 @@ COPYRIGHT file for copying and redistribution conditions.
 
 #ifdef USE_DISKLESS
 #include <hdf5_hl.h>
+#endif
+
+#ifdef USE_S3
+extern herr_t H5Pset_fapl_s3(hid_t fapl_id);
 #endif
 
 /* This is to track opened HDF5 objects to make sure they are
@@ -285,9 +288,12 @@ nc4_create_file(const char *path, int cmode, MPI_Comm comm, MPI_Info info,
 
    assert(nc);
 
+#ifdef USE_DISKLESS
    if(cmode & NC_DISKLESS)
        flags = H5F_ACC_TRUNC;
-   else if(cmode & NC_NOCLOBBER)
+   else
+#endif
+   if(cmode & NC_NOCLOBBER)
        flags = H5F_ACC_EXCL;
    else
        flags = H5F_ACC_TRUNC;
@@ -297,12 +303,15 @@ nc4_create_file(const char *path, int cmode, MPI_Comm comm, MPI_Info info,
 
    /* If this file already exists, and NC_NOCLOBBER is specified,
       return an error. */
+#ifdef USE_DISKLESS
    if (cmode & NC_DISKLESS) {
 #ifndef USE_PARALLEL4
 	if(cmode & NC_WRITE)
 	    persist = 1;
+   } else
 #endif
-   } else if ((cmode & NC_NOCLOBBER) && (fp = fopen(path, "r"))) {
+#endif
+   if ((cmode & NC_NOCLOBBER) && (fp = fopen(path, "r"))) {
       fclose(fp);
       return NC_EEXIST;
    }
@@ -379,10 +388,19 @@ nc4_create_file(const char *path, int cmode, MPI_Comm comm, MPI_Info info,
       }
    }
 #else /* only set cache for non-parallel... */
+#ifdef USE_DISKLESS
    if(cmode & NC_DISKLESS) {
 	 if (H5Pset_fapl_core(fapl_id, 4096, persist))
 	    BAIL(NC_EDISKLESS);
    }
+#endif
+#ifdef USE_S3
+   if(cmode & NC_S3) {
+	 if (H5Pset_fapl_s3(fapl_id))
+	    BAIL(NC_ECURL);
+   }
+#endif
+
    if (H5Pset_cache(fapl_id, 0, nc4_chunk_cache_nelems, nc4_chunk_cache_size,
 		    nc4_chunk_cache_preemption) < 0)
       BAIL(NC_EHDFERR);
