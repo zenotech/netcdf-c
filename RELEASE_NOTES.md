@@ -9,6 +9,16 @@ This file contains a high-level description of this package's evolution. Release
 
 ### 4.4.0-RC3 In Progress
 
+*  It is clear we are going to have to support a
+   variety of urls (dap2, dap4, s3, ...), I rebuilt dfile.c
+   and added dhttp.c to decode urls to figure out the model
+   to use. Basic idea is have each possible handler register itself.
+   Then, given a url, each registered handler is asked if it can
+   process the url. First that says yes is chosen. If all say no,
+   then a default is chosen. This will probably have to be refined
+   as new remote protocols are added. Currently, DAP2 is the default
+   handler to provide some back compatibility.
+
 * Addressed an inefficiency in how bytes would be swapped when converting between `LITTLE` and `BIG` ENDIANNESS.  See [NCF-338](https://bugtracking.unidata.ucar.edu/browse/NCF-338) for more information.
 
 * Addressed an issue where an interrupted read on a `POSIX` system would return an error even if errno had been properly set to `EINTR`.  This issue was initially reported by David Knaak at Cray.  More information may be found at [NCF-337](https://bugtracking.unidata.ucar.edu/browse/NCF-337).
