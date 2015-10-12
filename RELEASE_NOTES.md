@@ -7,7 +7,7 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.4.0 Released TBD
 
-### 4.4.0-RC3 In Progress
+### 4.4.0-RC3 2015-10-08
 
 *  It is clear we are going to have to support a
    variety of urls (dap2, dap4, s3, ...), I rebuilt dfile.c
@@ -25,6 +25,7 @@ This file contains a high-level description of this package's evolution. Release
 
 * Added a note to the install directions pointing out that parallel make
 cannot be used for 'make check'.
+* Many miscellaneous bug fixes.
 
 * Added CDM-5 support via new mode flag called NC_64BIT_DATA (alias NC_CDF5).
   Major kudos to Wei-Keng Liao for all the effort he put into getting this to

@@ -43,14 +43,14 @@ noinst_LTLIBRARIES = libnetcdf3.la
 # with m4), but they are included in the distribution so that the user
 # does not have to have m4.
 MAINTAINERCLEANFILES = $(man_MANS) attrx.c putgetx.c
-EXTRA_DIST = attr.m4 ncx.m4 putget.m4 $(man_MANS) CMakeLists.txt XGetopt.c 
+EXTRA_DIST = attr.m4 ncx.m4 putget.m4 $(man_MANS) CMakeLists.txt XGetopt.c
 
 # This tells make how to turn .m4 files into .c files.
 .m4.c:
 	m4 $(AM_M4FLAGS) $(M4FLAGS) -s $< >$@
 
 # The C API man page.
-man_MANS = netcdf.3 
+man_MANS = netcdf.3
 
 # Decide what goes in the man page, based on user configure options.
 ARGS_MANPAGE = -DAPI=C
@@ -65,7 +65,5 @@ ARGS_MANPAGE += -DPARALLEL_IO=TRUE
 endif
 
 # This rule generates the C manpage.
-netcdf.3: $(top_srcdir)/docs/netcdf.m4 
+netcdf.3: $(top_srcdir)/docs/netcdf.m4
 	m4 $(M4FLAGS) $(ARGS_MANPAGE) $? >$@  || rm $@
-
-
