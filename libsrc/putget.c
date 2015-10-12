@@ -48,10 +48,10 @@ void
 arrayp(const char *label, size_t count, const size_t *array)
 {
 	(void) fprintf(stderr, "%s", label);
-	(void) fputc('\t',stderr);	
+	(void) fputc('\t',stderr);
 	for(; count > 0; count--, array++)
 		(void) fprintf(stderr," %lu", (unsigned long)*array);
-	(void) fputc('\n',stderr);	
+	(void) fputc('\n',stderr);
 }
 #endif /* ODEBUG */
 
@@ -60,7 +60,7 @@ arrayp(const char *label, size_t count, const size_t *array)
 /*
  * This is tunable parameter.
  * It essentially controls the tradeoff between the number of times
- * memcpy() gets called to copy the external data to fill 
+ * memcpy() gets called to copy the external data to fill
  * a large buffer vs the number of times its called to
  * prepare the external data.
  */
@@ -559,7 +559,7 @@ NC_fill_ulonglong(
 
 
 
-/* 
+/*
  * Fill the external space for variable 'varp' values at 'recno' with
  * the appropriate value. If 'varp' is not a record variable, fill the
  * whole thing.  For the special case when 'varp' is the only record
@@ -610,12 +610,12 @@ fill_NC_var(NC3_INFO* ncp, const NC_var *varp, size_t varsize, size_t recno)
 	else
 	{
 		/* use the default */
-		
+
 		assert(xsz % X_ALIGN == 0);
 		assert(xsz <= sizeof(xfillp));
-	
+
 		xp = xfillp;
-	
+
 		switch(varp->type){
 		case NC_BYTE :
 			status = NC_fill_schar(&xp, nelems);
@@ -632,7 +632,7 @@ fill_NC_var(NC3_INFO* ncp, const NC_var *varp, size_t varsize, size_t recno)
 		case NC_FLOAT :
 			status = NC_fill_float(&xp, nelems);
 			break;
-		case NC_DOUBLE : 
+		case NC_DOUBLE :
 			status = NC_fill_double(&xp, nelems);
 			break;
                 case NC_UBYTE :
@@ -657,7 +657,7 @@ fill_NC_var(NC3_INFO* ncp, const NC_var *varp, size_t varsize, size_t recno)
 		}
 		if(status != NC_NOERR)
 			return status;
-	
+
 		assert(xp == xfillp + xsz);
 	}
 
@@ -684,7 +684,7 @@ fill_NC_var(NC3_INFO* ncp, const NC_var *varp, size_t varsize, size_t recno)
 		size_t ii;
 
 		status = ncio_get(ncp->nciop, offset, chunksz,
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 		if(status != NC_NOERR)
 		{
 			return status;
@@ -784,7 +784,7 @@ NCtouchlast(NC3_INFO* ncp, const NC_var *const *varpp, size_t recno)
 {
 	int status = NC_NOERR;
 	const NC_var *varp = NULL;
-	
+
 	{
 	size_t ii = 0;
 	for(; ii < ncp->vars.nelems; ii++, varpp++)
@@ -806,7 +806,7 @@ NCtouchlast(NC3_INFO* ncp, const NC_var *const *varpp, size_t recno)
 
 
 		status = ncio_get(ncp->nciop, offset, varp->xsz,
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 		if(status != NC_NOERR)
 			return status;
 		(void)memset(xp, 0, varp->xsz);
@@ -846,7 +846,7 @@ NCvnrecs(NC3_INFO* ncp, size_t numrecs)
 #endif
 		/* work-around for non-unique tickets */
 		if (nowserving > myticket && nowserving < myticket + numpe ) {
-			/* get a new ticket ... you've been bypassed */ 
+			/* get a new ticket ... you've been bypassed */
 			/* and handle the unlikely wrap-around effect */
 			myticket = shmem_short_finc(
 				(shmem_t *) ncp->lock + LOCKNUMREC_LOCK,
@@ -881,9 +881,9 @@ NCvnrecs(NC3_INFO* ncp, size_t numrecs)
 		}
 		else
 		{
-		    /* Treat two cases differently: 
+		    /* Treat two cases differently:
 		        - exactly one record variable (no padding)
-                        - multiple record variables (each record padded 
+                        - multiple record variables (each record padded
                           to 4-byte alignment)
 		    */
 		    NC_var **vpp = (NC_var **)ncp->vars.value;
@@ -891,7 +891,7 @@ NCvnrecs(NC3_INFO* ncp, size_t numrecs)
 		    NC_var *recvarp = NULL;	/* last record var */
 		    int numrecvars = 0;
 		    size_t cur_nrecs;
-		    
+
 		    /* determine how many record variables */
 		    for( /*NADA*/; vpp < end; vpp++) {
 			if(IS_RECVAR(*vpp)) {
@@ -899,7 +899,7 @@ NCvnrecs(NC3_INFO* ncp, size_t numrecs)
 			    numrecvars++;
 			}
 		    }
-		    
+
 		    if (numrecvars != 1) { /* usual case */
 			/* Fill each record out to numrecs */
 			while((cur_nrecs = NC_get_numrecs(ncp)) < numrecs)
@@ -930,7 +930,7 @@ NCvnrecs(NC3_INFO* ncp, size_t numrecs)
 			}
 			if(status != NC_NOERR)
 				goto common_return;
-			
+
 		    }
 		}
 
@@ -950,7 +950,7 @@ common_return:
 }
 
 
-/* 
+/*
  * Check whether 'coord' values are valid for the variable.
  */
 static int
@@ -988,7 +988,7 @@ NCcoordck(NC3_INFO* ncp, const NC_var *varp, const size_t *coord)
 		ip = coord;
 		up = varp->shape;
 	}
-	
+
 #ifdef CDEBUG
 fprintf(stderr,"	NCcoordck: coord %ld, count %d, ip %ld\n",
 		coord, varp->ndims, ip );
@@ -1011,7 +1011,7 @@ fprintf(stderr,"	NCcoordck: ip %p, *ip %ld, up %p, *up %lu\n",
 }
 
 
-/* 
+/*
  * Check whether 'edges' are valid for the variable and 'start'
  */
 /*ARGSUSED*/
@@ -1045,7 +1045,7 @@ NCedgeck(const NC3_INFO* ncp, const NC_var *varp,
 }
 
 
-/* 
+/*
  * Translate the (variable, coord) pair into a seek index
  */
 static off_t
@@ -1069,7 +1069,7 @@ NC_varoffset(const NC3_INFO* ncp, const NC_var *varp, const size_t *coord)
 		off_t *up = varp->dsizes +1;
 		const size_t *ip = coord;
 		const off_t *const end = varp->dsizes + varp->ndims;
-		
+
 		if(IS_RECVAR(varp))
 			up++, ip++;
 
@@ -1077,10 +1077,10 @@ NC_varoffset(const NC3_INFO* ncp, const NC_var *varp, const size_t *coord)
 			lcoord += (off_t)(*up) * (off_t)(*ip);
 
 		lcoord *= varp->xsz;
-		
+
 		if(IS_RECVAR(varp))
 			lcoord += (off_t)(*coord) * ncp->recsize;
-		
+
 		lcoord += varp->begin;
 		return lcoord;
 	}
@@ -1129,13 +1129,13 @@ putNCvx_char_char(NC3_INFO* ncp, const NC_var *varp,
 #line 721
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 721
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 721
 		if(lstatus != NC_NOERR)
 #line 721
 			return lstatus;
 #line 721
-		
+
 #line 721
 		lstatus = ncx_putn_char_char(&xp, nput, value);
 #line 721
@@ -1153,7 +1153,7 @@ putNCvx_char_char(NC3_INFO* ncp, const NC_var *varp,
 #line 721
 		(void) ncio_rel(ncp->nciop, offset,
 #line 721
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 721
 
 #line 721
@@ -1219,13 +1219,13 @@ putNCvx_schar_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 723
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 723
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 723
 		if(lstatus != NC_NOERR)
 #line 723
 			return lstatus;
 #line 723
-		
+
 #line 723
 		lstatus = ncx_putn_schar_schar(&xp, nput, value);
 #line 723
@@ -1243,7 +1243,7 @@ putNCvx_schar_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 723
 		(void) ncio_rel(ncp->nciop, offset,
 #line 723
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 723
 
 #line 723
@@ -1308,13 +1308,13 @@ putNCvx_schar_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 724
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 724
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 724
 		if(lstatus != NC_NOERR)
 #line 724
 			return lstatus;
 #line 724
-		
+
 #line 724
 		lstatus = ncx_putn_schar_uchar(&xp, nput, value);
 #line 724
@@ -1332,7 +1332,7 @@ putNCvx_schar_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 724
 		(void) ncio_rel(ncp->nciop, offset,
 #line 724
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 724
 
 #line 724
@@ -1397,13 +1397,13 @@ putNCvx_schar_short(NC3_INFO* ncp, const NC_var *varp,
 #line 725
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 725
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 725
 		if(lstatus != NC_NOERR)
 #line 725
 			return lstatus;
 #line 725
-		
+
 #line 725
 		lstatus = ncx_putn_schar_short(&xp, nput, value);
 #line 725
@@ -1421,7 +1421,7 @@ putNCvx_schar_short(NC3_INFO* ncp, const NC_var *varp,
 #line 725
 		(void) ncio_rel(ncp->nciop, offset,
 #line 725
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 725
 
 #line 725
@@ -1486,13 +1486,13 @@ putNCvx_schar_int(NC3_INFO* ncp, const NC_var *varp,
 #line 726
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 726
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 726
 		if(lstatus != NC_NOERR)
 #line 726
 			return lstatus;
 #line 726
-		
+
 #line 726
 		lstatus = ncx_putn_schar_int(&xp, nput, value);
 #line 726
@@ -1510,7 +1510,7 @@ putNCvx_schar_int(NC3_INFO* ncp, const NC_var *varp,
 #line 726
 		(void) ncio_rel(ncp->nciop, offset,
 #line 726
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 726
 
 #line 726
@@ -1575,13 +1575,13 @@ putNCvx_schar_float(NC3_INFO* ncp, const NC_var *varp,
 #line 727
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 727
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 727
 		if(lstatus != NC_NOERR)
 #line 727
 			return lstatus;
 #line 727
-		
+
 #line 727
 		lstatus = ncx_putn_schar_float(&xp, nput, value);
 #line 727
@@ -1599,7 +1599,7 @@ putNCvx_schar_float(NC3_INFO* ncp, const NC_var *varp,
 #line 727
 		(void) ncio_rel(ncp->nciop, offset,
 #line 727
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 727
 
 #line 727
@@ -1664,13 +1664,13 @@ putNCvx_schar_double(NC3_INFO* ncp, const NC_var *varp,
 #line 728
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 728
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 728
 		if(lstatus != NC_NOERR)
 #line 728
 			return lstatus;
 #line 728
-		
+
 #line 728
 		lstatus = ncx_putn_schar_double(&xp, nput, value);
 #line 728
@@ -1688,7 +1688,7 @@ putNCvx_schar_double(NC3_INFO* ncp, const NC_var *varp,
 #line 728
 		(void) ncio_rel(ncp->nciop, offset,
 #line 728
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 728
 
 #line 728
@@ -1753,13 +1753,13 @@ putNCvx_schar_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 729
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 729
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 729
 		if(lstatus != NC_NOERR)
 #line 729
 			return lstatus;
 #line 729
-		
+
 #line 729
 		lstatus = ncx_putn_schar_longlong(&xp, nput, value);
 #line 729
@@ -1777,7 +1777,7 @@ putNCvx_schar_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 729
 		(void) ncio_rel(ncp->nciop, offset,
 #line 729
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 729
 
 #line 729
@@ -1842,13 +1842,13 @@ putNCvx_schar_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 730
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 730
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 730
 		if(lstatus != NC_NOERR)
 #line 730
 			return lstatus;
 #line 730
-		
+
 #line 730
 		lstatus = ncx_putn_schar_ushort(&xp, nput, value);
 #line 730
@@ -1866,7 +1866,7 @@ putNCvx_schar_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 730
 		(void) ncio_rel(ncp->nciop, offset,
 #line 730
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 730
 
 #line 730
@@ -1931,13 +1931,13 @@ putNCvx_schar_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 731
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 731
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 731
 		if(lstatus != NC_NOERR)
 #line 731
 			return lstatus;
 #line 731
-		
+
 #line 731
 		lstatus = ncx_putn_schar_uint(&xp, nput, value);
 #line 731
@@ -1955,7 +1955,7 @@ putNCvx_schar_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 731
 		(void) ncio_rel(ncp->nciop, offset,
 #line 731
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 731
 
 #line 731
@@ -2020,13 +2020,13 @@ putNCvx_schar_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 732
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 732
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 732
 		if(lstatus != NC_NOERR)
 #line 732
 			return lstatus;
 #line 732
-		
+
 #line 732
 		lstatus = ncx_putn_schar_ulonglong(&xp, nput, value);
 #line 732
@@ -2044,7 +2044,7 @@ putNCvx_schar_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 732
 		(void) ncio_rel(ncp->nciop, offset,
 #line 732
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 732
 
 #line 732
@@ -2110,13 +2110,13 @@ putNCvx_short_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 734
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 734
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 734
 		if(lstatus != NC_NOERR)
 #line 734
 			return lstatus;
 #line 734
-		
+
 #line 734
 		lstatus = ncx_putn_short_schar(&xp, nput, value);
 #line 734
@@ -2134,7 +2134,7 @@ putNCvx_short_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 734
 		(void) ncio_rel(ncp->nciop, offset,
 #line 734
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 734
 
 #line 734
@@ -2199,13 +2199,13 @@ putNCvx_short_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 735
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 735
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 735
 		if(lstatus != NC_NOERR)
 #line 735
 			return lstatus;
 #line 735
-		
+
 #line 735
 		lstatus = ncx_putn_short_uchar(&xp, nput, value);
 #line 735
@@ -2223,7 +2223,7 @@ putNCvx_short_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 735
 		(void) ncio_rel(ncp->nciop, offset,
 #line 735
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 735
 
 #line 735
@@ -2288,13 +2288,13 @@ putNCvx_short_short(NC3_INFO* ncp, const NC_var *varp,
 #line 736
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 736
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 736
 		if(lstatus != NC_NOERR)
 #line 736
 			return lstatus;
 #line 736
-		
+
 #line 736
 		lstatus = ncx_putn_short_short(&xp, nput, value);
 #line 736
@@ -2312,7 +2312,7 @@ putNCvx_short_short(NC3_INFO* ncp, const NC_var *varp,
 #line 736
 		(void) ncio_rel(ncp->nciop, offset,
 #line 736
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 736
 
 #line 736
@@ -2377,13 +2377,13 @@ putNCvx_short_int(NC3_INFO* ncp, const NC_var *varp,
 #line 737
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 737
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 737
 		if(lstatus != NC_NOERR)
 #line 737
 			return lstatus;
 #line 737
-		
+
 #line 737
 		lstatus = ncx_putn_short_int(&xp, nput, value);
 #line 737
@@ -2401,7 +2401,7 @@ putNCvx_short_int(NC3_INFO* ncp, const NC_var *varp,
 #line 737
 		(void) ncio_rel(ncp->nciop, offset,
 #line 737
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 737
 
 #line 737
@@ -2466,13 +2466,13 @@ putNCvx_short_float(NC3_INFO* ncp, const NC_var *varp,
 #line 738
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 738
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 738
 		if(lstatus != NC_NOERR)
 #line 738
 			return lstatus;
 #line 738
-		
+
 #line 738
 		lstatus = ncx_putn_short_float(&xp, nput, value);
 #line 738
@@ -2490,7 +2490,7 @@ putNCvx_short_float(NC3_INFO* ncp, const NC_var *varp,
 #line 738
 		(void) ncio_rel(ncp->nciop, offset,
 #line 738
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 738
 
 #line 738
@@ -2555,13 +2555,13 @@ putNCvx_short_double(NC3_INFO* ncp, const NC_var *varp,
 #line 739
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 739
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 739
 		if(lstatus != NC_NOERR)
 #line 739
 			return lstatus;
 #line 739
-		
+
 #line 739
 		lstatus = ncx_putn_short_double(&xp, nput, value);
 #line 739
@@ -2579,7 +2579,7 @@ putNCvx_short_double(NC3_INFO* ncp, const NC_var *varp,
 #line 739
 		(void) ncio_rel(ncp->nciop, offset,
 #line 739
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 739
 
 #line 739
@@ -2644,13 +2644,13 @@ putNCvx_short_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 740
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 740
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 740
 		if(lstatus != NC_NOERR)
 #line 740
 			return lstatus;
 #line 740
-		
+
 #line 740
 		lstatus = ncx_putn_short_longlong(&xp, nput, value);
 #line 740
@@ -2668,7 +2668,7 @@ putNCvx_short_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 740
 		(void) ncio_rel(ncp->nciop, offset,
 #line 740
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 740
 
 #line 740
@@ -2733,13 +2733,13 @@ putNCvx_short_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 741
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 741
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 741
 		if(lstatus != NC_NOERR)
 #line 741
 			return lstatus;
 #line 741
-		
+
 #line 741
 		lstatus = ncx_putn_short_ushort(&xp, nput, value);
 #line 741
@@ -2757,7 +2757,7 @@ putNCvx_short_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 741
 		(void) ncio_rel(ncp->nciop, offset,
 #line 741
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 741
 
 #line 741
@@ -2822,13 +2822,13 @@ putNCvx_short_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 742
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 742
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 742
 		if(lstatus != NC_NOERR)
 #line 742
 			return lstatus;
 #line 742
-		
+
 #line 742
 		lstatus = ncx_putn_short_uint(&xp, nput, value);
 #line 742
@@ -2846,7 +2846,7 @@ putNCvx_short_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 742
 		(void) ncio_rel(ncp->nciop, offset,
 #line 742
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 742
 
 #line 742
@@ -2911,13 +2911,13 @@ putNCvx_short_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 743
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 743
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 743
 		if(lstatus != NC_NOERR)
 #line 743
 			return lstatus;
 #line 743
-		
+
 #line 743
 		lstatus = ncx_putn_short_ulonglong(&xp, nput, value);
 #line 743
@@ -2935,7 +2935,7 @@ putNCvx_short_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 743
 		(void) ncio_rel(ncp->nciop, offset,
 #line 743
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 743
 
 #line 743
@@ -3001,13 +3001,13 @@ putNCvx_int_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 745
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 745
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 745
 		if(lstatus != NC_NOERR)
 #line 745
 			return lstatus;
 #line 745
-		
+
 #line 745
 		lstatus = ncx_putn_int_schar(&xp, nput, value);
 #line 745
@@ -3025,7 +3025,7 @@ putNCvx_int_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 745
 		(void) ncio_rel(ncp->nciop, offset,
 #line 745
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 745
 
 #line 745
@@ -3090,13 +3090,13 @@ putNCvx_int_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 746
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 746
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 746
 		if(lstatus != NC_NOERR)
 #line 746
 			return lstatus;
 #line 746
-		
+
 #line 746
 		lstatus = ncx_putn_int_uchar(&xp, nput, value);
 #line 746
@@ -3114,7 +3114,7 @@ putNCvx_int_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 746
 		(void) ncio_rel(ncp->nciop, offset,
 #line 746
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 746
 
 #line 746
@@ -3179,13 +3179,13 @@ putNCvx_int_short(NC3_INFO* ncp, const NC_var *varp,
 #line 747
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 747
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 747
 		if(lstatus != NC_NOERR)
 #line 747
 			return lstatus;
 #line 747
-		
+
 #line 747
 		lstatus = ncx_putn_int_short(&xp, nput, value);
 #line 747
@@ -3203,7 +3203,7 @@ putNCvx_int_short(NC3_INFO* ncp, const NC_var *varp,
 #line 747
 		(void) ncio_rel(ncp->nciop, offset,
 #line 747
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 747
 
 #line 747
@@ -3268,13 +3268,13 @@ putNCvx_int_int(NC3_INFO* ncp, const NC_var *varp,
 #line 748
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 748
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 748
 		if(lstatus != NC_NOERR)
 #line 748
 			return lstatus;
 #line 748
-		
+
 #line 748
 		lstatus = ncx_putn_int_int(&xp, nput, value);
 #line 748
@@ -3292,7 +3292,7 @@ putNCvx_int_int(NC3_INFO* ncp, const NC_var *varp,
 #line 748
 		(void) ncio_rel(ncp->nciop, offset,
 #line 748
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 748
 
 #line 748
@@ -3357,13 +3357,13 @@ putNCvx_int_float(NC3_INFO* ncp, const NC_var *varp,
 #line 749
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 749
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 749
 		if(lstatus != NC_NOERR)
 #line 749
 			return lstatus;
 #line 749
-		
+
 #line 749
 		lstatus = ncx_putn_int_float(&xp, nput, value);
 #line 749
@@ -3381,7 +3381,7 @@ putNCvx_int_float(NC3_INFO* ncp, const NC_var *varp,
 #line 749
 		(void) ncio_rel(ncp->nciop, offset,
 #line 749
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 749
 
 #line 749
@@ -3446,13 +3446,13 @@ putNCvx_int_double(NC3_INFO* ncp, const NC_var *varp,
 #line 750
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 750
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 750
 		if(lstatus != NC_NOERR)
 #line 750
 			return lstatus;
 #line 750
-		
+
 #line 750
 		lstatus = ncx_putn_int_double(&xp, nput, value);
 #line 750
@@ -3470,7 +3470,7 @@ putNCvx_int_double(NC3_INFO* ncp, const NC_var *varp,
 #line 750
 		(void) ncio_rel(ncp->nciop, offset,
 #line 750
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 750
 
 #line 750
@@ -3535,13 +3535,13 @@ putNCvx_int_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 751
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 751
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 751
 		if(lstatus != NC_NOERR)
 #line 751
 			return lstatus;
 #line 751
-		
+
 #line 751
 		lstatus = ncx_putn_int_longlong(&xp, nput, value);
 #line 751
@@ -3559,7 +3559,7 @@ putNCvx_int_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 751
 		(void) ncio_rel(ncp->nciop, offset,
 #line 751
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 751
 
 #line 751
@@ -3624,13 +3624,13 @@ putNCvx_int_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 752
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 752
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 752
 		if(lstatus != NC_NOERR)
 #line 752
 			return lstatus;
 #line 752
-		
+
 #line 752
 		lstatus = ncx_putn_int_ushort(&xp, nput, value);
 #line 752
@@ -3648,7 +3648,7 @@ putNCvx_int_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 752
 		(void) ncio_rel(ncp->nciop, offset,
 #line 752
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 752
 
 #line 752
@@ -3713,13 +3713,13 @@ putNCvx_int_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 753
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 753
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 753
 		if(lstatus != NC_NOERR)
 #line 753
 			return lstatus;
 #line 753
-		
+
 #line 753
 		lstatus = ncx_putn_int_uint(&xp, nput, value);
 #line 753
@@ -3737,7 +3737,7 @@ putNCvx_int_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 753
 		(void) ncio_rel(ncp->nciop, offset,
 #line 753
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 753
 
 #line 753
@@ -3802,13 +3802,13 @@ putNCvx_int_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 754
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 754
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 754
 		if(lstatus != NC_NOERR)
 #line 754
 			return lstatus;
 #line 754
-		
+
 #line 754
 		lstatus = ncx_putn_int_ulonglong(&xp, nput, value);
 #line 754
@@ -3826,7 +3826,7 @@ putNCvx_int_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 754
 		(void) ncio_rel(ncp->nciop, offset,
 #line 754
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 754
 
 #line 754
@@ -3892,13 +3892,13 @@ putNCvx_float_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 756
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 756
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 756
 		if(lstatus != NC_NOERR)
 #line 756
 			return lstatus;
 #line 756
-		
+
 #line 756
 		lstatus = ncx_putn_float_schar(&xp, nput, value);
 #line 756
@@ -3916,7 +3916,7 @@ putNCvx_float_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 756
 		(void) ncio_rel(ncp->nciop, offset,
 #line 756
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 756
 
 #line 756
@@ -3981,13 +3981,13 @@ putNCvx_float_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 757
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 757
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 757
 		if(lstatus != NC_NOERR)
 #line 757
 			return lstatus;
 #line 757
-		
+
 #line 757
 		lstatus = ncx_putn_float_uchar(&xp, nput, value);
 #line 757
@@ -4005,7 +4005,7 @@ putNCvx_float_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 757
 		(void) ncio_rel(ncp->nciop, offset,
 #line 757
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 757
 
 #line 757
@@ -4070,13 +4070,13 @@ putNCvx_float_short(NC3_INFO* ncp, const NC_var *varp,
 #line 758
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 758
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 758
 		if(lstatus != NC_NOERR)
 #line 758
 			return lstatus;
 #line 758
-		
+
 #line 758
 		lstatus = ncx_putn_float_short(&xp, nput, value);
 #line 758
@@ -4094,7 +4094,7 @@ putNCvx_float_short(NC3_INFO* ncp, const NC_var *varp,
 #line 758
 		(void) ncio_rel(ncp->nciop, offset,
 #line 758
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 758
 
 #line 758
@@ -4159,13 +4159,13 @@ putNCvx_float_int(NC3_INFO* ncp, const NC_var *varp,
 #line 759
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 759
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 759
 		if(lstatus != NC_NOERR)
 #line 759
 			return lstatus;
 #line 759
-		
+
 #line 759
 		lstatus = ncx_putn_float_int(&xp, nput, value);
 #line 759
@@ -4183,7 +4183,7 @@ putNCvx_float_int(NC3_INFO* ncp, const NC_var *varp,
 #line 759
 		(void) ncio_rel(ncp->nciop, offset,
 #line 759
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 759
 
 #line 759
@@ -4248,13 +4248,13 @@ putNCvx_float_float(NC3_INFO* ncp, const NC_var *varp,
 #line 760
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 760
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 760
 		if(lstatus != NC_NOERR)
 #line 760
 			return lstatus;
 #line 760
-		
+
 #line 760
 		lstatus = ncx_putn_float_float(&xp, nput, value);
 #line 760
@@ -4272,7 +4272,7 @@ putNCvx_float_float(NC3_INFO* ncp, const NC_var *varp,
 #line 760
 		(void) ncio_rel(ncp->nciop, offset,
 #line 760
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 760
 
 #line 760
@@ -4337,13 +4337,13 @@ putNCvx_float_double(NC3_INFO* ncp, const NC_var *varp,
 #line 761
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 761
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 761
 		if(lstatus != NC_NOERR)
 #line 761
 			return lstatus;
 #line 761
-		
+
 #line 761
 		lstatus = ncx_putn_float_double(&xp, nput, value);
 #line 761
@@ -4361,7 +4361,7 @@ putNCvx_float_double(NC3_INFO* ncp, const NC_var *varp,
 #line 761
 		(void) ncio_rel(ncp->nciop, offset,
 #line 761
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 761
 
 #line 761
@@ -4426,13 +4426,13 @@ putNCvx_float_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 762
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 762
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 762
 		if(lstatus != NC_NOERR)
 #line 762
 			return lstatus;
 #line 762
-		
+
 #line 762
 		lstatus = ncx_putn_float_longlong(&xp, nput, value);
 #line 762
@@ -4450,7 +4450,7 @@ putNCvx_float_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 762
 		(void) ncio_rel(ncp->nciop, offset,
 #line 762
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 762
 
 #line 762
@@ -4515,13 +4515,13 @@ putNCvx_float_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 763
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 763
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 763
 		if(lstatus != NC_NOERR)
 #line 763
 			return lstatus;
 #line 763
-		
+
 #line 763
 		lstatus = ncx_putn_float_ushort(&xp, nput, value);
 #line 763
@@ -4539,7 +4539,7 @@ putNCvx_float_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 763
 		(void) ncio_rel(ncp->nciop, offset,
 #line 763
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 763
 
 #line 763
@@ -4604,13 +4604,13 @@ putNCvx_float_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 764
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 764
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 764
 		if(lstatus != NC_NOERR)
 #line 764
 			return lstatus;
 #line 764
-		
+
 #line 764
 		lstatus = ncx_putn_float_uint(&xp, nput, value);
 #line 764
@@ -4628,7 +4628,7 @@ putNCvx_float_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 764
 		(void) ncio_rel(ncp->nciop, offset,
 #line 764
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 764
 
 #line 764
@@ -4693,13 +4693,13 @@ putNCvx_float_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 765
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 765
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 765
 		if(lstatus != NC_NOERR)
 #line 765
 			return lstatus;
 #line 765
-		
+
 #line 765
 		lstatus = ncx_putn_float_ulonglong(&xp, nput, value);
 #line 765
@@ -4717,7 +4717,7 @@ putNCvx_float_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 765
 		(void) ncio_rel(ncp->nciop, offset,
 #line 765
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 765
 
 #line 765
@@ -4783,13 +4783,13 @@ putNCvx_double_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 767
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 767
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 767
 		if(lstatus != NC_NOERR)
 #line 767
 			return lstatus;
 #line 767
-		
+
 #line 767
 		lstatus = ncx_putn_double_schar(&xp, nput, value);
 #line 767
@@ -4807,7 +4807,7 @@ putNCvx_double_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 767
 		(void) ncio_rel(ncp->nciop, offset,
 #line 767
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 767
 
 #line 767
@@ -4872,13 +4872,13 @@ putNCvx_double_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 768
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 768
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 768
 		if(lstatus != NC_NOERR)
 #line 768
 			return lstatus;
 #line 768
-		
+
 #line 768
 		lstatus = ncx_putn_double_uchar(&xp, nput, value);
 #line 768
@@ -4896,7 +4896,7 @@ putNCvx_double_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 768
 		(void) ncio_rel(ncp->nciop, offset,
 #line 768
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 768
 
 #line 768
@@ -4961,13 +4961,13 @@ putNCvx_double_short(NC3_INFO* ncp, const NC_var *varp,
 #line 769
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 769
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 769
 		if(lstatus != NC_NOERR)
 #line 769
 			return lstatus;
 #line 769
-		
+
 #line 769
 		lstatus = ncx_putn_double_short(&xp, nput, value);
 #line 769
@@ -4985,7 +4985,7 @@ putNCvx_double_short(NC3_INFO* ncp, const NC_var *varp,
 #line 769
 		(void) ncio_rel(ncp->nciop, offset,
 #line 769
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 769
 
 #line 769
@@ -5050,13 +5050,13 @@ putNCvx_double_int(NC3_INFO* ncp, const NC_var *varp,
 #line 770
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 770
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 770
 		if(lstatus != NC_NOERR)
 #line 770
 			return lstatus;
 #line 770
-		
+
 #line 770
 		lstatus = ncx_putn_double_int(&xp, nput, value);
 #line 770
@@ -5074,7 +5074,7 @@ putNCvx_double_int(NC3_INFO* ncp, const NC_var *varp,
 #line 770
 		(void) ncio_rel(ncp->nciop, offset,
 #line 770
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 770
 
 #line 770
@@ -5139,13 +5139,13 @@ putNCvx_double_float(NC3_INFO* ncp, const NC_var *varp,
 #line 771
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 771
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 771
 		if(lstatus != NC_NOERR)
 #line 771
 			return lstatus;
 #line 771
-		
+
 #line 771
 		lstatus = ncx_putn_double_float(&xp, nput, value);
 #line 771
@@ -5163,7 +5163,7 @@ putNCvx_double_float(NC3_INFO* ncp, const NC_var *varp,
 #line 771
 		(void) ncio_rel(ncp->nciop, offset,
 #line 771
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 771
 
 #line 771
@@ -5228,13 +5228,13 @@ putNCvx_double_double(NC3_INFO* ncp, const NC_var *varp,
 #line 772
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 772
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 772
 		if(lstatus != NC_NOERR)
 #line 772
 			return lstatus;
 #line 772
-		
+
 #line 772
 		lstatus = ncx_putn_double_double(&xp, nput, value);
 #line 772
@@ -5252,7 +5252,7 @@ putNCvx_double_double(NC3_INFO* ncp, const NC_var *varp,
 #line 772
 		(void) ncio_rel(ncp->nciop, offset,
 #line 772
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 772
 
 #line 772
@@ -5317,13 +5317,13 @@ putNCvx_double_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 773
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 773
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 773
 		if(lstatus != NC_NOERR)
 #line 773
 			return lstatus;
 #line 773
-		
+
 #line 773
 		lstatus = ncx_putn_double_longlong(&xp, nput, value);
 #line 773
@@ -5341,7 +5341,7 @@ putNCvx_double_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 773
 		(void) ncio_rel(ncp->nciop, offset,
 #line 773
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 773
 
 #line 773
@@ -5406,13 +5406,13 @@ putNCvx_double_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 774
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 774
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 774
 		if(lstatus != NC_NOERR)
 #line 774
 			return lstatus;
 #line 774
-		
+
 #line 774
 		lstatus = ncx_putn_double_ushort(&xp, nput, value);
 #line 774
@@ -5430,7 +5430,7 @@ putNCvx_double_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 774
 		(void) ncio_rel(ncp->nciop, offset,
 #line 774
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 774
 
 #line 774
@@ -5495,13 +5495,13 @@ putNCvx_double_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 775
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 775
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 775
 		if(lstatus != NC_NOERR)
 #line 775
 			return lstatus;
 #line 775
-		
+
 #line 775
 		lstatus = ncx_putn_double_uint(&xp, nput, value);
 #line 775
@@ -5519,7 +5519,7 @@ putNCvx_double_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 775
 		(void) ncio_rel(ncp->nciop, offset,
 #line 775
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 775
 
 #line 775
@@ -5584,13 +5584,13 @@ putNCvx_double_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 776
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 776
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 776
 		if(lstatus != NC_NOERR)
 #line 776
 			return lstatus;
 #line 776
-		
+
 #line 776
 		lstatus = ncx_putn_double_ulonglong(&xp, nput, value);
 #line 776
@@ -5608,7 +5608,7 @@ putNCvx_double_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 776
 		(void) ncio_rel(ncp->nciop, offset,
 #line 776
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 776
 
 #line 776
@@ -5674,13 +5674,13 @@ putNCvx_uchar_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 778
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 778
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 778
 		if(lstatus != NC_NOERR)
 #line 778
 			return lstatus;
 #line 778
-		
+
 #line 778
 		lstatus = ncx_putn_uchar_schar(&xp, nput, value);
 #line 778
@@ -5698,7 +5698,7 @@ putNCvx_uchar_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 778
 		(void) ncio_rel(ncp->nciop, offset,
 #line 778
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 778
 
 #line 778
@@ -5763,13 +5763,13 @@ putNCvx_uchar_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 779
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 779
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 779
 		if(lstatus != NC_NOERR)
 #line 779
 			return lstatus;
 #line 779
-		
+
 #line 779
 		lstatus = ncx_putn_uchar_uchar(&xp, nput, value);
 #line 779
@@ -5787,7 +5787,7 @@ putNCvx_uchar_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 779
 		(void) ncio_rel(ncp->nciop, offset,
 #line 779
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 779
 
 #line 779
@@ -5852,13 +5852,13 @@ putNCvx_uchar_short(NC3_INFO* ncp, const NC_var *varp,
 #line 780
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 780
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 780
 		if(lstatus != NC_NOERR)
 #line 780
 			return lstatus;
 #line 780
-		
+
 #line 780
 		lstatus = ncx_putn_uchar_short(&xp, nput, value);
 #line 780
@@ -5876,7 +5876,7 @@ putNCvx_uchar_short(NC3_INFO* ncp, const NC_var *varp,
 #line 780
 		(void) ncio_rel(ncp->nciop, offset,
 #line 780
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 780
 
 #line 780
@@ -5941,13 +5941,13 @@ putNCvx_uchar_int(NC3_INFO* ncp, const NC_var *varp,
 #line 781
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 781
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 781
 		if(lstatus != NC_NOERR)
 #line 781
 			return lstatus;
 #line 781
-		
+
 #line 781
 		lstatus = ncx_putn_uchar_int(&xp, nput, value);
 #line 781
@@ -5965,7 +5965,7 @@ putNCvx_uchar_int(NC3_INFO* ncp, const NC_var *varp,
 #line 781
 		(void) ncio_rel(ncp->nciop, offset,
 #line 781
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 781
 
 #line 781
@@ -6030,13 +6030,13 @@ putNCvx_uchar_float(NC3_INFO* ncp, const NC_var *varp,
 #line 782
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 782
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 782
 		if(lstatus != NC_NOERR)
 #line 782
 			return lstatus;
 #line 782
-		
+
 #line 782
 		lstatus = ncx_putn_uchar_float(&xp, nput, value);
 #line 782
@@ -6054,7 +6054,7 @@ putNCvx_uchar_float(NC3_INFO* ncp, const NC_var *varp,
 #line 782
 		(void) ncio_rel(ncp->nciop, offset,
 #line 782
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 782
 
 #line 782
@@ -6119,13 +6119,13 @@ putNCvx_uchar_double(NC3_INFO* ncp, const NC_var *varp,
 #line 783
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 783
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 783
 		if(lstatus != NC_NOERR)
 #line 783
 			return lstatus;
 #line 783
-		
+
 #line 783
 		lstatus = ncx_putn_uchar_double(&xp, nput, value);
 #line 783
@@ -6143,7 +6143,7 @@ putNCvx_uchar_double(NC3_INFO* ncp, const NC_var *varp,
 #line 783
 		(void) ncio_rel(ncp->nciop, offset,
 #line 783
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 783
 
 #line 783
@@ -6208,13 +6208,13 @@ putNCvx_uchar_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 784
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 784
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 784
 		if(lstatus != NC_NOERR)
 #line 784
 			return lstatus;
 #line 784
-		
+
 #line 784
 		lstatus = ncx_putn_uchar_longlong(&xp, nput, value);
 #line 784
@@ -6232,7 +6232,7 @@ putNCvx_uchar_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 784
 		(void) ncio_rel(ncp->nciop, offset,
 #line 784
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 784
 
 #line 784
@@ -6297,13 +6297,13 @@ putNCvx_uchar_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 785
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 785
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 785
 		if(lstatus != NC_NOERR)
 #line 785
 			return lstatus;
 #line 785
-		
+
 #line 785
 		lstatus = ncx_putn_uchar_ushort(&xp, nput, value);
 #line 785
@@ -6321,7 +6321,7 @@ putNCvx_uchar_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 785
 		(void) ncio_rel(ncp->nciop, offset,
 #line 785
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 785
 
 #line 785
@@ -6386,13 +6386,13 @@ putNCvx_uchar_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 786
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 786
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 786
 		if(lstatus != NC_NOERR)
 #line 786
 			return lstatus;
 #line 786
-		
+
 #line 786
 		lstatus = ncx_putn_uchar_uint(&xp, nput, value);
 #line 786
@@ -6410,7 +6410,7 @@ putNCvx_uchar_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 786
 		(void) ncio_rel(ncp->nciop, offset,
 #line 786
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 786
 
 #line 786
@@ -6475,13 +6475,13 @@ putNCvx_uchar_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 787
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 787
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 787
 		if(lstatus != NC_NOERR)
 #line 787
 			return lstatus;
 #line 787
-		
+
 #line 787
 		lstatus = ncx_putn_uchar_ulonglong(&xp, nput, value);
 #line 787
@@ -6499,7 +6499,7 @@ putNCvx_uchar_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 787
 		(void) ncio_rel(ncp->nciop, offset,
 #line 787
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 787
 
 #line 787
@@ -6565,13 +6565,13 @@ putNCvx_ushort_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 789
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 789
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 789
 		if(lstatus != NC_NOERR)
 #line 789
 			return lstatus;
 #line 789
-		
+
 #line 789
 		lstatus = ncx_putn_ushort_schar(&xp, nput, value);
 #line 789
@@ -6589,7 +6589,7 @@ putNCvx_ushort_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 789
 		(void) ncio_rel(ncp->nciop, offset,
 #line 789
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 789
 
 #line 789
@@ -6654,13 +6654,13 @@ putNCvx_ushort_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 790
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 790
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 790
 		if(lstatus != NC_NOERR)
 #line 790
 			return lstatus;
 #line 790
-		
+
 #line 790
 		lstatus = ncx_putn_ushort_uchar(&xp, nput, value);
 #line 790
@@ -6678,7 +6678,7 @@ putNCvx_ushort_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 790
 		(void) ncio_rel(ncp->nciop, offset,
 #line 790
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 790
 
 #line 790
@@ -6743,13 +6743,13 @@ putNCvx_ushort_short(NC3_INFO* ncp, const NC_var *varp,
 #line 791
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 791
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 791
 		if(lstatus != NC_NOERR)
 #line 791
 			return lstatus;
 #line 791
-		
+
 #line 791
 		lstatus = ncx_putn_ushort_short(&xp, nput, value);
 #line 791
@@ -6767,7 +6767,7 @@ putNCvx_ushort_short(NC3_INFO* ncp, const NC_var *varp,
 #line 791
 		(void) ncio_rel(ncp->nciop, offset,
 #line 791
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 791
 
 #line 791
@@ -6832,13 +6832,13 @@ putNCvx_ushort_int(NC3_INFO* ncp, const NC_var *varp,
 #line 792
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 792
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 792
 		if(lstatus != NC_NOERR)
 #line 792
 			return lstatus;
 #line 792
-		
+
 #line 792
 		lstatus = ncx_putn_ushort_int(&xp, nput, value);
 #line 792
@@ -6856,7 +6856,7 @@ putNCvx_ushort_int(NC3_INFO* ncp, const NC_var *varp,
 #line 792
 		(void) ncio_rel(ncp->nciop, offset,
 #line 792
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 792
 
 #line 792
@@ -6921,13 +6921,13 @@ putNCvx_ushort_float(NC3_INFO* ncp, const NC_var *varp,
 #line 793
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 793
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 793
 		if(lstatus != NC_NOERR)
 #line 793
 			return lstatus;
 #line 793
-		
+
 #line 793
 		lstatus = ncx_putn_ushort_float(&xp, nput, value);
 #line 793
@@ -6945,7 +6945,7 @@ putNCvx_ushort_float(NC3_INFO* ncp, const NC_var *varp,
 #line 793
 		(void) ncio_rel(ncp->nciop, offset,
 #line 793
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 793
 
 #line 793
@@ -7010,13 +7010,13 @@ putNCvx_ushort_double(NC3_INFO* ncp, const NC_var *varp,
 #line 794
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 794
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 794
 		if(lstatus != NC_NOERR)
 #line 794
 			return lstatus;
 #line 794
-		
+
 #line 794
 		lstatus = ncx_putn_ushort_double(&xp, nput, value);
 #line 794
@@ -7034,7 +7034,7 @@ putNCvx_ushort_double(NC3_INFO* ncp, const NC_var *varp,
 #line 794
 		(void) ncio_rel(ncp->nciop, offset,
 #line 794
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 794
 
 #line 794
@@ -7099,13 +7099,13 @@ putNCvx_ushort_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 795
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 795
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 795
 		if(lstatus != NC_NOERR)
 #line 795
 			return lstatus;
 #line 795
-		
+
 #line 795
 		lstatus = ncx_putn_ushort_longlong(&xp, nput, value);
 #line 795
@@ -7123,7 +7123,7 @@ putNCvx_ushort_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 795
 		(void) ncio_rel(ncp->nciop, offset,
 #line 795
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 795
 
 #line 795
@@ -7188,13 +7188,13 @@ putNCvx_ushort_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 796
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 796
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 796
 		if(lstatus != NC_NOERR)
 #line 796
 			return lstatus;
 #line 796
-		
+
 #line 796
 		lstatus = ncx_putn_ushort_ushort(&xp, nput, value);
 #line 796
@@ -7212,7 +7212,7 @@ putNCvx_ushort_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 796
 		(void) ncio_rel(ncp->nciop, offset,
 #line 796
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 796
 
 #line 796
@@ -7277,13 +7277,13 @@ putNCvx_ushort_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 797
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 797
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 797
 		if(lstatus != NC_NOERR)
 #line 797
 			return lstatus;
 #line 797
-		
+
 #line 797
 		lstatus = ncx_putn_ushort_uint(&xp, nput, value);
 #line 797
@@ -7301,7 +7301,7 @@ putNCvx_ushort_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 797
 		(void) ncio_rel(ncp->nciop, offset,
 #line 797
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 797
 
 #line 797
@@ -7366,13 +7366,13 @@ putNCvx_ushort_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 798
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 798
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 798
 		if(lstatus != NC_NOERR)
 #line 798
 			return lstatus;
 #line 798
-		
+
 #line 798
 		lstatus = ncx_putn_ushort_ulonglong(&xp, nput, value);
 #line 798
@@ -7390,7 +7390,7 @@ putNCvx_ushort_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 798
 		(void) ncio_rel(ncp->nciop, offset,
 #line 798
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 798
 
 #line 798
@@ -7456,13 +7456,13 @@ putNCvx_uint_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 800
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 800
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 800
 		if(lstatus != NC_NOERR)
 #line 800
 			return lstatus;
 #line 800
-		
+
 #line 800
 		lstatus = ncx_putn_uint_schar(&xp, nput, value);
 #line 800
@@ -7480,7 +7480,7 @@ putNCvx_uint_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 800
 		(void) ncio_rel(ncp->nciop, offset,
 #line 800
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 800
 
 #line 800
@@ -7545,13 +7545,13 @@ putNCvx_uint_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 801
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 801
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 801
 		if(lstatus != NC_NOERR)
 #line 801
 			return lstatus;
 #line 801
-		
+
 #line 801
 		lstatus = ncx_putn_uint_uchar(&xp, nput, value);
 #line 801
@@ -7569,7 +7569,7 @@ putNCvx_uint_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 801
 		(void) ncio_rel(ncp->nciop, offset,
 #line 801
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 801
 
 #line 801
@@ -7634,13 +7634,13 @@ putNCvx_uint_short(NC3_INFO* ncp, const NC_var *varp,
 #line 802
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 802
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 802
 		if(lstatus != NC_NOERR)
 #line 802
 			return lstatus;
 #line 802
-		
+
 #line 802
 		lstatus = ncx_putn_uint_short(&xp, nput, value);
 #line 802
@@ -7658,7 +7658,7 @@ putNCvx_uint_short(NC3_INFO* ncp, const NC_var *varp,
 #line 802
 		(void) ncio_rel(ncp->nciop, offset,
 #line 802
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 802
 
 #line 802
@@ -7723,13 +7723,13 @@ putNCvx_uint_int(NC3_INFO* ncp, const NC_var *varp,
 #line 803
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 803
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 803
 		if(lstatus != NC_NOERR)
 #line 803
 			return lstatus;
 #line 803
-		
+
 #line 803
 		lstatus = ncx_putn_uint_int(&xp, nput, value);
 #line 803
@@ -7747,7 +7747,7 @@ putNCvx_uint_int(NC3_INFO* ncp, const NC_var *varp,
 #line 803
 		(void) ncio_rel(ncp->nciop, offset,
 #line 803
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 803
 
 #line 803
@@ -7812,13 +7812,13 @@ putNCvx_uint_float(NC3_INFO* ncp, const NC_var *varp,
 #line 804
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 804
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 804
 		if(lstatus != NC_NOERR)
 #line 804
 			return lstatus;
 #line 804
-		
+
 #line 804
 		lstatus = ncx_putn_uint_float(&xp, nput, value);
 #line 804
@@ -7836,7 +7836,7 @@ putNCvx_uint_float(NC3_INFO* ncp, const NC_var *varp,
 #line 804
 		(void) ncio_rel(ncp->nciop, offset,
 #line 804
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 804
 
 #line 804
@@ -7901,13 +7901,13 @@ putNCvx_uint_double(NC3_INFO* ncp, const NC_var *varp,
 #line 805
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 805
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 805
 		if(lstatus != NC_NOERR)
 #line 805
 			return lstatus;
 #line 805
-		
+
 #line 805
 		lstatus = ncx_putn_uint_double(&xp, nput, value);
 #line 805
@@ -7925,7 +7925,7 @@ putNCvx_uint_double(NC3_INFO* ncp, const NC_var *varp,
 #line 805
 		(void) ncio_rel(ncp->nciop, offset,
 #line 805
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 805
 
 #line 805
@@ -7990,13 +7990,13 @@ putNCvx_uint_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 806
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 806
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 806
 		if(lstatus != NC_NOERR)
 #line 806
 			return lstatus;
 #line 806
-		
+
 #line 806
 		lstatus = ncx_putn_uint_longlong(&xp, nput, value);
 #line 806
@@ -8014,7 +8014,7 @@ putNCvx_uint_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 806
 		(void) ncio_rel(ncp->nciop, offset,
 #line 806
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 806
 
 #line 806
@@ -8079,13 +8079,13 @@ putNCvx_uint_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 807
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 807
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 807
 		if(lstatus != NC_NOERR)
 #line 807
 			return lstatus;
 #line 807
-		
+
 #line 807
 		lstatus = ncx_putn_uint_ushort(&xp, nput, value);
 #line 807
@@ -8103,7 +8103,7 @@ putNCvx_uint_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 807
 		(void) ncio_rel(ncp->nciop, offset,
 #line 807
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 807
 
 #line 807
@@ -8168,13 +8168,13 @@ putNCvx_uint_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 808
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 808
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 808
 		if(lstatus != NC_NOERR)
 #line 808
 			return lstatus;
 #line 808
-		
+
 #line 808
 		lstatus = ncx_putn_uint_uint(&xp, nput, value);
 #line 808
@@ -8192,7 +8192,7 @@ putNCvx_uint_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 808
 		(void) ncio_rel(ncp->nciop, offset,
 #line 808
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 808
 
 #line 808
@@ -8257,13 +8257,13 @@ putNCvx_uint_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 809
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 809
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 809
 		if(lstatus != NC_NOERR)
 #line 809
 			return lstatus;
 #line 809
-		
+
 #line 809
 		lstatus = ncx_putn_uint_ulonglong(&xp, nput, value);
 #line 809
@@ -8281,7 +8281,7 @@ putNCvx_uint_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 809
 		(void) ncio_rel(ncp->nciop, offset,
 #line 809
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 809
 
 #line 809
@@ -8347,13 +8347,13 @@ putNCvx_longlong_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 811
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 811
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 811
 		if(lstatus != NC_NOERR)
 #line 811
 			return lstatus;
 #line 811
-		
+
 #line 811
 		lstatus = ncx_putn_longlong_schar(&xp, nput, value);
 #line 811
@@ -8371,7 +8371,7 @@ putNCvx_longlong_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 811
 		(void) ncio_rel(ncp->nciop, offset,
 #line 811
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 811
 
 #line 811
@@ -8436,13 +8436,13 @@ putNCvx_longlong_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 812
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 812
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 812
 		if(lstatus != NC_NOERR)
 #line 812
 			return lstatus;
 #line 812
-		
+
 #line 812
 		lstatus = ncx_putn_longlong_uchar(&xp, nput, value);
 #line 812
@@ -8460,7 +8460,7 @@ putNCvx_longlong_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 812
 		(void) ncio_rel(ncp->nciop, offset,
 #line 812
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 812
 
 #line 812
@@ -8525,13 +8525,13 @@ putNCvx_longlong_short(NC3_INFO* ncp, const NC_var *varp,
 #line 813
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 813
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 813
 		if(lstatus != NC_NOERR)
 #line 813
 			return lstatus;
 #line 813
-		
+
 #line 813
 		lstatus = ncx_putn_longlong_short(&xp, nput, value);
 #line 813
@@ -8549,7 +8549,7 @@ putNCvx_longlong_short(NC3_INFO* ncp, const NC_var *varp,
 #line 813
 		(void) ncio_rel(ncp->nciop, offset,
 #line 813
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 813
 
 #line 813
@@ -8614,13 +8614,13 @@ putNCvx_longlong_int(NC3_INFO* ncp, const NC_var *varp,
 #line 814
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 814
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 814
 		if(lstatus != NC_NOERR)
 #line 814
 			return lstatus;
 #line 814
-		
+
 #line 814
 		lstatus = ncx_putn_longlong_int(&xp, nput, value);
 #line 814
@@ -8638,7 +8638,7 @@ putNCvx_longlong_int(NC3_INFO* ncp, const NC_var *varp,
 #line 814
 		(void) ncio_rel(ncp->nciop, offset,
 #line 814
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 814
 
 #line 814
@@ -8703,13 +8703,13 @@ putNCvx_longlong_float(NC3_INFO* ncp, const NC_var *varp,
 #line 815
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 815
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 815
 		if(lstatus != NC_NOERR)
 #line 815
 			return lstatus;
 #line 815
-		
+
 #line 815
 		lstatus = ncx_putn_longlong_float(&xp, nput, value);
 #line 815
@@ -8727,7 +8727,7 @@ putNCvx_longlong_float(NC3_INFO* ncp, const NC_var *varp,
 #line 815
 		(void) ncio_rel(ncp->nciop, offset,
 #line 815
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 815
 
 #line 815
@@ -8792,13 +8792,13 @@ putNCvx_longlong_double(NC3_INFO* ncp, const NC_var *varp,
 #line 816
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 816
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 816
 		if(lstatus != NC_NOERR)
 #line 816
 			return lstatus;
 #line 816
-		
+
 #line 816
 		lstatus = ncx_putn_longlong_double(&xp, nput, value);
 #line 816
@@ -8816,7 +8816,7 @@ putNCvx_longlong_double(NC3_INFO* ncp, const NC_var *varp,
 #line 816
 		(void) ncio_rel(ncp->nciop, offset,
 #line 816
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 816
 
 #line 816
@@ -8881,13 +8881,13 @@ putNCvx_longlong_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 817
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 817
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 817
 		if(lstatus != NC_NOERR)
 #line 817
 			return lstatus;
 #line 817
-		
+
 #line 817
 		lstatus = ncx_putn_longlong_longlong(&xp, nput, value);
 #line 817
@@ -8905,7 +8905,7 @@ putNCvx_longlong_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 817
 		(void) ncio_rel(ncp->nciop, offset,
 #line 817
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 817
 
 #line 817
@@ -8970,13 +8970,13 @@ putNCvx_longlong_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 818
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 818
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 818
 		if(lstatus != NC_NOERR)
 #line 818
 			return lstatus;
 #line 818
-		
+
 #line 818
 		lstatus = ncx_putn_longlong_ushort(&xp, nput, value);
 #line 818
@@ -8994,7 +8994,7 @@ putNCvx_longlong_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 818
 		(void) ncio_rel(ncp->nciop, offset,
 #line 818
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 818
 
 #line 818
@@ -9059,13 +9059,13 @@ putNCvx_longlong_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 819
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 819
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 819
 		if(lstatus != NC_NOERR)
 #line 819
 			return lstatus;
 #line 819
-		
+
 #line 819
 		lstatus = ncx_putn_longlong_uint(&xp, nput, value);
 #line 819
@@ -9083,7 +9083,7 @@ putNCvx_longlong_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 819
 		(void) ncio_rel(ncp->nciop, offset,
 #line 819
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 819
 
 #line 819
@@ -9148,13 +9148,13 @@ putNCvx_longlong_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 820
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 820
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 820
 		if(lstatus != NC_NOERR)
 #line 820
 			return lstatus;
 #line 820
-		
+
 #line 820
 		lstatus = ncx_putn_longlong_ulonglong(&xp, nput, value);
 #line 820
@@ -9172,7 +9172,7 @@ putNCvx_longlong_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 820
 		(void) ncio_rel(ncp->nciop, offset,
 #line 820
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 820
 
 #line 820
@@ -9238,13 +9238,13 @@ putNCvx_ulonglong_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 822
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 822
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 822
 		if(lstatus != NC_NOERR)
 #line 822
 			return lstatus;
 #line 822
-		
+
 #line 822
 		lstatus = ncx_putn_ulonglong_schar(&xp, nput, value);
 #line 822
@@ -9262,7 +9262,7 @@ putNCvx_ulonglong_schar(NC3_INFO* ncp, const NC_var *varp,
 #line 822
 		(void) ncio_rel(ncp->nciop, offset,
 #line 822
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 822
 
 #line 822
@@ -9327,13 +9327,13 @@ putNCvx_ulonglong_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 823
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 823
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 823
 		if(lstatus != NC_NOERR)
 #line 823
 			return lstatus;
 #line 823
-		
+
 #line 823
 		lstatus = ncx_putn_ulonglong_uchar(&xp, nput, value);
 #line 823
@@ -9351,7 +9351,7 @@ putNCvx_ulonglong_uchar(NC3_INFO* ncp, const NC_var *varp,
 #line 823
 		(void) ncio_rel(ncp->nciop, offset,
 #line 823
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 823
 
 #line 823
@@ -9416,13 +9416,13 @@ putNCvx_ulonglong_short(NC3_INFO* ncp, const NC_var *varp,
 #line 824
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 824
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 824
 		if(lstatus != NC_NOERR)
 #line 824
 			return lstatus;
 #line 824
-		
+
 #line 824
 		lstatus = ncx_putn_ulonglong_short(&xp, nput, value);
 #line 824
@@ -9440,7 +9440,7 @@ putNCvx_ulonglong_short(NC3_INFO* ncp, const NC_var *varp,
 #line 824
 		(void) ncio_rel(ncp->nciop, offset,
 #line 824
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 824
 
 #line 824
@@ -9505,13 +9505,13 @@ putNCvx_ulonglong_int(NC3_INFO* ncp, const NC_var *varp,
 #line 825
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 825
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 825
 		if(lstatus != NC_NOERR)
 #line 825
 			return lstatus;
 #line 825
-		
+
 #line 825
 		lstatus = ncx_putn_ulonglong_int(&xp, nput, value);
 #line 825
@@ -9529,7 +9529,7 @@ putNCvx_ulonglong_int(NC3_INFO* ncp, const NC_var *varp,
 #line 825
 		(void) ncio_rel(ncp->nciop, offset,
 #line 825
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 825
 
 #line 825
@@ -9594,13 +9594,13 @@ putNCvx_ulonglong_float(NC3_INFO* ncp, const NC_var *varp,
 #line 826
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 826
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 826
 		if(lstatus != NC_NOERR)
 #line 826
 			return lstatus;
 #line 826
-		
+
 #line 826
 		lstatus = ncx_putn_ulonglong_float(&xp, nput, value);
 #line 826
@@ -9618,7 +9618,7 @@ putNCvx_ulonglong_float(NC3_INFO* ncp, const NC_var *varp,
 #line 826
 		(void) ncio_rel(ncp->nciop, offset,
 #line 826
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 826
 
 #line 826
@@ -9683,13 +9683,13 @@ putNCvx_ulonglong_double(NC3_INFO* ncp, const NC_var *varp,
 #line 827
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 827
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 827
 		if(lstatus != NC_NOERR)
 #line 827
 			return lstatus;
 #line 827
-		
+
 #line 827
 		lstatus = ncx_putn_ulonglong_double(&xp, nput, value);
 #line 827
@@ -9707,7 +9707,7 @@ putNCvx_ulonglong_double(NC3_INFO* ncp, const NC_var *varp,
 #line 827
 		(void) ncio_rel(ncp->nciop, offset,
 #line 827
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 827
 
 #line 827
@@ -9772,13 +9772,13 @@ putNCvx_ulonglong_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 828
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 828
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 828
 		if(lstatus != NC_NOERR)
 #line 828
 			return lstatus;
 #line 828
-		
+
 #line 828
 		lstatus = ncx_putn_ulonglong_longlong(&xp, nput, value);
 #line 828
@@ -9796,7 +9796,7 @@ putNCvx_ulonglong_longlong(NC3_INFO* ncp, const NC_var *varp,
 #line 828
 		(void) ncio_rel(ncp->nciop, offset,
 #line 828
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 828
 
 #line 828
@@ -9861,13 +9861,13 @@ putNCvx_ulonglong_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 829
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 829
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 829
 		if(lstatus != NC_NOERR)
 #line 829
 			return lstatus;
 #line 829
-		
+
 #line 829
 		lstatus = ncx_putn_ulonglong_ushort(&xp, nput, value);
 #line 829
@@ -9885,7 +9885,7 @@ putNCvx_ulonglong_ushort(NC3_INFO* ncp, const NC_var *varp,
 #line 829
 		(void) ncio_rel(ncp->nciop, offset,
 #line 829
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 829
 
 #line 829
@@ -9950,13 +9950,13 @@ putNCvx_ulonglong_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 830
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 830
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 830
 		if(lstatus != NC_NOERR)
 #line 830
 			return lstatus;
 #line 830
-		
+
 #line 830
 		lstatus = ncx_putn_ulonglong_uint(&xp, nput, value);
 #line 830
@@ -9974,7 +9974,7 @@ putNCvx_ulonglong_uint(NC3_INFO* ncp, const NC_var *varp,
 #line 830
 		(void) ncio_rel(ncp->nciop, offset,
 #line 830
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 830
 
 #line 830
@@ -10039,13 +10039,13 @@ putNCvx_ulonglong_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 831
 		int lstatus = ncio_get(ncp->nciop, offset, extent,
 #line 831
-				 RGN_WRITE, &xp);	
+				 RGN_WRITE, &xp);
 #line 831
 		if(lstatus != NC_NOERR)
 #line 831
 			return lstatus;
 #line 831
-		
+
 #line 831
 		lstatus = ncx_putn_ulonglong_ulonglong(&xp, nput, value);
 #line 831
@@ -10063,7 +10063,7 @@ putNCvx_ulonglong_ulonglong(NC3_INFO* ncp, const NC_var *varp,
 #line 831
 		(void) ncio_rel(ncp->nciop, offset,
 #line 831
-				 RGN_MODIFIED);	
+				 RGN_MODIFIED);
 #line 831
 
 #line 831
@@ -10137,7 +10137,7 @@ getNCvx_char_char(const NC3_INFO* ncp, const NC_var *varp,
 #line 879
 			return lstatus;
 #line 879
-		
+
 #line 879
 		lstatus = ncx_getn_char_char(&xp, nget, value);
 #line 879
@@ -10147,7 +10147,7 @@ getNCvx_char_char(const NC3_INFO* ncp, const NC_var *varp,
 #line 879
 
 #line 879
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 879
 
 #line 879
@@ -10217,7 +10217,7 @@ getNCvx_schar_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 881
 			return lstatus;
 #line 881
-		
+
 #line 881
 		lstatus = ncx_getn_schar_schar(&xp, nget, value);
 #line 881
@@ -10227,7 +10227,7 @@ getNCvx_schar_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 881
 
 #line 881
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 881
 
 #line 881
@@ -10296,7 +10296,7 @@ getNCvx_schar_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 882
 			return lstatus;
 #line 882
-		
+
 #line 882
 		lstatus = ncx_getn_schar_short(&xp, nget, value);
 #line 882
@@ -10306,7 +10306,7 @@ getNCvx_schar_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 882
 
 #line 882
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 882
 
 #line 882
@@ -10375,7 +10375,7 @@ getNCvx_schar_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 883
 			return lstatus;
 #line 883
-		
+
 #line 883
 		lstatus = ncx_getn_schar_int(&xp, nget, value);
 #line 883
@@ -10385,7 +10385,7 @@ getNCvx_schar_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 883
 
 #line 883
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 883
 
 #line 883
@@ -10454,7 +10454,7 @@ getNCvx_schar_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 884
 			return lstatus;
 #line 884
-		
+
 #line 884
 		lstatus = ncx_getn_schar_float(&xp, nget, value);
 #line 884
@@ -10464,7 +10464,7 @@ getNCvx_schar_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 884
 
 #line 884
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 884
 
 #line 884
@@ -10533,7 +10533,7 @@ getNCvx_schar_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 885
 			return lstatus;
 #line 885
-		
+
 #line 885
 		lstatus = ncx_getn_schar_double(&xp, nget, value);
 #line 885
@@ -10543,7 +10543,7 @@ getNCvx_schar_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 885
 
 #line 885
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 885
 
 #line 885
@@ -10612,7 +10612,7 @@ getNCvx_schar_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 886
 			return lstatus;
 #line 886
-		
+
 #line 886
 		lstatus = ncx_getn_schar_longlong(&xp, nget, value);
 #line 886
@@ -10622,7 +10622,7 @@ getNCvx_schar_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 886
 
 #line 886
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 886
 
 #line 886
@@ -10691,7 +10691,7 @@ getNCvx_schar_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 887
 			return lstatus;
 #line 887
-		
+
 #line 887
 		lstatus = ncx_getn_schar_uint(&xp, nget, value);
 #line 887
@@ -10701,7 +10701,7 @@ getNCvx_schar_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 887
 
 #line 887
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 887
 
 #line 887
@@ -10770,7 +10770,7 @@ getNCvx_schar_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 888
 			return lstatus;
 #line 888
-		
+
 #line 888
 		lstatus = ncx_getn_schar_ulonglong(&xp, nget, value);
 #line 888
@@ -10780,7 +10780,7 @@ getNCvx_schar_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 888
 
 #line 888
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 888
 
 #line 888
@@ -10849,7 +10849,7 @@ getNCvx_schar_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 889
 			return lstatus;
 #line 889
-		
+
 #line 889
 		lstatus = ncx_getn_schar_uchar(&xp, nget, value);
 #line 889
@@ -10859,7 +10859,7 @@ getNCvx_schar_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 889
 
 #line 889
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 889
 
 #line 889
@@ -10928,7 +10928,7 @@ getNCvx_schar_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 890
 			return lstatus;
 #line 890
-		
+
 #line 890
 		lstatus = ncx_getn_schar_ushort(&xp, nget, value);
 #line 890
@@ -10938,7 +10938,7 @@ getNCvx_schar_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 890
 
 #line 890
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 890
 
 #line 890
@@ -11008,7 +11008,7 @@ getNCvx_short_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 892
 			return lstatus;
 #line 892
-		
+
 #line 892
 		lstatus = ncx_getn_short_schar(&xp, nget, value);
 #line 892
@@ -11018,7 +11018,7 @@ getNCvx_short_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 892
 
 #line 892
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 892
 
 #line 892
@@ -11087,7 +11087,7 @@ getNCvx_short_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 893
 			return lstatus;
 #line 893
-		
+
 #line 893
 		lstatus = ncx_getn_short_uchar(&xp, nget, value);
 #line 893
@@ -11097,7 +11097,7 @@ getNCvx_short_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 893
 
 #line 893
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 893
 
 #line 893
@@ -11166,7 +11166,7 @@ getNCvx_short_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 894
 			return lstatus;
 #line 894
-		
+
 #line 894
 		lstatus = ncx_getn_short_short(&xp, nget, value);
 #line 894
@@ -11176,7 +11176,7 @@ getNCvx_short_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 894
 
 #line 894
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 894
 
 #line 894
@@ -11245,7 +11245,7 @@ getNCvx_short_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 895
 			return lstatus;
 #line 895
-		
+
 #line 895
 		lstatus = ncx_getn_short_int(&xp, nget, value);
 #line 895
@@ -11255,7 +11255,7 @@ getNCvx_short_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 895
 
 #line 895
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 895
 
 #line 895
@@ -11324,7 +11324,7 @@ getNCvx_short_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 896
 			return lstatus;
 #line 896
-		
+
 #line 896
 		lstatus = ncx_getn_short_float(&xp, nget, value);
 #line 896
@@ -11334,7 +11334,7 @@ getNCvx_short_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 896
 
 #line 896
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 896
 
 #line 896
@@ -11403,7 +11403,7 @@ getNCvx_short_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 897
 			return lstatus;
 #line 897
-		
+
 #line 897
 		lstatus = ncx_getn_short_double(&xp, nget, value);
 #line 897
@@ -11413,7 +11413,7 @@ getNCvx_short_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 897
 
 #line 897
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 897
 
 #line 897
@@ -11482,7 +11482,7 @@ getNCvx_short_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 898
 			return lstatus;
 #line 898
-		
+
 #line 898
 		lstatus = ncx_getn_short_longlong(&xp, nget, value);
 #line 898
@@ -11492,7 +11492,7 @@ getNCvx_short_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 898
 
 #line 898
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 898
 
 #line 898
@@ -11561,7 +11561,7 @@ getNCvx_short_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 899
 			return lstatus;
 #line 899
-		
+
 #line 899
 		lstatus = ncx_getn_short_uint(&xp, nget, value);
 #line 899
@@ -11571,7 +11571,7 @@ getNCvx_short_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 899
 
 #line 899
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 899
 
 #line 899
@@ -11640,7 +11640,7 @@ getNCvx_short_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 900
 			return lstatus;
 #line 900
-		
+
 #line 900
 		lstatus = ncx_getn_short_ulonglong(&xp, nget, value);
 #line 900
@@ -11650,7 +11650,7 @@ getNCvx_short_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 900
 
 #line 900
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 900
 
 #line 900
@@ -11719,7 +11719,7 @@ getNCvx_short_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 901
 			return lstatus;
 #line 901
-		
+
 #line 901
 		lstatus = ncx_getn_short_ushort(&xp, nget, value);
 #line 901
@@ -11729,7 +11729,7 @@ getNCvx_short_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 901
 
 #line 901
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 901
 
 #line 901
@@ -11799,7 +11799,7 @@ getNCvx_int_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 903
 			return lstatus;
 #line 903
-		
+
 #line 903
 		lstatus = ncx_getn_int_schar(&xp, nget, value);
 #line 903
@@ -11809,7 +11809,7 @@ getNCvx_int_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 903
 
 #line 903
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 903
 
 #line 903
@@ -11878,7 +11878,7 @@ getNCvx_int_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 904
 			return lstatus;
 #line 904
-		
+
 #line 904
 		lstatus = ncx_getn_int_uchar(&xp, nget, value);
 #line 904
@@ -11888,7 +11888,7 @@ getNCvx_int_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 904
 
 #line 904
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 904
 
 #line 904
@@ -11957,7 +11957,7 @@ getNCvx_int_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 905
 			return lstatus;
 #line 905
-		
+
 #line 905
 		lstatus = ncx_getn_int_short(&xp, nget, value);
 #line 905
@@ -11967,7 +11967,7 @@ getNCvx_int_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 905
 
 #line 905
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 905
 
 #line 905
@@ -12036,7 +12036,7 @@ getNCvx_int_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 906
 			return lstatus;
 #line 906
-		
+
 #line 906
 		lstatus = ncx_getn_int_int(&xp, nget, value);
 #line 906
@@ -12046,7 +12046,7 @@ getNCvx_int_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 906
 
 #line 906
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 906
 
 #line 906
@@ -12115,7 +12115,7 @@ getNCvx_int_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 907
 			return lstatus;
 #line 907
-		
+
 #line 907
 		lstatus = ncx_getn_int_float(&xp, nget, value);
 #line 907
@@ -12125,7 +12125,7 @@ getNCvx_int_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 907
 
 #line 907
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 907
 
 #line 907
@@ -12194,7 +12194,7 @@ getNCvx_int_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 908
 			return lstatus;
 #line 908
-		
+
 #line 908
 		lstatus = ncx_getn_int_double(&xp, nget, value);
 #line 908
@@ -12204,7 +12204,7 @@ getNCvx_int_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 908
 
 #line 908
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 908
 
 #line 908
@@ -12273,7 +12273,7 @@ getNCvx_int_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 909
 			return lstatus;
 #line 909
-		
+
 #line 909
 		lstatus = ncx_getn_int_longlong(&xp, nget, value);
 #line 909
@@ -12283,7 +12283,7 @@ getNCvx_int_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 909
 
 #line 909
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 909
 
 #line 909
@@ -12352,7 +12352,7 @@ getNCvx_int_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 910
 			return lstatus;
 #line 910
-		
+
 #line 910
 		lstatus = ncx_getn_int_uint(&xp, nget, value);
 #line 910
@@ -12362,7 +12362,7 @@ getNCvx_int_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 910
 
 #line 910
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 910
 
 #line 910
@@ -12431,7 +12431,7 @@ getNCvx_int_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 911
 			return lstatus;
 #line 911
-		
+
 #line 911
 		lstatus = ncx_getn_int_ulonglong(&xp, nget, value);
 #line 911
@@ -12441,7 +12441,7 @@ getNCvx_int_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 911
 
 #line 911
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 911
 
 #line 911
@@ -12510,7 +12510,7 @@ getNCvx_int_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 912
 			return lstatus;
 #line 912
-		
+
 #line 912
 		lstatus = ncx_getn_int_ushort(&xp, nget, value);
 #line 912
@@ -12520,7 +12520,7 @@ getNCvx_int_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 912
 
 #line 912
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 912
 
 #line 912
@@ -12590,7 +12590,7 @@ getNCvx_float_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 914
 			return lstatus;
 #line 914
-		
+
 #line 914
 		lstatus = ncx_getn_float_schar(&xp, nget, value);
 #line 914
@@ -12600,7 +12600,7 @@ getNCvx_float_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 914
 
 #line 914
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 914
 
 #line 914
@@ -12669,7 +12669,7 @@ getNCvx_float_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 915
 			return lstatus;
 #line 915
-		
+
 #line 915
 		lstatus = ncx_getn_float_uchar(&xp, nget, value);
 #line 915
@@ -12679,7 +12679,7 @@ getNCvx_float_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 915
 
 #line 915
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 915
 
 #line 915
@@ -12748,7 +12748,7 @@ getNCvx_float_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 916
 			return lstatus;
 #line 916
-		
+
 #line 916
 		lstatus = ncx_getn_float_short(&xp, nget, value);
 #line 916
@@ -12758,7 +12758,7 @@ getNCvx_float_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 916
 
 #line 916
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 916
 
 #line 916
@@ -12827,7 +12827,7 @@ getNCvx_float_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 917
 			return lstatus;
 #line 917
-		
+
 #line 917
 		lstatus = ncx_getn_float_int(&xp, nget, value);
 #line 917
@@ -12837,7 +12837,7 @@ getNCvx_float_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 917
 
 #line 917
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 917
 
 #line 917
@@ -12906,7 +12906,7 @@ getNCvx_float_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 918
 			return lstatus;
 #line 918
-		
+
 #line 918
 		lstatus = ncx_getn_float_float(&xp, nget, value);
 #line 918
@@ -12916,7 +12916,7 @@ getNCvx_float_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 918
 
 #line 918
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 918
 
 #line 918
@@ -12985,7 +12985,7 @@ getNCvx_float_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 919
 			return lstatus;
 #line 919
-		
+
 #line 919
 		lstatus = ncx_getn_float_double(&xp, nget, value);
 #line 919
@@ -12995,7 +12995,7 @@ getNCvx_float_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 919
 
 #line 919
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 919
 
 #line 919
@@ -13064,7 +13064,7 @@ getNCvx_float_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 920
 			return lstatus;
 #line 920
-		
+
 #line 920
 		lstatus = ncx_getn_float_longlong(&xp, nget, value);
 #line 920
@@ -13074,7 +13074,7 @@ getNCvx_float_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 920
 
 #line 920
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 920
 
 #line 920
@@ -13143,7 +13143,7 @@ getNCvx_float_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 921
 			return lstatus;
 #line 921
-		
+
 #line 921
 		lstatus = ncx_getn_float_uint(&xp, nget, value);
 #line 921
@@ -13153,7 +13153,7 @@ getNCvx_float_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 921
 
 #line 921
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 921
 
 #line 921
@@ -13222,7 +13222,7 @@ getNCvx_float_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 922
 			return lstatus;
 #line 922
-		
+
 #line 922
 		lstatus = ncx_getn_float_ulonglong(&xp, nget, value);
 #line 922
@@ -13232,7 +13232,7 @@ getNCvx_float_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 922
 
 #line 922
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 922
 
 #line 922
@@ -13301,7 +13301,7 @@ getNCvx_float_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 923
 			return lstatus;
 #line 923
-		
+
 #line 923
 		lstatus = ncx_getn_float_ushort(&xp, nget, value);
 #line 923
@@ -13311,7 +13311,7 @@ getNCvx_float_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 923
 
 #line 923
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 923
 
 #line 923
@@ -13381,7 +13381,7 @@ getNCvx_double_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 925
 			return lstatus;
 #line 925
-		
+
 #line 925
 		lstatus = ncx_getn_double_schar(&xp, nget, value);
 #line 925
@@ -13391,7 +13391,7 @@ getNCvx_double_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 925
 
 #line 925
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 925
 
 #line 925
@@ -13460,7 +13460,7 @@ getNCvx_double_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 926
 			return lstatus;
 #line 926
-		
+
 #line 926
 		lstatus = ncx_getn_double_uchar(&xp, nget, value);
 #line 926
@@ -13470,7 +13470,7 @@ getNCvx_double_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 926
 
 #line 926
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 926
 
 #line 926
@@ -13539,7 +13539,7 @@ getNCvx_double_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 927
 			return lstatus;
 #line 927
-		
+
 #line 927
 		lstatus = ncx_getn_double_short(&xp, nget, value);
 #line 927
@@ -13549,7 +13549,7 @@ getNCvx_double_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 927
 
 #line 927
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 927
 
 #line 927
@@ -13618,7 +13618,7 @@ getNCvx_double_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 928
 			return lstatus;
 #line 928
-		
+
 #line 928
 		lstatus = ncx_getn_double_int(&xp, nget, value);
 #line 928
@@ -13628,7 +13628,7 @@ getNCvx_double_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 928
 
 #line 928
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 928
 
 #line 928
@@ -13697,7 +13697,7 @@ getNCvx_double_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 929
 			return lstatus;
 #line 929
-		
+
 #line 929
 		lstatus = ncx_getn_double_float(&xp, nget, value);
 #line 929
@@ -13707,7 +13707,7 @@ getNCvx_double_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 929
 
 #line 929
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 929
 
 #line 929
@@ -13776,7 +13776,7 @@ getNCvx_double_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 930
 			return lstatus;
 #line 930
-		
+
 #line 930
 		lstatus = ncx_getn_double_double(&xp, nget, value);
 #line 930
@@ -13786,7 +13786,7 @@ getNCvx_double_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 930
 
 #line 930
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 930
 
 #line 930
@@ -13855,7 +13855,7 @@ getNCvx_double_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 931
 			return lstatus;
 #line 931
-		
+
 #line 931
 		lstatus = ncx_getn_double_longlong(&xp, nget, value);
 #line 931
@@ -13865,7 +13865,7 @@ getNCvx_double_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 931
 
 #line 931
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 931
 
 #line 931
@@ -13934,7 +13934,7 @@ getNCvx_double_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 932
 			return lstatus;
 #line 932
-		
+
 #line 932
 		lstatus = ncx_getn_double_uint(&xp, nget, value);
 #line 932
@@ -13944,7 +13944,7 @@ getNCvx_double_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 932
 
 #line 932
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 932
 
 #line 932
@@ -14013,7 +14013,7 @@ getNCvx_double_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 933
 			return lstatus;
 #line 933
-		
+
 #line 933
 		lstatus = ncx_getn_double_ulonglong(&xp, nget, value);
 #line 933
@@ -14023,7 +14023,7 @@ getNCvx_double_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 933
 
 #line 933
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 933
 
 #line 933
@@ -14092,7 +14092,7 @@ getNCvx_double_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 934
 			return lstatus;
 #line 934
-		
+
 #line 934
 		lstatus = ncx_getn_double_ushort(&xp, nget, value);
 #line 934
@@ -14102,7 +14102,7 @@ getNCvx_double_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 934
 
 #line 934
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 934
 
 #line 934
@@ -14172,7 +14172,7 @@ getNCvx_uchar_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 936
 			return lstatus;
 #line 936
-		
+
 #line 936
 		lstatus = ncx_getn_uchar_schar(&xp, nget, value);
 #line 936
@@ -14182,7 +14182,7 @@ getNCvx_uchar_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 936
 
 #line 936
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 936
 
 #line 936
@@ -14251,7 +14251,7 @@ getNCvx_uchar_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 937
 			return lstatus;
 #line 937
-		
+
 #line 937
 		lstatus = ncx_getn_uchar_uchar(&xp, nget, value);
 #line 937
@@ -14261,7 +14261,7 @@ getNCvx_uchar_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 937
 
 #line 937
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 937
 
 #line 937
@@ -14330,7 +14330,7 @@ getNCvx_uchar_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 938
 			return lstatus;
 #line 938
-		
+
 #line 938
 		lstatus = ncx_getn_uchar_short(&xp, nget, value);
 #line 938
@@ -14340,7 +14340,7 @@ getNCvx_uchar_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 938
 
 #line 938
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 938
 
 #line 938
@@ -14409,7 +14409,7 @@ getNCvx_uchar_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 939
 			return lstatus;
 #line 939
-		
+
 #line 939
 		lstatus = ncx_getn_uchar_int(&xp, nget, value);
 #line 939
@@ -14419,7 +14419,7 @@ getNCvx_uchar_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 939
 
 #line 939
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 939
 
 #line 939
@@ -14488,7 +14488,7 @@ getNCvx_uchar_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 940
 			return lstatus;
 #line 940
-		
+
 #line 940
 		lstatus = ncx_getn_uchar_float(&xp, nget, value);
 #line 940
@@ -14498,7 +14498,7 @@ getNCvx_uchar_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 940
 
 #line 940
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 940
 
 #line 940
@@ -14567,7 +14567,7 @@ getNCvx_uchar_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 941
 			return lstatus;
 #line 941
-		
+
 #line 941
 		lstatus = ncx_getn_uchar_double(&xp, nget, value);
 #line 941
@@ -14577,7 +14577,7 @@ getNCvx_uchar_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 941
 
 #line 941
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 941
 
 #line 941
@@ -14646,7 +14646,7 @@ getNCvx_uchar_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 942
 			return lstatus;
 #line 942
-		
+
 #line 942
 		lstatus = ncx_getn_uchar_longlong(&xp, nget, value);
 #line 942
@@ -14656,7 +14656,7 @@ getNCvx_uchar_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 942
 
 #line 942
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 942
 
 #line 942
@@ -14725,7 +14725,7 @@ getNCvx_uchar_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 943
 			return lstatus;
 #line 943
-		
+
 #line 943
 		lstatus = ncx_getn_uchar_uint(&xp, nget, value);
 #line 943
@@ -14735,7 +14735,7 @@ getNCvx_uchar_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 943
 
 #line 943
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 943
 
 #line 943
@@ -14804,7 +14804,7 @@ getNCvx_uchar_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 944
 			return lstatus;
 #line 944
-		
+
 #line 944
 		lstatus = ncx_getn_uchar_ulonglong(&xp, nget, value);
 #line 944
@@ -14814,7 +14814,7 @@ getNCvx_uchar_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 944
 
 #line 944
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 944
 
 #line 944
@@ -14883,7 +14883,7 @@ getNCvx_uchar_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 945
 			return lstatus;
 #line 945
-		
+
 #line 945
 		lstatus = ncx_getn_uchar_ushort(&xp, nget, value);
 #line 945
@@ -14893,7 +14893,7 @@ getNCvx_uchar_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 945
 
 #line 945
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 945
 
 #line 945
@@ -14963,7 +14963,7 @@ getNCvx_ushort_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 947
 			return lstatus;
 #line 947
-		
+
 #line 947
 		lstatus = ncx_getn_ushort_schar(&xp, nget, value);
 #line 947
@@ -14973,7 +14973,7 @@ getNCvx_ushort_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 947
 
 #line 947
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 947
 
 #line 947
@@ -15042,7 +15042,7 @@ getNCvx_ushort_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 948
 			return lstatus;
 #line 948
-		
+
 #line 948
 		lstatus = ncx_getn_ushort_uchar(&xp, nget, value);
 #line 948
@@ -15052,7 +15052,7 @@ getNCvx_ushort_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 948
 
 #line 948
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 948
 
 #line 948
@@ -15121,7 +15121,7 @@ getNCvx_ushort_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 949
 			return lstatus;
 #line 949
-		
+
 #line 949
 		lstatus = ncx_getn_ushort_short(&xp, nget, value);
 #line 949
@@ -15131,7 +15131,7 @@ getNCvx_ushort_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 949
 
 #line 949
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 949
 
 #line 949
@@ -15200,7 +15200,7 @@ getNCvx_ushort_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 950
 			return lstatus;
 #line 950
-		
+
 #line 950
 		lstatus = ncx_getn_ushort_int(&xp, nget, value);
 #line 950
@@ -15210,7 +15210,7 @@ getNCvx_ushort_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 950
 
 #line 950
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 950
 
 #line 950
@@ -15279,7 +15279,7 @@ getNCvx_ushort_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 951
 			return lstatus;
 #line 951
-		
+
 #line 951
 		lstatus = ncx_getn_ushort_float(&xp, nget, value);
 #line 951
@@ -15289,7 +15289,7 @@ getNCvx_ushort_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 951
 
 #line 951
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 951
 
 #line 951
@@ -15358,7 +15358,7 @@ getNCvx_ushort_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 952
 			return lstatus;
 #line 952
-		
+
 #line 952
 		lstatus = ncx_getn_ushort_double(&xp, nget, value);
 #line 952
@@ -15368,7 +15368,7 @@ getNCvx_ushort_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 952
 
 #line 952
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 952
 
 #line 952
@@ -15437,7 +15437,7 @@ getNCvx_ushort_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 953
 			return lstatus;
 #line 953
-		
+
 #line 953
 		lstatus = ncx_getn_ushort_longlong(&xp, nget, value);
 #line 953
@@ -15447,7 +15447,7 @@ getNCvx_ushort_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 953
 
 #line 953
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 953
 
 #line 953
@@ -15516,7 +15516,7 @@ getNCvx_ushort_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 954
 			return lstatus;
 #line 954
-		
+
 #line 954
 		lstatus = ncx_getn_ushort_uint(&xp, nget, value);
 #line 954
@@ -15526,7 +15526,7 @@ getNCvx_ushort_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 954
 
 #line 954
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 954
 
 #line 954
@@ -15595,7 +15595,7 @@ getNCvx_ushort_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 955
 			return lstatus;
 #line 955
-		
+
 #line 955
 		lstatus = ncx_getn_ushort_ulonglong(&xp, nget, value);
 #line 955
@@ -15605,7 +15605,7 @@ getNCvx_ushort_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 955
 
 #line 955
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 955
 
 #line 955
@@ -15674,7 +15674,7 @@ getNCvx_ushort_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 956
 			return lstatus;
 #line 956
-		
+
 #line 956
 		lstatus = ncx_getn_ushort_ushort(&xp, nget, value);
 #line 956
@@ -15684,7 +15684,7 @@ getNCvx_ushort_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 956
 
 #line 956
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 956
 
 #line 956
@@ -15754,7 +15754,7 @@ getNCvx_uint_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 958
 			return lstatus;
 #line 958
-		
+
 #line 958
 		lstatus = ncx_getn_uint_schar(&xp, nget, value);
 #line 958
@@ -15764,7 +15764,7 @@ getNCvx_uint_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 958
 
 #line 958
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 958
 
 #line 958
@@ -15833,7 +15833,7 @@ getNCvx_uint_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 959
 			return lstatus;
 #line 959
-		
+
 #line 959
 		lstatus = ncx_getn_uint_uchar(&xp, nget, value);
 #line 959
@@ -15843,7 +15843,7 @@ getNCvx_uint_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 959
 
 #line 959
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 959
 
 #line 959
@@ -15912,7 +15912,7 @@ getNCvx_uint_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 960
 			return lstatus;
 #line 960
-		
+
 #line 960
 		lstatus = ncx_getn_uint_short(&xp, nget, value);
 #line 960
@@ -15922,7 +15922,7 @@ getNCvx_uint_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 960
 
 #line 960
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 960
 
 #line 960
@@ -15991,7 +15991,7 @@ getNCvx_uint_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 961
 			return lstatus;
 #line 961
-		
+
 #line 961
 		lstatus = ncx_getn_uint_int(&xp, nget, value);
 #line 961
@@ -16001,7 +16001,7 @@ getNCvx_uint_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 961
 
 #line 961
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 961
 
 #line 961
@@ -16070,7 +16070,7 @@ getNCvx_uint_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 962
 			return lstatus;
 #line 962
-		
+
 #line 962
 		lstatus = ncx_getn_uint_float(&xp, nget, value);
 #line 962
@@ -16080,7 +16080,7 @@ getNCvx_uint_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 962
 
 #line 962
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 962
 
 #line 962
@@ -16149,7 +16149,7 @@ getNCvx_uint_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 963
 			return lstatus;
 #line 963
-		
+
 #line 963
 		lstatus = ncx_getn_uint_double(&xp, nget, value);
 #line 963
@@ -16159,7 +16159,7 @@ getNCvx_uint_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 963
 
 #line 963
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 963
 
 #line 963
@@ -16228,7 +16228,7 @@ getNCvx_uint_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 964
 			return lstatus;
 #line 964
-		
+
 #line 964
 		lstatus = ncx_getn_uint_longlong(&xp, nget, value);
 #line 964
@@ -16238,7 +16238,7 @@ getNCvx_uint_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 964
 
 #line 964
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 964
 
 #line 964
@@ -16307,7 +16307,7 @@ getNCvx_uint_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 965
 			return lstatus;
 #line 965
-		
+
 #line 965
 		lstatus = ncx_getn_uint_uint(&xp, nget, value);
 #line 965
@@ -16317,7 +16317,7 @@ getNCvx_uint_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 965
 
 #line 965
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 965
 
 #line 965
@@ -16386,7 +16386,7 @@ getNCvx_uint_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 966
 			return lstatus;
 #line 966
-		
+
 #line 966
 		lstatus = ncx_getn_uint_ulonglong(&xp, nget, value);
 #line 966
@@ -16396,7 +16396,7 @@ getNCvx_uint_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 966
 
 #line 966
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 966
 
 #line 966
@@ -16465,7 +16465,7 @@ getNCvx_uint_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 967
 			return lstatus;
 #line 967
-		
+
 #line 967
 		lstatus = ncx_getn_uint_ushort(&xp, nget, value);
 #line 967
@@ -16475,7 +16475,7 @@ getNCvx_uint_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 967
 
 #line 967
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 967
 
 #line 967
@@ -16545,7 +16545,7 @@ getNCvx_longlong_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 969
 			return lstatus;
 #line 969
-		
+
 #line 969
 		lstatus = ncx_getn_longlong_schar(&xp, nget, value);
 #line 969
@@ -16555,7 +16555,7 @@ getNCvx_longlong_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 969
 
 #line 969
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 969
 
 #line 969
@@ -16624,7 +16624,7 @@ getNCvx_longlong_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 970
 			return lstatus;
 #line 970
-		
+
 #line 970
 		lstatus = ncx_getn_longlong_uchar(&xp, nget, value);
 #line 970
@@ -16634,7 +16634,7 @@ getNCvx_longlong_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 970
 
 #line 970
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 970
 
 #line 970
@@ -16703,7 +16703,7 @@ getNCvx_longlong_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 971
 			return lstatus;
 #line 971
-		
+
 #line 971
 		lstatus = ncx_getn_longlong_short(&xp, nget, value);
 #line 971
@@ -16713,7 +16713,7 @@ getNCvx_longlong_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 971
 
 #line 971
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 971
 
 #line 971
@@ -16782,7 +16782,7 @@ getNCvx_longlong_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 972
 			return lstatus;
 #line 972
-		
+
 #line 972
 		lstatus = ncx_getn_longlong_int(&xp, nget, value);
 #line 972
@@ -16792,7 +16792,7 @@ getNCvx_longlong_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 972
 
 #line 972
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 972
 
 #line 972
@@ -16861,7 +16861,7 @@ getNCvx_longlong_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 973
 			return lstatus;
 #line 973
-		
+
 #line 973
 		lstatus = ncx_getn_longlong_float(&xp, nget, value);
 #line 973
@@ -16871,7 +16871,7 @@ getNCvx_longlong_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 973
 
 #line 973
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 973
 
 #line 973
@@ -16940,7 +16940,7 @@ getNCvx_longlong_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 974
 			return lstatus;
 #line 974
-		
+
 #line 974
 		lstatus = ncx_getn_longlong_double(&xp, nget, value);
 #line 974
@@ -16950,7 +16950,7 @@ getNCvx_longlong_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 974
 
 #line 974
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 974
 
 #line 974
@@ -17019,7 +17019,7 @@ getNCvx_longlong_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 975
 			return lstatus;
 #line 975
-		
+
 #line 975
 		lstatus = ncx_getn_longlong_longlong(&xp, nget, value);
 #line 975
@@ -17029,7 +17029,7 @@ getNCvx_longlong_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 975
 
 #line 975
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 975
 
 #line 975
@@ -17098,7 +17098,7 @@ getNCvx_longlong_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 976
 			return lstatus;
 #line 976
-		
+
 #line 976
 		lstatus = ncx_getn_longlong_uint(&xp, nget, value);
 #line 976
@@ -17108,7 +17108,7 @@ getNCvx_longlong_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 976
 
 #line 976
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 976
 
 #line 976
@@ -17177,7 +17177,7 @@ getNCvx_longlong_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 977
 			return lstatus;
 #line 977
-		
+
 #line 977
 		lstatus = ncx_getn_longlong_ulonglong(&xp, nget, value);
 #line 977
@@ -17187,7 +17187,7 @@ getNCvx_longlong_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 977
 
 #line 977
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 977
 
 #line 977
@@ -17256,7 +17256,7 @@ getNCvx_longlong_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 978
 			return lstatus;
 #line 978
-		
+
 #line 978
 		lstatus = ncx_getn_longlong_ushort(&xp, nget, value);
 #line 978
@@ -17266,7 +17266,7 @@ getNCvx_longlong_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 978
 
 #line 978
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 978
 
 #line 978
@@ -17336,7 +17336,7 @@ getNCvx_ulonglong_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 980
 			return lstatus;
 #line 980
-		
+
 #line 980
 		lstatus = ncx_getn_ulonglong_schar(&xp, nget, value);
 #line 980
@@ -17346,7 +17346,7 @@ getNCvx_ulonglong_schar(const NC3_INFO* ncp, const NC_var *varp,
 #line 980
 
 #line 980
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 980
 
 #line 980
@@ -17415,7 +17415,7 @@ getNCvx_ulonglong_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 981
 			return lstatus;
 #line 981
-		
+
 #line 981
 		lstatus = ncx_getn_ulonglong_uchar(&xp, nget, value);
 #line 981
@@ -17425,7 +17425,7 @@ getNCvx_ulonglong_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 981
 
 #line 981
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 981
 
 #line 981
@@ -17494,7 +17494,7 @@ getNCvx_ulonglong_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 982
 			return lstatus;
 #line 982
-		
+
 #line 982
 		lstatus = ncx_getn_ulonglong_short(&xp, nget, value);
 #line 982
@@ -17504,7 +17504,7 @@ getNCvx_ulonglong_short(const NC3_INFO* ncp, const NC_var *varp,
 #line 982
 
 #line 982
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 982
 
 #line 982
@@ -17573,7 +17573,7 @@ getNCvx_ulonglong_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 983
 			return lstatus;
 #line 983
-		
+
 #line 983
 		lstatus = ncx_getn_ulonglong_int(&xp, nget, value);
 #line 983
@@ -17583,7 +17583,7 @@ getNCvx_ulonglong_int(const NC3_INFO* ncp, const NC_var *varp,
 #line 983
 
 #line 983
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 983
 
 #line 983
@@ -17652,7 +17652,7 @@ getNCvx_ulonglong_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 984
 			return lstatus;
 #line 984
-		
+
 #line 984
 		lstatus = ncx_getn_ulonglong_float(&xp, nget, value);
 #line 984
@@ -17662,7 +17662,7 @@ getNCvx_ulonglong_float(const NC3_INFO* ncp, const NC_var *varp,
 #line 984
 
 #line 984
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 984
 
 #line 984
@@ -17731,7 +17731,7 @@ getNCvx_ulonglong_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 985
 			return lstatus;
 #line 985
-		
+
 #line 985
 		lstatus = ncx_getn_ulonglong_double(&xp, nget, value);
 #line 985
@@ -17741,7 +17741,7 @@ getNCvx_ulonglong_double(const NC3_INFO* ncp, const NC_var *varp,
 #line 985
 
 #line 985
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 985
 
 #line 985
@@ -17810,7 +17810,7 @@ getNCvx_ulonglong_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 986
 			return lstatus;
 #line 986
-		
+
 #line 986
 		lstatus = ncx_getn_ulonglong_longlong(&xp, nget, value);
 #line 986
@@ -17820,7 +17820,7 @@ getNCvx_ulonglong_longlong(const NC3_INFO* ncp, const NC_var *varp,
 #line 986
 
 #line 986
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 986
 
 #line 986
@@ -17889,7 +17889,7 @@ getNCvx_ulonglong_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 987
 			return lstatus;
 #line 987
-		
+
 #line 987
 		lstatus = ncx_getn_ulonglong_uint(&xp, nget, value);
 #line 987
@@ -17899,7 +17899,7 @@ getNCvx_ulonglong_uint(const NC3_INFO* ncp, const NC_var *varp,
 #line 987
 
 #line 987
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 987
 
 #line 987
@@ -17968,7 +17968,7 @@ getNCvx_ulonglong_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 988
 			return lstatus;
 #line 988
-		
+
 #line 988
 		lstatus = ncx_getn_ulonglong_ulonglong(&xp, nget, value);
 #line 988
@@ -17978,7 +17978,7 @@ getNCvx_ulonglong_ulonglong(const NC3_INFO* ncp, const NC_var *varp,
 #line 988
 
 #line 988
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 988
 
 #line 988
@@ -18047,7 +18047,7 @@ getNCvx_ulonglong_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 989
 			return lstatus;
 #line 989
-		
+
 #line 989
 		lstatus = ncx_getn_ulonglong_ushort(&xp, nget, value);
 #line 989
@@ -18057,7 +18057,7 @@ getNCvx_ulonglong_ushort(const NC3_INFO* ncp, const NC_var *varp,
 #line 989
 
 #line 989
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 989
 
 #line 989
@@ -18129,7 +18129,7 @@ getNCvx_schar_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 993
 			return lstatus;
 #line 993
-		
+
 #line 993
 		lstatus = ncx_getn_schar_uchar(&xp, nget, value);
 #line 993
@@ -18139,7 +18139,7 @@ getNCvx_schar_uchar(const NC3_INFO* ncp, const NC_var *varp,
 #line 993
 
 #line 993
-		(void) ncio_rel(ncp->nciop, offset, 0);	
+		(void) ncio_rel(ncp->nciop, offset, 0);
 #line 993
 
 #line 993
@@ -18229,7 +18229,7 @@ NCiocount(const NC3_INFO* const ncp, const NC_var *const varp,
 	 * If there is only one dimension and and it is a "record dimension",
 	 *	edp is &edges[1] (out of bounds) and we will return 0;
 	 */
-	assert(shp >= varp->shape + varp->ndims -1 
+	assert(shp >= varp->shape + varp->ndims -1
 		|| *(edp +1) == *(shp +1));
 
 	/* now accumulate max count for a single io operation */
@@ -18271,7 +18271,7 @@ set_upper(size_t *upp, /* modified on return */
  * For some ii,
  * upp == &upper[ii]
  * cdp == &coord[ii]
- * 
+ *
  * Running this routine increments *cdp.
  *
  * If after the increment, *cdp is equal to *upp
@@ -18279,7 +18279,7 @@ set_upper(size_t *upp, /* modified on return */
  * *cdp is "zeroed" to the starting value and
  * we need to "carry", eg, increment one place to
  * the left.
- * 
+ *
  * TODO: Some architectures hate recursion?
  * 	Reimplement non-recursively.
  */
@@ -18292,7 +18292,7 @@ odo1(const size_t *const start, const size_t *const upper,
 	assert(coord <= cdp && cdp <= coord + NC_MAX_VAR_DIMS);
 	assert(upper <= upp && upp <= upper + NC_MAX_VAR_DIMS);
 	assert(upp - upper == cdp - coord);
-	
+
 	assert(*cdp <= *upp);
 
 	(*cdp)++;
@@ -18786,7 +18786,7 @@ NC3_get_vara(int ncid, int varid,
     const size_t* edges = edges0; /* so we can modify for special cases */
     size_t modedges[NC_MAX_VAR_DIMS];
 
-    status = NC_check_id(ncid, &nc); 
+    status = NC_check_id(ncid, &nc);
     if(status != NC_NOERR)
         return status;
     nc3 = NC3_DATA(nc);
@@ -18794,15 +18794,15 @@ NC3_get_vara(int ncid, int varid,
     if(NC_indef(nc3))
         return NC_EINDEFINE;
 
-    varp = NC_lookupvar(nc3, varid);
-    if(varp == NULL)
-        return NC_ENOTVAR;
+    status = NC_lookupvar(nc3, varid, &varp);
+    if(status != NC_NOERR)
+        return status;
 
     if(memtype == NC_NAT) memtype=varp->type;
 
     if(memtype == NC_CHAR && varp->type != NC_CHAR)
         return NC_ECHAR;
-    else if(memtype != NC_CHAR && varp->type == NC_CHAR)  
+    else if(memtype != NC_CHAR && varp->type == NC_CHAR)
         return NC_ECHAR;
 
     /* If edges is NULL, then this was called from nc_get_var() */
@@ -18913,7 +18913,7 @@ NC3_put_vara(int ncid, int varid,
     const size_t* edges = edges0; /* so we can modify for special cases */
     size_t modedges[NC_MAX_VAR_DIMS];
 
-    status = NC_check_id(ncid, &nc); 
+    status = NC_check_id(ncid, &nc);
     if(status != NC_NOERR)
         return status;
     nc3 = NC3_DATA(nc);
@@ -18924,15 +18924,16 @@ NC3_put_vara(int ncid, int varid,
     if(NC_indef(nc3))
         return NC_EINDEFINE;
 
-    varp = NC_lookupvar(nc3, varid);
-    if(varp == NULL)
-        return NC_ENOTVAR; /* TODO: lost NC_EGLOBAL */
+    status = NC_lookupvar(nc3, varid, &varp);
+    if(status != NC_NOERR)
+       return status; /*invalid varid */
+
 
     if(memtype == NC_NAT) memtype=varp->type;
 
     if(memtype == NC_CHAR && varp->type != NC_CHAR)
         return NC_ECHAR;
-    else if(memtype != NC_CHAR && varp->type == NC_CHAR)  
+    else if(memtype != NC_CHAR && varp->type == NC_CHAR)
         return NC_ECHAR;
 
     /* Get the size of the memtype */
