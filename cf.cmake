@@ -21,5 +21,5 @@ FLAGS="$FLAGS -DENABLE_DAP_REMOTE_TESTS=true"
 FLAGS="$FLAGS -DENABLE_DAP_AUTH_TESTS=true"
 
 cmake $FLAGS ${ZLIB} ${HDF5} ${CURL} ..
-#cmake --build .
-#cmake --build . --target test
+cmake --build .
+cmake --build . --target test
