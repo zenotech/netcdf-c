@@ -6,29 +6,28 @@
 
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
+AM_CPPFLAGS += -I$(top_srcdir)/libsrc
 
 # These files are created by the tests.
 CLEANFILES = nc_test_classic.nc nc_test_64bit.nc nc_test_netcdf4.nc	\
 tst_*.nc t_nc.nc large_files.nc quick_large_files.nc \
 tst_diskless.nc tst_diskless2.nc \
 tst_diskless3.nc tst_diskless3_file.cdl tst_diskless3_memory.cdl \
-tst_diskless4.cdl tst_diskless4.nc tst_formatx.nc
+tst_diskless4.cdl tst_diskless4.nc tst_formatx.nc nc_test_cdf5.nc \
+unlim.nc
 
 # These are the tests which are always run.
-TESTPROGRAMS = t_nc tst_small nc_test tst_misc tst_norm tst_names	\
-tst_nofill tst_nofill2 tst_nofill3 tst_atts3 tst_meta
+TESTPROGRAMS = t_nc tst_small nc_test tst_misc tst_norm \
+	tst_names tst_nofill tst_nofill2 tst_nofill3 tst_atts3 \
+	tst_meta
 
 if USE_NETCDF4
-TESTPROGRAMS += tst_atts
+TESTPROGRAMS += tst_atts tst_put_vars
 endif
 
 if USE_PNETCDF
-TESTPROGRAMS += tst_parallel2 tst_pnetcdf tst_formatx_pnetcdf
+TESTPROGRAMS += tst_parallel2 tst_pnetcdf tst_addvar tst_formatx_pnetcdf
 endif
-
-# if EXTRA_TESTS
-# TESTPROGRAMS +=
-# endif # EXTRA_TESTS
 
 # These are the source files for the main workhorse test program,
 # nc_test. If you pass nc_test, you are doing well.
@@ -36,7 +35,7 @@ nc_test_SOURCES = nc_test.c error.c test_get.c test_put.c \
 test_read.c test_write.c util.c error.h tests.h
 
 LDADD = ${top_builddir}/liblib/libnetcdf.la
-AM_CPPFLAGS += -I$(top_builddir)/liblib -I$(top_builddir)/include
+AM_CPPFLAGS += -I$(top_builddir)/liblib -I$(top_builddir)/include -I$(top_srcdir)/libsrc
 
 # If the user asked for large file tests, then add them.
 if LARGE_FILE_TESTS
@@ -49,7 +48,6 @@ TESTPROGRAMS += testnc3perf
 testnc3perf_SOURCES = testnc3perf.c
 CLEANFILES += benchmark.nc
 endif
-
 
 # Set up the tests.
 check_PROGRAMS = $(TESTPROGRAMS)
@@ -94,16 +92,18 @@ endif # USE_VALGRIND_TESTS
 EXTRA_DIST = test_get.m4 test_put.m4 run_valgrind_tests.sh \
 run_diskless.sh run_diskless2.sh run_mmap.sh run_pnetcdf_test.sh
 
-
 # ref_tst_diskless2.cdl is for diff comparison and to produce tst_diskless2.c
 EXTRA_DIST += ref_tst_diskless2.cdl CMakeLists.txt
-
-#EXTRA_DIST += ${nc_test_SOURCES}
 
 # Only clean these on mainatiner-clean, because they require m4 to
 # regenerate.
 #MAINTAINERCLEANFILES = test_get.c test_put.c
 
+all:
+	cp $(top_srcdir)/libsrc/ncx.c .
+
+CLEANFILES += ncx.c
+
 # This rule tells make how to turn our .m4 files into .c files.
 .m4.c:
-	m4 $(AM_M4FLAGS) $(M4FLAGS) -s $< >$@
+	m4 $(AM_M4FLAGS) $(M4FLAGS) $< >$@

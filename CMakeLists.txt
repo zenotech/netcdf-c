@@ -1,12 +1,13 @@
 ## This is a CMake file, part of Unidata's netCDF package.
 # Copyright 2012-2014, see the COPYRIGHT file for more information.
+#
 
 ##################################
 # Set Project Properties
 ##################################
 
 #Minimum required CMake Version
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.11)
 
 #Project Name
 project(netCDF C)
@@ -24,13 +25,13 @@ set(PACKAGE "netCDF" CACHE STRING "")
 #####
 
 SET(NC_VERSION_MAJOR 4)
-SET(NC_VERSION_MINOR 3)
-SET(NC_VERSION_PATCH 3)
-SET(NC_VERSION_NOTE "")
+SET(NC_VERSION_MINOR 4)
+SET(NC_VERSION_PATCH 0)
+SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
 SET(NC_VERSION ${netCDF_VERSION})
-SET(netCDF_LIB_VERSION 7.2.1)
+SET(netCDF_LIB_VERSION 7.3.0)
 SET(netCDF_SO_VERSION 7)
 SET(PACKAGE_VERSION ${VERSION})
 
@@ -44,8 +45,34 @@ IF(UNAME)
   getuname(osname -s)
   getuname(osrel  -r)
   getuname(cpu    -m)
-  set(BUILDNAME "${osname}-${osrel}-${cpu}" CACHE STRING "Build name variable for CDash")
+  set(TMP_BUILDNAME "${osname}-${osrel}-${cpu}")
 ENDIF()
+
+###
+# Allow for some customization of the buildname.
+# This will make it easier to identify different builds,
+# based on values passed from command line/shell scripts.
+#
+# For ctest scripts, we can use CTEST_BUILD_NAME.
+###
+
+SET(BUILDNAME_PREFIX "" CACHE STRING "")
+SET(BUILDNAME_SUFFIX "" CACHE STRING "")
+
+IF(BUILDNAME_PREFIX)
+  SET(TMP_BUILDNAME "${BUILDNAME_PREFIX}-${TMP_BUILDNAME}")
+ENDIF()
+
+IF(BUILDNAME_SUFFIX)
+  SET(TMP_BUILDNAME "${TMP_BUILDNAME}-${BUILDNAME_SUFFIX}")
+ENDIF()
+
+IF(NOT BUILDNAME)
+  SET(BUILDNAME "${TMP_BUILDNAME}" CACHE STRING "Build name variable for CDash")
+ENDIF()
+###
+# End BUILDNAME customization.
+###
 
 # For CMAKE_INSTALL_LIBDIR
 INCLUDE(GNUInstallDirs)
@@ -71,6 +98,7 @@ INCLUDE(${CMAKE_ROOT}/Modules/CheckTypeSize.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/CheckFunctionExists.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/CheckCXXSourceCompiles.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/CheckCSourceCompiles.cmake)
+INCLUDE(${CMAKE_ROOT}/Modules/CheckCSourceRuns.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/TestBigEndian.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/CheckSymbolExists.cmake)
 INCLUDE(${CMAKE_ROOT}/Modules/GetPrerequisites.cmake)
@@ -124,6 +152,8 @@ SET(EXTRA_DEPS "")
 ################################
 # Set CTest Properties
 ################################
+
+
 
 ENABLE_TESTING()
 INCLUDE(CTest)
@@ -204,11 +234,19 @@ ENDIF(CMAKE_COMPILER_IS_GNUCC OR APPLE)
 
 ADD_DEFINITIONS()
 
-# Supress CRT Warnings.
+# Suppress CRT Warnings.
 # Only necessary for Windows
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
+
+#####
+# System inspection checks
+#####
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/oc2)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libsrc)
+SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_SOURCE_DIR}/libsrc)
 
 ################################
 # End Compiler Configuration
@@ -294,6 +332,7 @@ OPTION(BUILD_UTILITIES "Build ncgen, ncgen3, ncdump." ON)
 # Option to use MMAP
 OPTION(ENABLE_MMAP "Use MMAP." OFF)
 IF(ENABLE_MMAP)
+  CHECK_FUNCTION_EXISTS(mremap  HAVE_MREMAP)
   IF(NOT HAVE_MREMAP)
     MESSAGE(WARNING "mremap not found: disabling MMAP support.")
     SET(ENABLE_MMAP OFF)
@@ -317,6 +356,7 @@ ENDIF()
 # Option Logging, only valid for netcdf4.
 OPTION(ENABLE_LOGGING "Enable Logging." OFF)
 IF(ENABLE_LOGGING)
+  ADD_DEFINITIONS(-DLOGGING)
   SET(LOGGING ON)
 ENDIF()
 
@@ -368,7 +408,7 @@ IF(ENABLE_HDF4)
     MESSAGE(FATAL_ERROR "Can't find or link to the hdf4 mfhdf library.")
   ENDIF()
 
-  SET(HDF4_LIBRARIES ${HDF4_MFHDF_LIB} ${HDF4_DF_LIB})
+  SET(HDF4_LIBRARIES ${HDF4_DF_LIB} ${HDF4_MFHDF_LIB})
   # End include files, libraries.
   MESSAGE(STATUS "HDF4 libraries: ${HDF4_DF_LIB}, ${HDF4_MFHDF_LIB}")
 
@@ -435,7 +475,7 @@ OPTION(USE_HDF5 "Use HDF5." ${ENABLE_NETCDF_4})
 IF(USE_HDF5 OR ENABLE_NETCDF_4)
   SET(USE_HDF5 ON)
   SET(USE_NETCDF4 ON)
-  # Accomodate developers who have hdf5 libraries and
+  # Accommodate developers who have hdf5 libraries and
   # headers on their system, but do not have a the hdf
   # .cmake files.  If this is the case, they should
   # specify HDF5_HL_LIB, HDF5_LIB, HDF5_INCLUDE_DIR manually.
@@ -468,11 +508,12 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     # Find out if HDF5 was built with parallel support.
     # Do that by checking for the targets H5Pget_fapl_mpiposx and
     # H5Pget_fapl_mpio in ${HDF5_LIB}.
-    CHECK_LIBRARY_EXISTS(${HDF5_hdf5_LIBRARY} H5Pget_fapl_mpiposix "" HDF5_IS_PARALLEL_MPIPOSIX)
-    CHECK_LIBRARY_EXISTS(${HDF5_hdf5_LIBRARY} H5Pget_fapl_mpio "" HDF5_IS_PARALLEL_MPIO)
-
+    CHECK_LIBRARY_EXISTS(hdf5 H5Pget_fapl_mpiposix "" HDF5_IS_PARALLEL_MPIPOSIX)
+    CHECK_LIBRARY_EXISTS(hdf5 H5Pget_fapl_mpio "" HDF5_IS_PARALLEL_MPIO)
     IF(HDF5_IS_PARALLEL_MPIPOSIX OR HDF5_IS_PARALLEL_MPIO)
-      SET(HDF5_IS_PARALLEL ON)
+      SET(HDF5_PARALLEL ON)
+    ELSE()
+      SET(HDF5_PARALLEL OFF)
     ENDIF()
 
     IF(HDF5_IS_PARALLEL_MPIO)
@@ -490,10 +531,13 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
 
   ENDIF(NOT MSVC)
 
+  CHECK_LIBRARY_EXISTS(hdf5 H5free_memory "" HDF5_HAS_H5FREE)
+
+
   # Assert HDF5 version.
   SET(HDF5_VERSION_REQUIRED 1.8.10)
 
-  IF(HDF5_IS_PARALLEL)
+  IF(HDF5_PARALLEL)
 	SET(HDF5_CC h5pcc)
   ELSE()
 	SET(HDF5_CC h5cc)
@@ -535,6 +579,19 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     MESSAGE(STATUS "Found libdl: ${LIBDL}")
     SET(HAVE_LIBDL ON)
     INCLUDE_DIRECTORIES(${LIBDL_INCLUDE_DIR})
+  ENDIF()
+
+  #Check to see if H5Z_SZIP exists in HDF5_Libraries. If so, we must use szip.
+  CHECK_LIBRARY_EXISTS(hdf5 H5Z_SZIP "" USE_SZIP)
+  IF(USE_SZIP)
+    FIND_LIBRARY(SZIP NAMES szip sz)
+    IF(SZIP)
+      SET(SZIP_LIBRARY ${SZIP})
+    ELSE()
+      MESSAGE(FATAL_ERROR "HDF5 Requires SZIP, but cannot find libszip or libsz.")
+    ENDIF()
+    #FIND_PACKAGE(SZIP NO_MODULE REQUIRED)
+    #INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
   ENDIF()
 
   SET(H5_USE_16_API 1)
@@ -598,6 +655,21 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDFOREACH()
 ENDIF() #USE_HDF5 OR ENABLE_NETCDF_4
 
+  ##
+  # Check to see if libhdf5 contains
+  # 'H5free_memory'.
+  ##
+#  CHECK_C_SOURCE_COMPILES("
+#  #include <hdf5.h>
+#  int main() {H5free_memory(NULL);}" HDF5_HAS_H5FREE)
+#  CHECK_SYMBOL_EXISTS(H5free_memory "H5public.h" HDF5_HAS_H5FREE)
+# CHECK_LIBRARY_EXISTS(hdf5 H5free_memory "-L${HDF5_hdf5_LIBRARY}" HDF5_HAS_H5FREE)
+#  MESSAGE(STATUS "HDF5_HAS_H5FREE: ${HDF5_HAS_H5FREE}")
+
+
+
+ENDIF()
+
 # Option to Build DAP Client
 OPTION(ENABLE_DAP "Enable DAP Client." ON)
 IF(ENABLE_DAP)
@@ -644,7 +716,7 @@ ENDIF()
 
 # Check to see if libtool supports
 
-# Check for the math library so it can be explicitely linked.
+# Check for the math library so it can be explicitly linked.
 IF(NOT WIN32)
   FIND_LIBRARY(HAVE_LIBM NAMES math m libm)
   MESSAGE(STATUS "Found Math library: ${HAVE_LIBM}")
@@ -686,6 +758,13 @@ ENDIF()
 
 SET(MATH "")
 IF(NOT WIN32)
+
+  # STDIO instead of posixio.
+  OPTION(ENABLE_STDIO "If true, use stdio instead of posixio (ex. on the Cray)" OFF)
+  IF(ENABLE_STDIO)
+    SET(USE_STDIO ON CACHE BOOL "")
+  ENDIF()
+
   # FFIO insteaad of PosixIO
   OPTION(ENABLE_FFIO "If true, use ffio instead of posixio" OFF)
   IF(ENABLE_FFIO)
@@ -693,8 +772,9 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
+##
 # Enable Tests
-#IF(NOT MSVC)
+##
 OPTION(ENABLE_TESTS "Enable basic tests, run with 'make test'." ON)
 IF(ENABLE_TESTS)
   SET(BUILD_TESTSETS ON CACHE BOOL "")
@@ -723,6 +803,27 @@ IF(ENABLE_TESTS)
     @ONLY
     )
 
+  ###
+  # This option dictates whether or not to turn on
+  # tests which are known to fail.  This is not the
+  # same thing as an 'expected failure'. Rather, these
+  # are tests that will need to be fixed eventually.
+  #
+  # By placing them here, we can occasionaly turn this
+  # flag on and see if any known failures have been
+  # fixed in the course of code improvement/other bug
+  # fixes.
+  #
+  # To use this, simply add as a fencepost around tests
+  # which are known to fail.
+  ###
+
+  OPTION(ENABLE_FAILING_TESTS "Run tests which are known to fail, check to see if any have been fixed." OFF)
+
+  ###
+  # End known-failures.
+  ###
+  MARK_AS_ADVANCED(ENABLE_FAILING_TESTS)
 ENDIF()
 
 ###
@@ -792,20 +893,24 @@ ENDIF()
 
 # Enable Parallel (different than pnetcdf).
 SET(STATUS_PARALLEL "OFF")
-OPTION(ENABLE_PARALLEL "Build netCDF-4 with parallel IO" "${HDF5_IS_PARALLEL}")
-IF(ENABLE_PARALLEL AND ENABLE_NETCDF_4)
-  IF(NOT HDF5_IS_PARALLEL)
+OPTION(ENABLE_PARALLEL4 "Build netCDF-4 with parallel IO" "${HDF5_PARALLEL}")
+IF(ENABLE_PARALLEL4 AND ENABLE_NETCDF_4)
+  IF(NOT HDF5_PARALLEL)
     SET(USE_PARALLEL OFF CACHE BOOL "")
     MESSAGE(STATUS "Cannot find HDF5 library built with parallel support. Disabling parallel build.")
   ELSE()
+    SET(HDF5_PARALLEL ON CACHE BOOL "")
     SET(USE_PARALLEL ON CACHE BOOL "")
+    SET(USE_PARALLEL4 ON CACHE BOOL "")
     SET(STATUS_PARALLEL "ON")
   ENDIF()
 ENDIF()
 
+
 # Options to enable parallel IO, tests.
 SET(STATUS_PNETCDF "OFF")
 OPTION(ENABLE_PNETCDF "Build with parallel I/O for classic and 64-bit offset files using parallel-netcdf." OFF)
+
 IF(ENABLE_PNETCDF)
   # Check for ncmpi_create in libpnetcdf, define USE_PNETCDF
   # Does the user want to turn on PNETCDF read ability?
@@ -815,13 +920,42 @@ IF(ENABLE_PNETCDF)
   IF(NOT PNETCDF)
     MESSAGE(STATUS "Cannot find pNetCDF library. Disabling pNetCDF support.")
     SET(USE_PNETCDF OFF CACHE BOOL "")
-  ENDIF()
-  SET(STATUS_PNETCDF "ON")
-  INCLUDE_DIRECTORIES(${PNETCDF_INCLUDE_DIR})
-  SET(HAVE_LIBPNETCDF ON)
-  # pnetcdf => parallel
-  SET(STATUS_PARALLEL "ON")
-  SET(USE_PARALLEL ON)
+  ELSE(NOT PNETCDF)
+    SET(USE_PARALLEL ON CACHE BOOL "")
+  ENDIF(NOT PNETCDF)
+#  ELSE()
+##	SET(TMP_INC ${CMAKE_REQUIRED_INCLUDES})
+#	SET(TMP_LB ${CMAKE_REQUIRED_LIBRARIES})
+#	SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${PNETCDF})
+#	SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${PNETCDF_INCLUDE_DIR})
+	# Check to see if version > 1.6.0
+	# CHECK_C_SOURCE_RUNS("
+		#include <stdio.h>
+      		#include <pnetcdf.h>
+    #  		int main() {
+    #  		int major = PNETCDF_VERSION_MAJOR;
+    #  		int minor = PNETCDF_VERSION_MINOR;
+    #  		int version = major*1000 + minor;
+    #  		int ok = (version >= (1*1000 + 6));
+    #  		return ok?0:1;}"
+    #  		HAVE_PNETCDF_16)
+
+#	SET(CMAKE_REQUIRED_INCLUDES ${TMP_INC})
+#	SET(CMAKE_REQUIRED_LIBRARIES ${TMP_LB})
+
+	#IF(HAVE_PNETCDF_16)
+	#	SET(ENABLE_PNETCDF "OFF")
+    #  		MESSAGE(WARNING "ENABLE_PNETCDF requires version 1.6.0 or later; disabled")
+    #	ELSE()
+
+   #	    SET(STATUS_PNETCDF "ON")
+    #	    INCLUDE_DIRECTORIES(${PNETCDF_INCLUDE_DIR})
+    #	    SET(HAVE_LIBPNETCDF ON)
+    	    # pnetcdf => parallel
+    #	    SET(STATUS_PARALLEL "ON")
+    #	    SET(USE_PARALLEL ON)
+  	#ENDIF()
+    #ENDIF()
 ENDIF()
 
 # Enable Parallel Tests.
@@ -842,12 +976,33 @@ IF(ENABLE_DOXYGEN)
     SET(BUILD_INTERNAL_DOCS NO CACHE STRING "")
   ENDIF()
 
-  OPTION(DOXYGEN_ENABLE_SERVER_SIDE_SEARCH "Enable doxygen server-side search. This is of interest to developers only." OFF)
-  IF(DOXYGEN_ENABLE_SERVER_SIDE_SEARCH)
-    SET(SERVER_SIDE_SEARCH YES CACHE STRING "")
+  ###
+  #
+  # If we are building release documentation, we need to set some
+  # variables that will be used in the Doxygen.in template.
+  ###
+  OPTION(ENABLE_DOXYGEN_BUILD_RELEASE_DOCS "Build release documentation.  This is of interest only to the netCDF developers." OFF)
+  IF(ENABLE_DOXYGEN_BUILD_RELEASE_DOCS)
+    SET(DOXYGEN_CSS_FILE "${CMAKE_SOURCE_DIR}/docs/release.css" CACHE STRING "")
+    SET(DOXYGEN_HEADER_FILE "${CMAKE_SOURCE_DIR}/docs/release_header.html" CACHE STRING "")
+    SET(DOXYGEN_SEARCHENGINE "NO" CACHE STRING "")
+    SET(ENABLE_DOXYGEN_SERVER_BASED_SEARCH NO CACHE STRING "")
   ELSE()
-    SET(SERVER_SIDE_SEARCH NO CACHE STRING "")
-  ENDIF()
+    SET(DOXYGEN_CSS_FILE "" CACHE STRING "")
+    SET(DOXYGEN_HEADER_FILE "" CACHE STRING "")
+    SET(DOXYGEN_SEARCHENGINE "YES" CACHE STRING "")
+
+    # If not using release document configuration,
+    # provide an option for server-based search.
+    OPTION(ENABLE_DOXYGEN_SERVER_SIDE_SEARCH "Configure Doxygen with server-based search." OFF)
+    IF(ENABLE_DOXYGEN_SERVER_SIDE_SEARCH)
+      SET(DOXYGEN_SERVER_BASED_SEARCH "YES" CACHE STRING "")
+    ELSE()
+      SET(DOXYGEN_SERVER_BASED_SEARCH "NO" CACHE STRING "")
+    ENDIF(ENABLE_DOXYGEN_SERVER_SIDE_SEARCH)
+
+
+  ENDIF(ENABLE_DOXYGEN_BUILD_RELEASE_DOCS)
   # Option to turn on the TODO list in the doxygen-generated documentation.
   OPTION(DOXYGEN_ENABLE_TASKS "Turn on test, todo, bug lists in documentation. This is of interest to developers only." OFF)
   IF(DOXYGEN_ENABLE_TASKS)
@@ -887,20 +1042,13 @@ IF(MSVC)
 ENDIF()
 
 # Set some of the options as advanced.
-MARK_AS_ADVANCED(ENABLE_INTERNAL_DOCS VALGRIND_TESTS ENABLE_PNETCDF ENABLE_COVERAGE_TESTS)
+MARK_AS_ADVANCED(ENABLE_INTERNAL_DOCS VALGRIND_TESTS ENABLE_COVERAGE_TESTS )
 MARK_AS_ADVANCED(ENABLE_DAP_REMOTE_TESTS ENABLE_DAP_LONG_TESTS USE_REMOTE_CDASH)
-MARK_AS_ADVANCED(DOXYGEN_ENABLE_SERVER_SIDE_SEARCH DOXYGEN_ENABLE_TASKS)
+MARK_AS_ADVANCED(ENABLE_DOXYGEN_BUILD_RELEASE_DOCS DOXYGEN_ENABLE_TASKS ENABLE_DOXYGEN_SERVER_SIDE_SEARCH)
 ################################
 # Option checks
 ################################
 
-#####
-# System inspection checks
-#####
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/oc2)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libsrc)
-SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_SOURCE_DIR}/libsrc)
 
 #
 # Library include checks
@@ -1002,7 +1150,6 @@ CHECK_FUNCTION_EXISTS(MPI_Comm_f2C  HAVE_MPI_COMM_F2C)
 CHECK_FUNCTION_EXISTS(memmove HAVE_MEMMOVE)
 CHECK_FUNCTION_EXISTS(getpagesize HAVE_GETPAGESIZE)
 CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
-CHECK_FUNCTION_EXISTS(mremap  HAVE_MREMAP)
 CHECK_FUNCTION_EXISTS(getrlimit HAVE_GETRLIMIT)
 CHECK_FUNCTION_EXISTS(_filelengthi64 HAVE_FILE_LENGTH_I64)
 
@@ -1025,21 +1172,20 @@ ENDMACRO()
 
 # A basic script used to convert m4 files
 FIND_PROGRAM(NC_M4 NAMES m4)
-IF(NOT MSVC)
-  IF(NOT NC_M4)
-    MESSAGE(FATAL "Cannot find 'm4' utility. Install m4 and try again.")
-  ENDIF(NOT NC_M4)
-ENDIF(NOT MSVC)
+IF(NC_M4)
+    SET(HAVE_M4 TRUE)
+ENDIF()
 
 MACRO(GEN_m4 filename)
-  IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c)
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c
-      COMMAND ${NC_M4}
-      ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c
-      VERBATIM
-      )
-  ENDIF()
+#  IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c)
+IF(HAVE_M4)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c
+    COMMAND ${NC_M4}
+    ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c
+    VERBATIM
+    )
+ENDIF(HAVE_M4)
 ENDMACRO(GEN_m4)
 
 # Binary tests, but ones which depend on value of 'TEMP_LARGE' being defined.
@@ -1084,7 +1230,7 @@ ENDMACRO()
 # Build a binary used by a script, but don't make a test out of it.
 MACRO(build_bin_test F)
   ADD_EXECUTABLE(${F} ${F}.c)
-  TARGET_LINK_LIBRARIES(${F} netcdf)
+  TARGET_LINK_LIBRARIES(${F} netcdf ${ALL_TLL_LIBS})
   IF(MSVC)
     SET_TARGET_PROPERTIES(${F}
       PROPERTIES LINK_FLAGS_DEBUG " /NODEFAULTLIB:MSVCRT"
@@ -1116,7 +1262,6 @@ ENDMACRO()
 # Binary tests which are used by a script looking for a specific name.
 MACRO(build_bin_test_no_prefix F)
   build_bin_test(${F})
-  ADD_TEST(${F} ${EXECUTABLE_OUTPUT_PATH}/${F})
   IF(MSVC)
     SET_PROPERTY(TEST ${F} PROPERTY FOLDER "tests/")
     SET_TARGET_PROPERTIES(${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
@@ -1130,14 +1275,9 @@ ENDMACRO()
 
 MACRO(add_bin_test prefix F)
   ADD_EXECUTABLE(${prefix}_${F} ${F}.c)
-  # Some tests explicitly depend on HDF5, e.g., ncdump_tst_h_scalar.
-  # Some others depend on HDF5_HL, e.g., nc_test4_tst_interops.
-  # Hence, we have to link the tests against those libraries.
-  # TODO see if we can implement a more fine-grained approach
   TARGET_LINK_LIBRARIES(${prefix}_${F}
+    ${ALL_TLL_LIBS}
     netcdf
-    ${HDF5_C_LIBRARIES}
-    ${HDF5_HL_LIBRARIES}
     )
   IF(MSVC)
     SET_TARGET_PROPERTIES(${prefix}_${F}
@@ -1309,7 +1449,7 @@ add_subdirectory(libdispatch)
 add_subdirectory(libsrc)
 
 IF(USE_PNETCDF)
-  add_subdirectory(libsrc5)
+  add_subdirectory(libsrcp)
 ENDIF(USE_PNETCDF)
 
 IF(USE_HDF5)
@@ -1344,6 +1484,7 @@ IF(ENABLE_TESTS)
   ENDIF()
   ADD_SUBDIRECTORY(nc_test)
   IF(USE_NETCDF4)
+    INCLUDE_DIRECTORIES(h5_test)
     ADD_SUBDIRECTORY(nc_test4)
     ADD_SUBDIRECTORY(h5_test)
   ENDIF()
@@ -1518,6 +1659,7 @@ is_enabled(ENABLE_NETCDF_4 HAS_HDF5)
 is_enabled(USE_SZIP HAS_SZIP)
 is_enabled(STATUS_PNETCDF HAS_PNETCDF)
 is_enabled(STATUS_PARALLEL HAS_PARALLEL)
+is_enabled(ENABLE_PARALLEL4 HAS_PARALLEL4)
 is_enabled(USE_DAP HAS_DAP)
 is_enabled(USE_DISKLESS HAS_DISKLESS)
 is_enabled(USE_MMAP HAS_MMAP)

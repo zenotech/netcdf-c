@@ -8,6 +8,9 @@ Research/Unidata. See COPYRIGHT file for more info.
 */
 
 #include "ncdispatch.h"
+#ifdef USE_PNETCDF
+#include <pnetcdf.h>  /* for ncmpi_strerror() */
+#endif
 
 /* Tell the user the version of netCDF. */
 static const char nc_libvers[] = PACKAGE_VERSION " of "__DATE__" "__TIME__" $";
@@ -260,7 +263,16 @@ const char *nc_strerror(int ncerr1)
       case NC_ECOMPRESS:
 	return "NetCDF: Generic Compression operation failure.";
       default:
+#ifdef USE_PNETCDF
+        /* The behavior of ncmpi_strerror here is to return
+           NULL, not a string.  This causes problems in (at least)
+           the fortran interface. */
+        return (ncmpi_strerror(ncerr1) ?
+                ncmpi_strerror(ncerr1) :
+                "Unknown Error");
+#else
 	 return "Unknown Error";
+#endif
    }
 }
 

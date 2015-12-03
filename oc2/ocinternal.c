@@ -12,6 +12,10 @@
 #endif
 #include <errno.h>
 
+#ifdef _WIN32
+typedef int pid_t;
+#endif
+
 #include "ocinternal.h"
 #include "ocdebug.h"
 #include "occlientparams.h"
@@ -72,9 +76,10 @@ ocinternalinitialize(void)
 #if 0
     if(sizeof(off_t) != sizeof(void*)) {
       fprintf(stderr,"OC xxdr depends on the assumption that sizeof(off_t) == sizeof(void*)\n");
-      //Commenting out for now, as this does not hold true on 32-bit
-      //linux systems.
-      //OCASSERT(sizeof(off_t) == sizeof(void*));
+      /*
+	Commenting out for now, as this does not hold true on 32-bit linux systems.
+      OCASSERT(sizeof(off_t) == sizeof(void*));
+	*/
     }
 #endif
 
@@ -611,8 +616,9 @@ ocset_curlproperties(OCstate* state)
 	/* If no cookie file was defined, define a default */
 	char tmp[OCPATHMAX+1];
         int stat;
-	snprintf(tmp,sizeof(tmp)-1,"%s/%s/",ocglobalstate.tempdir,OCDIR);
-#ifdef _MSC_VER
+	pid_t pid = getpid();
+	snprintf(tmp,sizeof(tmp)-1,"%s/%s.%ld/",ocglobalstate.tempdir,OCDIR,(long)pid);
+#ifdef _WIN32
 	stat = mkdir(tmp);
 #else
 	stat = mkdir(tmp,S_IRUSR | S_IWUSR | S_IXUSR);
@@ -629,7 +635,7 @@ ocset_curlproperties(OCstate* state)
 	    fprintf(stderr,"Cannot create cookie file\n");
 	    goto fail;
 	}
-		errno = 0;
+	errno = 0;
     }
     OCASSERT(state->curlflags.cookiejar != NULL);
 

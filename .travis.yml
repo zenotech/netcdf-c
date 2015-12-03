@@ -1,24 +1,18 @@
+sudo: required
 language: c
-compiler:
-  - gcc
-# - clang
+services:
+    - docker
+
+env:
+    matrix:
+        - DOCKIMG=unidata/nctests:serial USECMAKE=TRUE USEAC=TRUE USE_CC=gcc
+        - DOCKIMG=unidata/nctests:serial USECMAKE=TRUE USEAC=TRUE USE_CC=clang
+        - DOCKIMG=unidata/nctests:serial32 USECMAKE=TRUE USEAC=TRUE USE_CC=gcc
+        - DOCKIMG=unidata/nctests:serial32 USECMAKE=TRUE USEAC=TRUE USE_CC=clang
 
 before_install:
-  # Get CMake >=2.8.8, HDF5 >= 1.8.6
-  # - sudo add-apt-repository -y ppa:amcg/netcdf-parallel
-  - sudo apt-get update -qq
-  - sudo apt-get install -y -qq libcurl4-openssl-dev m4 wget autoconf libtool
-  - wget http://www.unidata.ucar.edu/downloads/netcdf/ftp/hdf5-1.8.14.tar.bz2
-  - sudo mv hdf5-1.8.14.tar.bz2 /usr/local
-  - pushd /usr/local
-  - sudo tar -jxf hdf5-1.8.14.tar.bz2
-  - popd
-
-before_script:
-  - mkdir -p m4
-  - autoreconf -if
-  - ./configure
+    - docker pull $DOCKIMG > /dev/null
 
 script:
-  - make
-  - LD_LIBRARY_PATH=/usr/local/lib make check
+
+    - docker run --rm -it -e USEDASH=TRUE -e RUNF=OFF -e RUNCXX=OFF -e RUNP=OFF -e RUNNCO=OFF -e USECMAKE=$USECMAKE -e USEAC=$USEAC -v $(pwd):/netcdf-c $DOCKIMG

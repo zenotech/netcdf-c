@@ -106,7 +106,7 @@ lput2(
 /* (1) Single space or newline/indent sequence, as needed. */
     
     linep = linep + 1 + len1;		/* new line position, without newline */
-    					/* add 1 extra for preceeding space   */
+    					/* add 1 extra for preceding space   */
     
     make_newline = (wrap && (first_item || linep > max_line_len + 2));
     					/* NEVER new line in no-wrap mode */
@@ -503,7 +503,7 @@ print_rows(
 	    }
 	    printf("%s", sbuf_str(sb));
 	    lastdelim (0, lastrow);
-	    annotate (vp, cor, 0L);
+	    annotate (vp, cor, d0);
 	} else {
 	    for (j = 0; j < marks_pending; j++) {
 		sbuf_cat(sb, "}");

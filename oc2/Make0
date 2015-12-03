@@ -1,11 +1,12 @@
-OCDIR=/home/dmh/git/oc
-#OCDIR=f:/git/oc
+# OCDIR is assumed to have been set
+TST=`if test "x$OCDIR" = x ; then echo "OCDIR not defined"; exit 1 fi`
+TST=`echo "OCDIR=$OCDIR"`
 
 THISDIR=../oc2
 
 # Make consistent with Makefile.am
 SRC=oc.c \
-daplex.c dapparse.c daptab.c \
+daplex.c dapparse.c dapy.c \
 occlientparams.c occompile.c occurlfunctions.c \
 ocdata.c ocdebug.c ocdump.c  \
 ocinternal.c ocnode.c \
@@ -16,7 +17,7 @@ occurlflags.c \
 xxdr.c
 
 HDRS=oc.h ocx.h \
-dapparselex.h daptab.h \
+dapparselex.h dapy.h \
 occlientparams.h occompile.h occonstraints.h occurlfunctions.h \
 ocdata.h ocdatatypes.h ocdebug.h ocdump.h \
 ocinternal.h ocnode.h \
@@ -24,7 +25,11 @@ ochttp.h ocread.h ocutil.h \
 ocbytes.h oclist.h ocuri.h oclog.h \
 xxdr.h
 
-FILES=${HDRS} ${SRC} dap.y makeparser.sh
+DOCS=docs/auth.html.in docs/oc.css
+
+MISC=dap.y
+
+FILES=${HDRS} ${SRC} ${MISC} ${DOCS}
 
 all::
 
@@ -42,14 +47,38 @@ makeoc::
 	# This should match the bison command in Makefile.am
 	rm -f dap.tab.c dap.tab.h
 	bison --debug -d -p dap dap.y
-	mv dap.tab.c daptab.c; mv dap.tab.h daptab.h
+	mv dap.tab.c dapy.c; mv dap.tab.h dapy.h
+
+changed:
+	${MAKE} -f Make0 NAMEONLY=1 diffoc
 
 diffoc::
+	@if ! test -e ${OCDIR} ; then echo "${OCDIR} not found"; exit ; fi
+	@for file in ${FILES} ; do \
+	    f="${OCDIR}/$$file" ; \
+	    x=`basename $$f|tr -d '' ` ; \
+	    if test "x$${x}" = "xdapy.c" -o "x$${x}" = "xdapy.h" ; then echo "ignore: $${x}"; continue; fi ;\
+	    if ! test -e ${THISDIR}/$$x ; then \
+		echo "Missing file: $$x"; \
+	    fi ; \
+	    if test -e ${THISDIR}/$$x -a -e ${OCDIR}/$$x ; then \
+		if ! diff --brief -wBb ${THISDIR}/$$x $$f > /dev/null ; then \
+		  if test "x${NAMEONLY}" = x1 ; then \
+		    echo "$$x" ;\
+		  else \
+		    echo diff -wBb ${THISDIR}/$$x $$f ;\
+		    diff -w ${THISDIR}/$$x $$f ; \
+		  fi; \
+		fi; \
+	    fi; \
+	done
+
+olddiff::
 	if ! test -e ${OCDIR} ; then echo "${OCDIR} not found"; exit ; fi
 	for file in ${FILES} ; do \
 	    f="${OCDIR}/$$file" ; \
 	    x=`basename $$f | tr -d '' ` ; \
-	    if test "x$${x}" = "xdaptab.c" -o "x$${x}" = "xdaptab.h" ; then echo "ignore: $${x}"; continue; fi ;\
+	    if test "x$${x}" = "xdapy.c" -o "x$${x}" = "xdapy.h" ; then echo "ignore: $${x}"; continue; fi ;\
 	    if test -e ${THISDIR}/$$x -a -e ${OCDIR}/$$x ; then \
 		diff --brief -wBb ${THISDIR}/$$x $$f ; \
 	    else \
@@ -59,7 +88,7 @@ diffoc::
 	for file in ${FILES} ; do \
 	    f="${OCDIR}/$$file" ; \
 	    x=`basename $$f|tr -d '' ` ; \
-	    if test "x$${x}" = "xdaptab.c" -o "x$${x}" = "xdaptab.h" ; then echo "ignore: $${x}"; continue; fi ;\
+	    if test "x$${x}" = "xdapy.c" -o "x$${x}" = "xdapy.h" ; then echo "ignore: $${x}"; continue; fi ;\
 	    if test -e ${THISDIR}/$$x -a -e ${OCDIR}/$$x ; then \
 		if ! diff --brief -wBb ${THISDIR}/$$x $$f > /dev/null ; then \
 		echo diff -wBb ${THISDIR}/$$x $$f ;\

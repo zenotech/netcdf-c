@@ -125,7 +125,7 @@ struct XXDR {
   int (*setpos)(XXDR*,off_t);
   off_t (*getpos)(XXDR*);
   off_t (*getavail)(XXDR*);
-  void (*free)(XXDR*);		  /* xdr kind specific free function */
+  void (*free)(XXDR*); /* xdr kind specific free function */
 };
 
 /* Track network order */

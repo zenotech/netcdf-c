@@ -1,4 +1,6 @@
 #!/bin/sh
+if test "x$SETX" = x1 ; then echo "file=$0"; set -x ; fi
+
 . ${srcdir}/tst_ncgen_shared.sh
 
 if test "${MODE}" = 3 ; then

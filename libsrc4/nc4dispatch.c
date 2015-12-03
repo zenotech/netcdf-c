@@ -13,7 +13,7 @@
 
 static NC_Dispatch NC4_dispatcher = {
 
-NC_DISPATCH_NC4,
+NC_FORMATX_NC4,
 
 NC4_create,
 NC4_open,
@@ -104,5 +104,11 @@ NC4_initialize(void)
     NC4_dispatch_table = &NC4_dispatcher;
     /* Register all known filters */
     nc_compress_register_all();
+    return NC_NOERR;
+}
+
+int
+NC4_finalize(void)
+{
     return NC_NOERR;
 }

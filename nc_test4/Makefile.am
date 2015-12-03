@@ -1,7 +1,7 @@
 # This is part of the netCDF package.
 # Copyright 2005 University Corporation for Atmospheric Research/Unidata
 # See COPYRIGHT file for conditions of use.
-# 
+#
 # This entire directory will be skipped if netCDF-4 is not enabled.
 #
 
@@ -21,7 +21,7 @@ tst_chunks tst_chunks2 tst_utf8 tst_fills tst_fills2 tst_fillbug	\
 tst_xplatform tst_xplatform2 tst_h_atts2 tst_endian_fill tst_atts	\
 t_type cdm_sea_soundings tst_camrun tst_vl tst_atts1 tst_atts2		\
 tst_vars2 tst_files5 tst_files6 tst_sync tst_h_strbug tst_h_refs        \
-tst_h_scalar tst_rename
+tst_h_scalar tst_rename tst_h5_endians tst_atts_string_rewrite
 
 check_PROGRAMS = $(NC4_TESTS) renamegroup tst_compress
 
@@ -37,7 +37,7 @@ TESTS += run_compress.sh
 
 # If the v2 API was built, add its test program.
 if BUILD_V2
-check_PROGRAMS += tst_v2 
+check_PROGRAMS += tst_v2
 TESTS += tst_v2
 endif # BUILD_V2
 
@@ -72,13 +72,13 @@ tst_ar5 tst_h_files3 tst_mem                                            \
 run_get_knmi_files.sh tst_knmi
 
 # This will run a parallel I/O benchmark for parallel builds.
-if TEST_PARALLEL
+if TEST_PARALLEL4
 TESTS += run_par_bm_test.sh
-endif # TEST_PARALLEL
+endif # TEST_PARALLEL4
 
 benchmarks: check
-	./run_bm_radar_2D.sh	
-	./run_bm_radar_2D_compression1.sh	
+	./run_bm_radar_2D.sh
+	./run_bm_radar_2D_compression1.sh
 	./run_bm.sh
 	./run_tst_chunks.sh
 	./run_bm_ar4.sh
@@ -86,8 +86,8 @@ endif # BUILD_BENCHMARKS
 
 # These are the tests for HDF4.
 if USE_HDF4
-check_PROGRAMS += tst_interops2 tst_chunk_hdf4
-TESTS += tst_interops2  tst_formatx_hdf4.sh run_chunk_hdf4.sh
+check_PROGRAMS += tst_interops2 tst_chunk_hdf4 tst_h4_lendian
+TESTS += tst_interops2  tst_formatx_hdf4.sh run_chunk_hdf4.sh tst_h4_lendian
 if USE_HDF4_FILE_TESTS
 check_PROGRAMS += tst_interops3
 TESTS += run_get_hdf4_files.sh tst_interops3
@@ -107,7 +107,7 @@ endif # USE_VALGRIND_TESTS
 
 # This are extra tests that will only be run if netcdf-4 is configured
 # with --enable-parallel-tests.
-if TEST_PARALLEL
+if TEST_PARALLEL4
 check_PROGRAMS += tst_mpi_parallel tst_parallel tst_parallel3	\
 tst_parallel4 tst_nc4perf
 TESTS += run_par_test.sh
@@ -122,7 +122,8 @@ run_bm_ar4.sh ref_tst_compounds.nc run_hdf4_valgrind_tests.sh		\
 ref_tst_xplatform2_1.nc ref_tst_xplatform2_2.nc ref_tst_dims.nc		\
 ref_tst_interops4.nc run_get_knmi_files.sh CMakeLists.txt               \
 run_grp_rename.sh tst_formatx_hdf4.sh                                   \
-run_chunk_hdf4.sh contiguous.hdf4 chunked.hdf4                          \
+run_chunk_hdf4.sh contiguous.hdf4 chunked.hdf4 \
+tst_h5_endians.c tst_h4_lendian.c tst_atts_string_rewrite.c \
 run_compress.sh
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc	\
@@ -133,7 +134,8 @@ tst_*.nc tst_floats2_*.cdl tst_ints2_*.cdl tst_shorts2_*.cdl		\
 tst_elena_*.cdl tst_simple*.cdl tst_chunks.cdl pr_A1.* tauu_A1.*	\
 usi_01.* thetau_01.* tst_*.nc tst_*.h5                                  \
 tst_grp_rename.cdl tst_grp_rename.nc tst_grp_rename.dmp ref_grp_rename.cdl \
-foo1.nc tst_interops2.h4 compress.cdl
+foo1.nc tst_interops2.h4 tst_h5_endians.nc tst_h4_lendian.h4 test.nc \
+tst_atts_string_rewrite.nc compress.cdl
 
 if USE_HDF4_FILE_TESTS
 DISTCLEANFILES = AMSR_E_L2_Rain_V10_200905312326_A.hdf	\
@@ -142,9 +144,3 @@ MYD29.A2009152.0000.005.2009153124331.hdf		\
 MYD29.A2002185.0000.005.2007160150627.hdf		\
 MOD29.A2000055.0005.005.2006267200024.hdf
 endif # HDF4_FILE_TESTS
-
-
-
-
-
-

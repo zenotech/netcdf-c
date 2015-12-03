@@ -15,7 +15,7 @@ Research/Unidata. See COPYRIGHT file for more info.
 Functions to learn about the variables in a file. */
 /*! \{ */ /* All these functions are part of this named group... */
 
-/** 
+/**
 \ingroup variables
 Find the ID of a variable, from the name.
 
@@ -23,7 +23,7 @@ The function nc_inq_varid returns the ID of a netCDF variable, given
 its name.
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param name Name of the variable.
@@ -60,12 +60,12 @@ nc_inq_varid(int ncid, const char *name, int *varidp)
    return ncp->dispatch->inq_varid(ncid, name, varidp);
 }
 
-/** 
+/**
 \ingroup variables
 Learn about a variable.
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -96,13 +96,13 @@ rh in an existing netCDF dataset named foo.nc:
 \code
      #include <netcdf.h>
         ...
-     int  status                     
-     int  ncid;                      
-     int  rh_id;                     
-     nc_type rh_type;                
-     int rh_ndims;                   
+     int  status
+     int  ncid;
+     int  rh_id;
+     nc_type rh_type;
+     int rh_ndims;
      int  rh_dimids[NC_MAX_VAR_DIMS];
-     int rh_natts 
+     int rh_natts
         ...
      status = nc_open ("foo.nc", NC_NOWRITE, &ncid);
      if (status != NC_NOERR) handle_error(status);
@@ -116,7 +116,7 @@ rh in an existing netCDF dataset named foo.nc:
 
  */
 int
-nc_inq_var(int ncid, int varid, char *name, nc_type *xtypep,  
+nc_inq_var(int ncid, int varid, char *name, nc_type *xtypep,
 	   int *ndimsp, int *dimidsp, int *nattsp)
 {
    NC* ncp;
@@ -128,12 +128,12 @@ nc_inq_var(int ncid, int varid, char *name, nc_type *xtypep,
 				     NULL);
 }
 
-/** 
+/**
 \ingroup variables
 Learn the name of a variable.
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -146,7 +146,7 @@ NULL.
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
  */
-int 
+int
 nc_inq_varname(int ncid, int varid, char *name)
 {
    return nc_inq_var(ncid, varid, name, NULL, NULL,
@@ -157,7 +157,7 @@ nc_inq_varname(int ncid, int varid, char *name)
 \ingroup variables
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -168,7 +168,7 @@ nc_inq_ncid().
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
  */
-int 
+int
 nc_inq_vartype(int ncid, int varid, nc_type *typep)
 {
    return nc_inq_var(ncid, varid, NULL, typep, NULL,
@@ -179,7 +179,7 @@ nc_inq_vartype(int ncid, int varid, nc_type *typep)
 \ingroup variables
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -191,7 +191,7 @@ stored. \ref ignored_if_null.
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
  */
-int 
+int
 nc_inq_varndims(int ncid, int varid, int *ndimsp)
 {
    return nc_inq_var(ncid, varid, NULL, NULL, ndimsp, NULL, NULL);
@@ -201,7 +201,7 @@ nc_inq_varndims(int ncid, int varid, int *ndimsp)
 \ingroup variables
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -213,10 +213,10 @@ stored. \ref ignored_if_null.
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
  */
-int 
+int
 nc_inq_vardimid(int ncid, int varid, int *dimidsp)
 {
-   return nc_inq_var(ncid, varid, NULL, NULL, NULL, 
+   return nc_inq_var(ncid, varid, NULL, NULL, NULL,
 		     dimidsp, NULL);
 }
 
@@ -224,7 +224,7 @@ nc_inq_vardimid(int ncid, int varid, int *dimidsp)
 \ingroup variables
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -236,13 +236,13 @@ stored. \ref ignored_if_null.
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
  */
-int 
+int
 nc_inq_varnatts(int ncid, int varid, int *nattsp)
 {
    if (varid == NC_GLOBAL)
       return nc_inq_natts(ncid,nattsp);
    /*else*/
-   return nc_inq_var(ncid, varid, NULL, NULL, NULL, NULL, 
+   return nc_inq_var(ncid, varid, NULL, NULL, NULL, NULL,
 		     nattsp);
 }
 
@@ -253,7 +253,7 @@ Learn the storage and deflate settings for a variable.
 This is a wrapper for nc_inq_var_all().
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -271,7 +271,7 @@ variable, the deflate_level will be writen here.
 \ref ignored_if_null.
 
 \returns ::NC_NOERR No error.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
 */
@@ -323,7 +323,7 @@ files with szip compression.
 This is a wrapper for nc_inq_var_all().
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -336,7 +336,7 @@ here. \ref ignored_if_null.
 
 \returns ::NC_NOERR No error.
 \returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
 \returns ::NC_ENOTVAR Invalid variable ID.
 */
 int
@@ -372,12 +372,12 @@ nc_inq_var_szip(int ncid, int varid, int *options_maskp, int *pixels_per_blockp)
 }
 
 /** \ingroup variables
-Learn the checksum settings for a variable. 
+Learn the checksum settings for a variable.
 
 This is a wrapper for nc_inq_var_all().
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -388,7 +388,7 @@ it is not. \ref ignored_if_null.
 
 \returns ::NC_NOERR No error.
 \returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
 \returns ::NC_ENOTVAR Invalid variable ID.
 */
 int
@@ -422,7 +422,7 @@ nc_inq_var_fletcher32(int ncid, int varid, int *fletcher32p)
 This is a wrapper for nc_inq_var_all().
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -436,7 +436,7 @@ ignored_if_null.
 
 \returns ::NC_NOERR No error.
 \returns ::NC_EBADID Bad ncid.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
 \returns ::NC_ENOTVAR Invalid variable ID.
 */
 int
@@ -458,13 +458,13 @@ The fill mode of a variable is set by nc_def_var_fill().
 This is a wrapper for nc_inq_var_all().
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
 
 \param no_fill Pointer to an integer which will get a 1 if no_fill
-mode is set for this variable. \ref ignored_if_null. 
+mode is set for this variable. \ref ignored_if_null.
 
 \param fill_valuep A pointer which will get the fill value for this
 variable. \ref ignored_if_null.
@@ -505,7 +505,7 @@ Find the endianness of a variable.
 This is a wrapper for nc_inq_var_all().
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
-nc_create(), nc_def_grp(), or associated inquiry functions such as 
+nc_create(), nc_def_grp(), or associated inquiry functions such as
 nc_inq_ncid().
 
 \param varid Variable ID
@@ -516,7 +516,7 @@ stored in big-endian format, and ::NC_ENDIAN_NATIVE if the endianness
 is not set, and the variable is not created yet.
 
 \returns ::NC_NOERR No error.
-\returns ::NC_ENOTNC4 Not a netCDF-4 file. 
+\returns ::NC_ENOTNC4 Not a netCDF-4 file.
 \returns ::NC_EBADID Bad ncid.
 \returns ::NC_ENOTVAR Invalid variable ID.
 */
@@ -546,34 +546,26 @@ nc_inq_var_endian(int ncid, int varid, int *endianp)
       );
 }
 
-/** Return number and list of unlimited dimensions.
+/*! Return number and list of unlimited dimensions.
 
 In netCDF-4 files, it's possible to have multiple unlimited
 dimensions. This function returns a list of the unlimited dimension
 ids visible in a group.
 
 Dimensions are visible in a group if they have been defined in that
-group, or any ancestor group. 
+group, or any ancestor group.
 
-ncid
-    NetCDF group ID, from a previous call to nc_open, nc_create, nc_def_grp, etc.
-nunlimdimsp
-    A pointer to an int which will get the number of visible unlimited dimensions. Ignored if NULL.
-unlimdimidsp
-    A pointer to an already allocated array of int which will get the ids of all visible unlimited dimensions. Ignored if NULL. To allocate the correct length for this array, call nc_inq_unlimdims with a NULL for this parameter and use the nunlimdimsp parameter to get the number of visible unlimited dimensions. 
+\param ncid NetCDF group ID, from a previous call to nc_open, nc_create, nc_def_grp, etc.
+\param nunlimdimsp A pointer to an int which will get the number of visible unlimited dimensions. Ignored if NULL.
+\param unlimdimidsp A pointer to an already allocated array of int which will get the ids of all visible unlimited dimensions. Ignored if NULL. To allocate the correct length for this array, call nc_inq_unlimdims with a NULL for this parameter and use the nunlimdimsp parameter to get the number of visible unlimited dimensions.
 
-Errors
+This function will return one of the following values.
 
-NC_NOERR
-    No error.
-NC_EBADID
-    Bad group id.
-NC_ENOTNC4
-    Attempting a netCDF-4 operation on a netCDF-3 file. NetCDF-4 operations can only be performed on files defined with a create mode which includes flag HDF5. (see nc_open).
-NC_ESTRICTNC3
-    This file was created with the strict netcdf-3 flag, therefore netcdf-4 operations are not allowed. (see nc_open).
-NC_EHDFERR
-    An error was reported by the HDF5 layer. 
+\returns ::NC_NOERR No error.
+\returns ::NC_EBADID Bad group id.
+\returns ::NC_ENOTNC4 Attempting a netCDF-4 operation on a netCDF-3 file. NetCDF-4 operations can only be performed on files defined with a create mode which includes flag HDF5. (see nc_open).
+\returns ::NC_ESTRICTNC3 This file was created with the strict netcdf-3 flag, therefore netcdf-4 operations are not allowed. (see nc_open).
+\returns ::NC_EHDFERR An error was reported by the HDF5 layer.
 
  */
 int
@@ -582,7 +574,7 @@ nc_inq_unlimdims(int ncid, int *nunlimdimsp, int *unlimdimidsp)
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->inq_unlimdims(ncid, nunlimdimsp, 
+    return ncp->dispatch->inq_unlimdims(ncid, nunlimdimsp,
 					unlimdimidsp);
 }
 

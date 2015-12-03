@@ -259,8 +259,22 @@ nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 	  var->chunksizes[d] = 1; /* overwritten below, if all dims are unlimited */
       }
    }
-
-   if (var->ndims > 0 && var->ndims == num_unlim) { /* all dims unlimited */
+   /* Special case to avoid 1D vars with unlim dim taking huge amount
+      of space (DEFAULT_CHUNK_SIZE bytes). Instead we limit to about
+      4KB */
+#define DEFAULT_1D_UNLIM_SIZE (4096) /* TODO: make build-time parameter? */
+   if (var->ndims == 1 && num_unlim == 1) {
+       if (DEFAULT_CHUNK_SIZE / type_size <= 0)
+	 suggested_size = 1;
+       else if (DEFAULT_CHUNK_SIZE / type_size > DEFAULT_1D_UNLIM_SIZE)
+	 suggested_size = DEFAULT_1D_UNLIM_SIZE;
+       else
+	 suggested_size = DEFAULT_CHUNK_SIZE / type_size;
+       var->chunksizes[0] = suggested_size / type_size;
+       LOG((4, "%s: name %s dim %d DEFAULT_CHUNK_SIZE %d num_values %f type_size %d "
+	    "chunksize %ld", __func__, var->name, d, DEFAULT_CHUNK_SIZE, num_values, type_size, var->chunksizes[0]));
+   }
+   if (var->ndims > 1 && var->ndims == num_unlim) { /* all dims unlimited */
        suggested_size = pow((double)DEFAULT_CHUNK_SIZE/type_size, 1.0/(double)(var->ndims));
        for (d = 0; d < var->ndims; d++)
        {
@@ -900,7 +914,7 @@ NC4_def_var_extra(int ncid, int varid,
       var->contiguous = NC_FALSE;
    }
 
-   /* Fltcher32 checksum error protection? */
+   /* Fletcher32 checksum error protection? */
    if (fletcher32)
    {
       var->fletcher32 = *fletcher32; var->fletcher32_set = NC_TRUE;
@@ -938,6 +952,10 @@ NC4_def_var_extra(int ncid, int varid,
 
 	 if ((retval = check_chunksizes(grp, var, chunksizes)))
 	    return retval;
+	 for (d = 0; d < var->ndims; d++) {
+	    if(var->dim[d]->len > 0 && chunksizes[d] > var->dim[d]->len)
+	       return NC_EBADCHUNK;
+	 }
 
 	 /* Set the chunksizes for this variable. */
 	 for (d = 0; d < var->ndims; d++)
@@ -1054,7 +1072,7 @@ NC4_def_var_fletcher32(int ncid, int varid, int fletcher32)
    and before nc_enddef. 
 
    Chunking is required in any dataset with one or more unlimited
-   dimension in HDF5, or any dataset using a filter.
+   dimensions in HDF5, or any dataset using a filter.
 
    Where chunksize is a pointer to an array of size ndims, with the
    chunksize in each dimension. 
@@ -1357,7 +1375,7 @@ NC4_rename_var(int ncid, int varid, const char *name)
 int
 NC4_var_par_access(int ncid, int varid, int par_access) 
 {
-#ifndef USE_PARALLEL
+#ifndef USE_PARALLEL4
    return NC_ENOPAR;
 #else
    NC *nc; 
@@ -1407,7 +1425,7 @@ NC4_var_par_access(int ncid, int varid, int par_access)
    else
       var->parallel_access = NC_INDEPENDENT;
    return NC_NOERR;
-#endif /* USE_PARALLEL */
+#endif /* USE_PARALLEL4 */
 }
 
 static int

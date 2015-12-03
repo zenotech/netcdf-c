@@ -17,21 +17,27 @@ SET (nc_test_SRC
 ADD_EXECUTABLE(nc_test ${nc_test_SRC})
 TARGET_LINK_LIBRARIES(nc_test
   netcdf
-  # util.c explicitly uses libm
   ${HAVE_LIBM}
   )
 
-# Some extra tests
+# Some extra stand-alone tests
 SET(TESTS t_nc tst_small tst_misc tst_norm tst_names tst_nofill tst_nofill2 tst_nofill3 tst_meta)
 
 IF(NOT HAVE_BASH)
   SET(TESTS ${TESTS} tst_atts3)
 ENDIF()
 
+IF(USE_NETCDF4)
+  SET(TESTS ${TESTS} tst_atts)
+  SET(TESTS ${TESTS} tst_put_vars)
+ENDIF()
+
 IF(USE_PNETCDF)
   build_bin_test_no_prefix(tst_pnetcdf)
   build_bin_test_no_prefix(tst_parallel2)
+  build_bin_test_no_prefix(tst_addvar)
   add_sh_test(nc_test run_pnetcdf_test)
+  add_bin_test(nc_test tst_formatx_pnetcdf)
 ENDIF()
 
 IF(LARGE_FILE_TESTS)

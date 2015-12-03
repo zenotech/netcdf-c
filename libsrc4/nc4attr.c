@@ -409,7 +409,7 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
       }
       else
 	 memcpy(var->fill_value, data, type_size);
-      
+
       /* Indicate that the fill value was changed, if the variable has already
        * been created in the file, so the dataset gets deleted and re-created. */
       if (var->created)
@@ -454,19 +454,29 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
       }
       else if (type_class == NC_STRING)
       {
-         LOG((4, "copying array of NC_STRING"));
-         if (!(att->stdata = malloc(sizeof(char *) * att->len)))
-            BAIL(NC_ENOMEM);
-         for (i = 0; i < att->len; i++)
-         {
+        LOG((4, "copying array of NC_STRING"));
+        if (!(att->stdata = malloc(sizeof(char *) * att->len))) {
+          BAIL(NC_ENOMEM);
+        }
+
+        /* If we are overwriting an existing attribute,
+           specifically an NC_CHAR, we need to clean up
+           the pre-existing att->data. */
+        if (!new_att && att->data) {
+          free(att->data);
+          att->data = NULL;
+        }
+
+        for (i = 0; i < att->len; i++)
+          {
             if(NULL != ((char **)data)[i]) {
-               LOG((5, "copying string %d of size %d", i, strlen(((char **)data)[i]) + 1));
-               if (!(att->stdata[i] = strdup(((char **)data)[i])))
-                  BAIL(NC_ENOMEM);
-           }
-           else
-               att->stdata[i] = ((char **)data)[i];
-         }
+              LOG((5, "copying string %d of size %d", i, strlen(((char **)data)[i]) + 1));
+              if (!(att->stdata[i] = strdup(((char **)data)[i])))
+                BAIL(NC_ENOMEM);
+            }
+            else
+              att->stdata[i] = ((char **)data)[i];
+          }
       }
       else
       {
@@ -616,7 +626,7 @@ NC4_rename_att(int ncid, int varid, const char *name,
    NC *nc;
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
-   NC_VAR_INFO_T *var;
+   NC_VAR_INFO_T *var = NULL;
    NC_ATT_INFO_T *att, *list;
    char norm_newname[NC_MAX_NAME + 1], norm_name[NC_MAX_NAME + 1];
    hid_t datasetid = 0;
@@ -711,6 +721,10 @@ NC4_rename_att(int ncid, int varid, const char *name,
       return NC_ENOMEM;
    strcpy(att->name, norm_newname);
    att->dirty = NC_TRUE;
+
+   /* Mark attributes on variable dirty, so they get written */
+   if(var)
+       var->attr_dirty = NC_TRUE;
 
    return retval;
 }
