@@ -41,44 +41,6 @@ typedef union {
         int rank;
 	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
     } zfp; 
-    struct {
-	struct jp2_compress {
-           int cp_reduce;
-           int cp_layer;
-           int decod_format;
-           int cod_format;
-           OPJ_LIMIT_DECODING cp_limit_decoding;
-	} decompress;
-	struct jp2_compress {
-           bool tile_size_on;
-           int cp_tx0;
-           int cp_ty0;
-           int cp_tdx;
-           int cp_tdy;
-           int cp_disto_alloc;
-           int cp_fixed_alloc;
-           int cp_fixed_quality;
-           int *cp_matrice;
-           int csty;
-           OPJ_PROG_ORDER prog_order;
-           opj_poc_t POC[32];
-           int numpocs;
-           int tcp_numlayers;
-           float tcp_rates[100];
-           float tcp_distoratio[100];
-           int numresolution;
-           int cblockw_init;
-           int cblockh_init;
-           int irreversible;
-           int roi_compno;
-           int roi_shift;
-           int res_spec;
-           int prcw_init[J2K_MAXRLVLS];
-           int prch_init[J2K_MAXRLVLS];
-	} compress;
-        int rank;
-	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
-    } jp2;
 } nc_compression_t;
 
 /*

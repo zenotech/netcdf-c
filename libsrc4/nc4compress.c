@@ -16,9 +16,6 @@
 #ifdef ZFP_FILTER
 #include <zfp.h>
 #endif
-#ifdef JP2_FILTER
-#include <openjpeg.h>
-#endif
 
 #include "netcdf.h"
 #include "hdf5.h"
@@ -87,7 +84,6 @@ static int szip_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int bzip2_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int fpzip_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 static int zfp_valid(const NCC_COMPRESSOR*, nc_compression_t*);
-static int jp2_valid(const NCC_COMPRESSOR*, nc_compression_t*);
 
 /*Forward*/
 #ifdef BZIP2_FILTER
@@ -98,9 +94,6 @@ static size_t H5Z_filter_fpzip(unsigned,size_t,const unsigned[],size_t,size_t*,v
 #endif
 #ifdef ZFP_FILTER
 static size_t H5Z_filter_zfp(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
-#endif
-#ifdef JP2_FILTER
-static size_t H5Z_filter_jp2(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
 #endif
 
 #ifndef DEBUG
@@ -1114,187 +1107,6 @@ cleanupAndFail:
 
 /**************************************************/
 
-static int
-jp2_register(const NCC_COMPRESSOR* info, H5Z_class2_t* h5info)
-{
-    herr_t status = 0;
-#ifdef JP2_FILTER
-    /* finish the H5Z_class2_t instance */
-    h5info->filter = (H5Z_func_t)H5Z_filter_jp2;
-    status = H5Zregister(h5info);
-    registered[info->nccid] = (status ? 0 : 1);
-#endif
-    return THROW((status ? NC_ECOMPRESS : NC_NOERR));
-}
-    
-static int
-jp2_attach(const NCC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
-{
-    int status = NC_NOERR;
-    if(!registered[info->nccid]) {status = NC_ECOMPRESS; goto done;}
-    if((status = jp2_valid(info,parms)) != NC_NOERR) goto done;
-    if(H5Pset_filter(plistid,info->h5id,H5Z_FLAG_MANDATORY,NC_NELEMS_JP2,parms->params))
-	status = NC_ECOMPRESS;
-done:
-    return THROW(status);
-}
-    
-static int
-jp2_valid(const NCC_COMPRESSOR* info, nc_compression_t* parms)
-{
-    int status = NC_NOERR;
-    if(parms->jp2.rank < 0 || parms->jp2.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
-done:
-    return THROW(status);
-}
-
-#ifdef JP2_FILTER
-/**
-Assumptions:
-1. Each incoming block represents 1 complete chunk
-*/
-static size_t
-H5Z_filter_jp2(unsigned int flags, size_t cd_nelmts,
-                     const unsigned int argv[], size_t nbytes,
-                     size_t *buf_size, void **buf)
-{
-    int i;
-    jp2_params jp2;
-    nc_compression_t* params;
-    int rank;
-    size_t outbuflen;
-    char *outbuf = NULL;
-    size_t inbytes;
-    size_t bufbytes;
-    size_t elemsize;
-    size_t totalsize;
-    size_t chunksizes[NC_MAX_VAR_DIMS];
-    int nx,ny,nz;
-    size_t nzsize;
-    int choice = 0; /* default is prefix */
-    
-    if(nbytes == 0) return 0; /* sanity check */
-
-    params = (nc_compression_t*)argv;
-
-    for(choice=0,totalsize=1,i=0;i<rank;i++) {
-	chunksizes[i] = params->jp2.chunksizes[i];
-	totalsize *= chunksizes[i];
-	if(chunksizes[i] > 1) choice++;
-    }
-    choice = (choice == 2 && rank > 2 ? 1 : 0);
-
-    if(choice) {
-        nx = ny = 1;
-        for(i=0;i<rank;i++) {
-            if(chunksizes[i] > 1) {
-                if(nx == 1) nx = chunksizes[i];
-                else if(ny == 1) ny = chunksizes[i];
-		else {
-	  	    fprintf(stderr,"At most, 2 jp2 chunksizes can be > 1\n");
-		    return NC_ECOMPRESS;
-		}
-            }
-        }
-    } else { /*prefix*/
-        /* Do some computations */
-        nzsize = 0;
-        if(rank >= 2) {
-            for(nzsize=1,i=1;i<rank;i++) {
-                nzsize *= chunksizes[i];
-            }
-        }
-    }
-
-    /* Element size (in bytes) */
-    elemsize = (isdouble ? sizeof(double) : sizeof(float));
-
-    if(flags & H5Z_FLAG_REVERSE) {
-        /** Decompress data.
-         **/
-	struct jp2_decompress* jparms = &params->jp2.decompress;
-
-        /* Number of uncompressed bytes */
-        inbytes = totalsize * elemsize;
-
-        /* Allocated size of the target buffer */
-        bufbytes = 1024 + inbytes;
-
-	if(choice) {
-	    jp2.nx = nz;
-	    jp2.ny = ny;
-	    jp2.nz = nz;
-	} else {/* prefix */
-	    jp2.nx = chunksizes[0];
-	    jp2.ny = (rank >= 2 ? chunksizes[1] : 1);
-	    jp2.nz = (rank >= 3 ? nzsize : 1);
-	}
-
-        /* Create the decompressed data buffer */
-        outbuf = (char*)malloc(bufbytes);
-
-        /* Decompress into the compressed data buffer */
-        outbuflen = jp2_decompress(&jp2,outbuf,*buf,nbytes);
-        if(outbuflen == 0)
-            goto cleanupAndFail;
-
-        /* Replace the buffer given to us with our decompressed data buffer */
-        free(*buf);
-        *buf = outbuf;
-        *buf_size = bufbytes;
-        outbuf = NULL;
-        return outbuflen; /* # valid bytes */
-
-    } else {
-  
-        /** Compress data.
-         **/
-
-        /* fill in jp2 */
-	if(choice) {
-	    jp2.nx = nz;
-	    jp2.ny = ny;
-	    jp2.nz = nz;
-	} else { /*prefix*/
-	    jp2.nx = chunksizes[0];
-	    jp2.ny = (rank >= 2 ? chunksizes[1] : 1);
-	    jp2.nz = (rank >= 3 ? nzsize : 1);
-	}
-
-        jp2.type = isdouble ? JP2_TYPE_DOUBLE : JP2_TYPE_FLOAT;
-
-        jp2_set_precision(&jp2,(unsigned int)prec);
-        if(rate != 0)
-            jp2_set_rate(&jp2,rate);
-        if(accuracy != 0)
-            jp2_set_accuracy(&jp2,accuracy);
-
-        /* Create the compressed data buffer */
-        bufbytes = jp2_estimate_compressed_size(&jp2);
-        outbuf = (char*)malloc(bufbytes);
-
-        /* Compress into the compressed data buffer */
-        outbuflen = jp2_compress(&jp2,*buf,outbuf,bufbytes);
-        if(outbuflen == 0)
-            goto cleanupAndFail;
-
-        /* Replace the buffer given to us with our decompressed data buffer */
-        free(*buf);
-        *buf = outbuf;
-        *buf_size = bufbytes;
-        outbuf = NULL;
-        return outbuflen; /* # valid bytes */
-    }
-
-cleanupAndFail:
-    if(outbuf)
-        free(outbuf);
-    return 0;
-}
-#endif    
-
-/**************************************************/
-
 /* Provide access to all the compressors */
 static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
     {NC_ZIP, "zip", NC_NELEMS_ZIP, H5Z_FILTER_DEFLATE, zip_register, zip_attach, generic_inq, zip_valid},
@@ -1302,6 +1114,5 @@ static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
     {NC_BZIP2, "bzip2", NC_NELEMS_BZIP2, H5Z_FILTER_BZIP2, bzip2_register, bzip2_attach, generic_inq, bzip2_valid},
     {NC_FPZIP, "fpzip", NC_NELEMS_FPZIP, H5Z_FILTER_FPZIP, fpzip_register, fpzip_attach, generic_inq, fpzip_valid},
     {NC_ZFP, "zfp", NC_NELEMS_ZFP, H5Z_FILTER_ZFP, zfp_register, zfp_attach, generic_inq, zfp_valid},
-    {NC_JP2, "jp2", NC_NELEMS_JP2, H5Z_FILTER_JP2, jp2_register, jp2_attach, generic_inq, jp2_valid},
     {NC_NOZIP, "\0", 0, 0, NULL, NULL, NULL, NULL} /* must be last */
 };
