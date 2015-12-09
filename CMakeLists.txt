@@ -518,6 +518,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     ENDIF()
 
     OPTION(ENABLE_DYNAMIC_LOADING "Enable Dynamic Loading" ON)
+    SET(USE_LIBDL OFF CACHE BOOL "")
     IF(ENABLE_DYNAMIC_LOADING)
       SET(USE_LIBDL ON CACHE BOOL "")
     ENDIF()
@@ -525,7 +526,6 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDIF(NOT MSVC)
 
   CHECK_LIBRARY_EXISTS(hdf5 H5free_memory "" HDF5_HAS_H5FREE)
-
 
   # Assert HDF5 version.
   SET(HDF5_VERSION_REQUIRED 1.8.10)
@@ -583,8 +583,6 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     ELSE()
       MESSAGE(FATAL_ERROR "HDF5 Requires SZIP, but cannot find libszip or libsz.")
     ENDIF()
-    #FIND_PACKAGE(SZIP NO_MODULE REQUIRED)
-    #INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
   ENDIF()
 
   SET(H5_USE_16_API 1)
@@ -1596,9 +1594,21 @@ SET(LDFLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS_${CMAKE_BU
 is_disabled(BUILD_SHARED_LIBS enable_static)
 is_enabled(BUILD_SHARED_LIBS enable_shared)
 
-# Remove libnetcdf from NC_LIBS.
+##
+# Remove libnetcdf from NC_LIBS, store in TMP_NC_LIBS.
+##
 STRING(REPLACE "-lnetcdf " "" TMP_NC_LIBS "${NC_LIBS}")
+MESSAGE(STATUS "TMP_NC_LIBS: ${TMP_NC_LIBS}")
+
+##
+# Convert string back to semicolon-separated list,
+# use remove duplicates to do just that, convert back
+# to string.
+##
 SET(LIBS "${TMP_NC_LIBS}")
+STRING(REPLACE " " ";" LIBS "${LIBS}")
+LIST(REMOVE_DUPLICATES "LIBS")
+STRING(REPLACE ";" " " LIBS "${LIBS}")
 
 is_enabled(ENABLE_V2_API HAS_NC2)
 is_enabled(ENABLE_NETCDF_4 HAS_NC4)

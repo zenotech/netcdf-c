@@ -5,7 +5,7 @@ IF(USE_X_GETOPT)
 ENDIF()
 
 ADD_EXECUTABLE(ncgen ${ncgen_FILES})
-TARGET_LINK_LIBRARIES(ncgen netcdf ${ALL_TLL_LIBS})
+TARGET_LINK_LIBRARIES(ncgen ${ALL_TLL_LIBS} netcdf)
 
 ####
 # We have to do a little tweaking
