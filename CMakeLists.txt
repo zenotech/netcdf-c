@@ -298,6 +298,8 @@ IF(NOT NETCDF_LIB_NAME STREQUAL "")
   SET(MOD_NETCDF_NAME ON)
 ENDIF()
 
+
+
 # Set the appropriate compiler/architecture for universal OSX binaries.
 IF(${CMAKE_SYSTEM_NAME} EQUAL "Darwin")
   SET(CMAKE_OSX_ARCHITECTURES i386;x86_64)
@@ -449,8 +451,9 @@ ENDIF()
 SET(NCIO_MINBLOCKSIZE 256 CACHE STRING "Minimum I/O Blocksize for netCDF classic and 64-bit offset format files.")
 
 # Build netCDF4
-OPTION(ENABLE_NETCDF_4 "Enable netCDF-4" ON)
-IF(ENABLE_NETCDF_4)
+OPTION(ENABLE_NETCDF4 "Enable netCDF-4" ON)
+OPTION(ENABLE_NETCDF_4 "Enable netCDF-4" ${ENABLE_NETCDF4})
+IF(ENABLE_NETCDF_4 OR ENABLE_NETCDF4)
   SET(USE_NETCDF4 ON CACHE BOOL "")
   SET(ENABLE_NETCDF_4 ON CACHE BOOL "")
   SET(ENABLE_NETCDF4 ON CACHE BOOL "")
@@ -517,8 +520,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       SET(USE_PARALLEL_POSIX ON)
     ENDIF()
 
-    OPTION(ENABLE_DYNAMIC_LOADING "Enable Dynamic Loading" ON)
-    SET(USE_LIBDL OFF CACHE BOOL "")
+    OPTION(ENABLE_DYNAMIC_LOADING "Enable Dynamic Loading" OFF)
     IF(ENABLE_DYNAMIC_LOADING)
       SET(USE_LIBDL ON CACHE BOOL "")
     ENDIF()
@@ -561,6 +563,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   # In case hdf5 has a dependency on libdl, the user must specify
   # -DENABLE_DYNAMIC_LOADING=ON when configuring netcdf.
   IF(USE_LIBDL)
+    MESSAGE(STATUS "Looking for LIBDL")
     FIND_LIBRARY(LIBDL NAMES dl dld)
     FIND_PATH(LIBDL_INCLUDE_DIR dlfcn.h)
     IF(NOT LIBDL)
@@ -598,19 +601,6 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDIF()
   SET(USE_ZLIB ON)
   INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
-
-  ##
-  # Check to see if libhdf5 contains
-  # 'H5free_memory'.
-  ##
-#  CHECK_C_SOURCE_COMPILES("
-#  #include <hdf5.h>
-#  int main() {H5free_memory(NULL);}" HDF5_HAS_H5FREE)
-#  CHECK_SYMBOL_EXISTS(H5free_memory "H5public.h" HDF5_HAS_H5FREE)
-# CHECK_LIBRARY_EXISTS(hdf5 H5free_memory "-L${HDF5_hdf5_LIBRARY}" HDF5_HAS_H5FREE)
-#  MESSAGE(STATUS "HDF5_HAS_H5FREE: ${HDF5_HAS_H5FREE}")
-
-
 
 ENDIF()
 
@@ -1442,14 +1432,6 @@ IF(ENABLE_TESTS)
     ADD_SUBDIRECTORY(examples)
   ENDIF()
 ENDIF()
-
-# Code to generate an export header
-#GENERATE_EXPORT_HEADER(netcdf
-# BASE_NAME netcdf
-# EXPORT_MACRO_NAME netcdf_EXPORT
-# EXPORT_FILE_NAME netcdf_Export.h
-# STATIC_DEFINE netcdf_BUILT_AS_STATIC
-#)
 
 #####
 # Build doxygen documentation, if need be.

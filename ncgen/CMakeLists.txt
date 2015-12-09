@@ -4,8 +4,11 @@ IF(USE_X_GETOPT)
   SET(ncgen_FILES ${ncgen_FILES} XGetopt.c)
 ENDIF()
 
+SET(CMAKE_EXE_LINKER_FLAGS "-static-libgcc")
 ADD_EXECUTABLE(ncgen ${ncgen_FILES})
-TARGET_LINK_LIBRARIES(ncgen ${ALL_TLL_LIBS} netcdf)
+TARGET_LINK_LIBRARIES(ncgen netcdf ${ALL_TLL_LIBS} )
+
+SET_TARGET_PROPERTIES(ncgen PROPERTIES LINK_SEARCH_END_STATIC 1)
 
 ####
 # We have to do a little tweaking
