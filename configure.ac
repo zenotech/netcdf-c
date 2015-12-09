@@ -896,7 +896,7 @@ if test "x$enable_netcdf_4" = xyes; then
 
    # Check for the main hdf5 and hdf5_hl library.
 
-   AC_SEARCH_LIBS([H5Fflush], [hdf5dll hdf5], [],
+   AC_SEARCH_LIBS([H5Fflush], [hdf5dll hdf5 hdf5_serial], [],
    [AC_MSG_ERROR([Can't find or link to the hdf5 library. Use --disable-netcdf-4, or see config.log for errors.])])
    AC_SEARCH_LIBS([H5DSis_scale], [hdf5_hldll hdf5_hl], [],
    [AC_MSG_ERROR([Can't find or link to the hdf5 high-level. Use --disable-netcdf-4, or see config.log for errors.])])
