@@ -920,10 +920,10 @@ ENDIF()
 
 # Enable Parallel (different than pnetcdf).
 SET(STATUS_PARALLEL "OFF")
+SET(USE_PARALLEL OFF CACHE BOOL "")
 OPTION(ENABLE_PARALLEL4 "Build netCDF-4 with parallel IO" "${HDF5_PARALLEL}")
 IF(ENABLE_PARALLEL4 AND ENABLE_NETCDF_4)
   IF(NOT HDF5_PARALLEL)
-    SET(USE_PARALLEL OFF CACHE BOOL "")
     MESSAGE(STATUS "Cannot find HDF5 library built with parallel support. Disabling parallel build.")
   ELSE()
     SET(HDF5_PARALLEL ON CACHE BOOL "")
@@ -976,9 +976,15 @@ IF(ENABLE_PNETCDF)
   ENDIF(NOT PNETCDF)
 ENDIF()
 
+IF(USE_PNETCDF OR USE_PARALLEL4)
+  SET(ENABLE_PARALLEL ON CACHE BOOL "")
+  SET(USE_PARALLEL ON CACHE BOOL "")
+  SET(STATUS_PARALLEL ON CACHE BOOL "")
+ENDIF()
+
 # Enable Parallel Tests.
-OPTION(ENABLE_PARALLEL_TESTS "Enable Parallel IO Tests. Ignored if netCDF4 is not enabled, or if there is no parallel I/O Support." ${USE_PARALLEL})
-IF(ENABLE_PARALLEL_TESTS AND USE_PARALLEL)
+OPTION(ENABLE_PARALLEL_TESTS "Enable Parallel IO Tests. Ignored if netCDF4 is not enabled, or if there is no parallel I/O Support." ${USE_PARALLEL4})
+IF(ENABLE_PARALLEL_TESTS AND USE_PARALLEL4)
   SET(TEST_PARALLEL ON CACHE BOOL "")
 ENDIF()
 
