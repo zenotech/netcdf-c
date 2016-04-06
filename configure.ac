@@ -895,7 +895,7 @@ if test "x$enable_netcdf_4" = xyes; then
    # The user may have built HDF5 with libdl (dynamic loading support).
    if test "x$enable_dynamic_loading" = xyes; then
 
-      if [ ! $HAVE_DLOPEN ]; then
+      if test "x$HAVE_DLOPEN" = x ; then
 
         AC_CHECK_HEADERS([dlfcn.h], [], [nc_dlfcn_h_missing=yes])
         if test "x$nc_dlfcn_h_missing" = xyes; then
