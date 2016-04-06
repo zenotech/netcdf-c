@@ -868,6 +868,14 @@ fi
 $SLEEPCMD
 AC_CHECK_SIZEOF(ptrdiff_t)
 
+###
+# Some compilers provide dlopen() in the C Runtime.  In this case,
+# requiring libdl is unnecessary and can be problematic.  We will check
+# for dlopen() first and only look for libdl if HAVE_dlopen does not exist.
+###
+
+AC_MSG_CHECKING([whether the C runtime provides dlopen()])
+AC_CHECK_FUNCS([dlopen])
 
 if test "x$enable_netcdf_4" = xyes || test "x$enable_dap" = xyes; then
    AC_SEARCH_LIBS([deflate], [zlibwapi zlibstat zlib zlib1 z], [], [
@@ -886,13 +894,20 @@ if test "x$enable_netcdf_4" = xyes; then
 
    # The user may have built HDF5 with libdl (dynamic loading support).
    if test "x$enable_dynamic_loading" = xyes; then
-      AC_CHECK_HEADERS([dlfcn.h], [], [nc_dlfcn_h_missing=yes])
-      if test "x$nc_dlfcn_h_missing" = xyes; then
-      	      AC_MSG_ERROR([Cannot find dlfcn.h, yet --enable-dynamic-loading was used.])
-      fi
-      AC_CHECK_LIB([dl],[dlopen], [], [AC_MSG_ERROR([Can't find or link against libdf. See config.log for errors.])])
-      AC_DEFINE([USE_LIBDL],[1], [if true, enable dynamic loading support])
-   fi
+
+      if [ ! $HAVE_DLOPEN ]; then
+
+        AC_CHECK_HEADERS([dlfcn.h], [], [nc_dlfcn_h_missing=yes])
+        if test "x$nc_dlfcn_h_missing" = xyes; then
+              AC_MSG_ERROR([Cannot find dlfcn.h, yet --enable-dynamic-loading was used.])
+        fi
+        AC_CHECK_LIB([dl],[dlopen], [], [AC_MSG_ERROR([Can't find or link against libdl. See config.log for errors.])])
+
+        AC_DEFINE([USE_LIBDL],[1], [if true, enable dynamic loading support using libdl])
+      else # System DLOPEN
+        AC_MSG_NOTICE([Using system-supplied dlopen()])
+      fi # System DLOPEN
+fi
 
    # Check for the main hdf5 and hdf5_hl library.
 
