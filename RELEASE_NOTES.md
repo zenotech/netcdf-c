@@ -7,6 +7,7 @@ This file contains a high-level description of this package's evolution. Release
 
 ## 4.4.1 - TBD
 
+* [Enhancement] It turns out that `libdl` is not required for dynamic library loading on some systems/environments.  This can potentially cause a conflict, as outlined in [GitHub Issue #247](https://github.com/Unidata/netcdf-c/issues/247).  The compiler runtime library is now checked to see if it contains dynamic loading functionality and, if so, it will use this instead of seeking libdl.  Note that if a dependency (such as libhdf5) was built against libdl, netCDF may still link against it.
 * [Bug Fix] Corrected an issue with autotools-based builds performed out-of-source-tree.  See [GitHub Issue #242](https://github.com/Unidata/netcdf-c/issues/242) for more information.
 * [Enhancement] Modified `nc_inq_type()` so that it would work more broadly without requiring a valid ncid.  See [GitHub Issue #240](https://github.com/Unidata/netcdf-c/issues/240) for more information.
 * [Enhancement] Accepted a patch code which added a hashmap lookup for rapid var and dim retrieval in nc3 files, contributed by Greg Sjaardema.  See [GitHub Pull Request #238](https://github.com/Unidata/netcdf-c/pull/238) for more information.
