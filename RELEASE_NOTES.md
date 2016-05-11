@@ -5,7 +5,35 @@ Release Notes       {#RELEASE_NOTES}
 
 This file contains a high-level description of this package's evolution. Releases are in reverse chronological order (most recent first). Note that, as of netcdf 4.2, the `netcdf-c++` and `netcdf-fortran` libraries have been separated into their own libraries.
 
-## 4.4.0 Released TBD
+## 4.4.1 - TBD
+
+### 4.4.1-RC1 - April 15, 2016
+
+* [Bug Fix][Enhancement] Fixed an issue with netCDF4 files generated using version `1.10.0` of the HDF5 library.  The 1.10 release potentially changed the underlying file format, introducing a backwards compatibility issue with the files generated.  HDF5 provided an API for retaining the 1.8.x file format, which is now on by default.  See [GitHub Issue #250](https://github.com/Unidata/netcdf-c/issues/250) for more information.
+* [Bug Fix] Corrected an issue with autotools-based builds performed out-of-source-tree.  See [GitHub Issue #242](https://github.com/Unidata/netcdf-c/issues/242) for more information.
+* [Enhancement] Modified `nc_inq_type()` so that it would work more broadly without requiring a valid ncid.  See [GitHub Issue #240](https://github.com/Unidata/netcdf-c/issues/240) for more information.
+* [Enhancement] Accepted a patch code which added a hashmap lookup for rapid var and dim retrieval in nc3 files, contributed by Greg Sjaardema.  See [GitHub Pull Request #238](https://github.com/Unidata/netcdf-c/pull/238) for more information.
+* [Bug Fix] Accepted a contributed pull request which corrected an issue with how the cmake-generated `nc-config` file determined the location of installed files. See [GitHub Pull Request #235](https://github.com/Unidata/netcdf-c/pull/235) for more information.
+* [Enhancement] Added an advanced option for CMake-based builds, `ENABLE_SHARED_LIBRARY_VERSION`.  This option is `ON` by default, but if turned off, only `libnetcdf.dylib` will be generated, instead of files containing the SOVERSION in the file name.  This is a requested feature most people might not care about.  See [GitHub #228](https://github.com/Unidata/netcdf-c/issues/228) for more information.
+* [Bug Fix] Corrected an issue with duplicated error codes defined in multiple header files.  See [GitHub #213](https://github.com/Unidata/netcdf-c/issues/213) for more information.
+* [Bug Fix] Addressed an issue specific to Visual Studio 2015 on Windows.  On very large files, some calls to the `fstat` class of functions would fail for no apparent reason. This behavior was **not** observed under Visual Studio 2013. This has now been mitigated.  See [GitHub #188](https://github.com/Unidata/netcdf-c/issues/188) for more information.
+* [Enhancement] Updated `nc-config` to report whether `logging` is enabled in netcdf.  Additionally, if `f03` is available in an installed netcdf-fortran library, it will now be reported as well.
+* [Bug Fix] Addressed an issue where `netcdf_mem.h` was not being installed by cmake. See [GitHub #227](https://github.com/Unidata/netcdf-c/issues/227) for more information.
+* [Bug Fix] Addressed an issue where `ncdump` would crash when trying to read a netcdf file containing an empty ragged `VLEN` variable in an unlimited dimension. See [GitHub #221](https://github.com/Unidata/netcdf-c/issues/221) for more information.
+
+## 4.4.0 Released - January 13, 2016
+
+* Bumped SO version to 11.0.0.
+
+* Modified `CMakeLists.txt` to work with the re-organized cmake configuration used by the latest HDF5, `1.8.16`, on Windows. Before this fix, netCDF would fail to locate hdf5 1.8.16 when using cmake on Windows.  See [GitHub #186](https://github.com/Unidata/netcdf-c/issues/186) for more information.
+
+* Addressed an issue with `ncdump` when annotations were used.  The indices for the last row suffered from an off-by-1 error.  See [GitHub issue #181](https://github.com/Unidata/netcdf-c/issues/181) for more information.
+
+* Addressed an issue on platforms where `char` is `unsigned` by default (such as `ARM`), as well as an issue describing regarding undefined behavior, again on `ARM`.  See [GitHub issue #159](https://github.com/Unidata/netcdf-c/issues/159) for detailed information.
+
+* Fixed an ambiguity in the grammar for cdl files.  See [GitHub #178](https://github.com/Unidata/netcdf-c/issues/178) for more information.
+
+* Updated documentation for `nc_get_att_string()` to reflect the fact that it returns allocated memory which must be explicitly free'd using `nc_free_string()`. Reported by Constantine Khroulev, see [GitHub Issue 171](https://github.com/Unidata/netcdf-c/issues/171) for more information.
 
 * Modified ncgen to properly handle the L and UL suffixes for integer constants
   to keep backward compatibility. Now it is the case the single L suffix
@@ -20,7 +48,7 @@ This file contains a high-level description of this package's evolution. Release
 * Incorporated pull request https://github.com/Unidata/netcdf-c/pull/150 from Greg Sjaardema to remove the internal hard-wired use of `NC_MAX_DIMS`, instead using a dynamic memory allocation.
 
 ### 4.4.0-RC5 Released - November 11, 2015
- 
+
 * Added a fix for https://github.com/Unidata/netcdf-c/issues/149, which was reported several times in quick succession within an hour of the RC4 release.
 
 ### 4.4.0-RC4 Released - November 10, 2015
@@ -30,7 +58,7 @@ This file contains a high-level description of this package's evolution. Release
 	Major kudos to Wei-Keng Liao for all the effort he put into getting this to work.
 
     This cascaded into a number of other changes.
-  
+
     1. Renamed libsrcp5 -> libsrcp because pnetcdf can do parallel io for CDF-1, CDF-2 and CDF-5, not just CDF-5.
     2. Given #1, then the NC_PNETCDF mode flag becomes a subset of NC_MPIIO, so made NC_PNETCDF an alias for NC_MPII.
     3. NC_FORMAT_64BIT is now deprecated.  Use NC_FORMAT_64BIT_OFFSET.
@@ -39,7 +67,7 @@ Further information regarding the CDF-5 file format specifrication may be found 
 
 * Modified configure.ac to provide finer control over parallel
   support. Specifically, add flags for:
-  
+
     1. HDF5_PARALLEL when hdf5 library has parallel enabled
     2. --disable-parallel4 to be used when we do not want
      netcdf-4 to use parallelism even if hdf5 has it enabled.
@@ -56,13 +84,13 @@ NC\_FORMAT\_NC\_HDF5  | NC\_FORMATX\_NC\_HDF5
 NC\_FORMAT\_NC4       | NC\_FORMATX\_NC4
 NC\_FORMAT\_NC\_HDF4  | NC\_FORMATX\_NC\_HDF4
 NC\_FORMAT\_PNETCDF   | NC\_FORMATX\_PNETCDF
-NC\_FORMAT\_DAP2      | NC\_FORMATX\_DAP2 
+NC\_FORMAT\_DAP2      | NC\_FORMATX\_DAP2
 NC\_FORMAT\_DAP4      | NC\_FORMATX\_DAP4
 NC\_FORMAT\_UNDEFINED | NC\_FORMATX\_UNDEFINED
 
 * Reduced minimum cmake version to `2.8.11` from `2.8.12`. This will allow for cmake use on a broader set of popular linux platforms without having to do a custom cmake install.  See https://github.com/Unidata/netcdf-c/issues/135 for more information.
 
-* The documentation section `The Default Chunking Scheme` has been updated with more information.  This lives in the `guide.dox` file in the `docs/` directory, or can be found online in the appropriate location (typically http://www.unidata.ucar.edu/netcdf/docs), once this release has been published.
+* The documentation section `The Default Chunking Scheme` has been updated with more information.  This lives in the `guide.dox` file in the `docs/` directory, or can be found online in the appropriate location (typically http://www.unidata.ucar.edu/netcdf/docs/), once this release has been published.
 
 ### 4.4.0-RC3 2015-10-08
 

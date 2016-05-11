@@ -19,7 +19,7 @@ COPYRIGHT file for copying and redistribution conditions.
 
 /* must be after nc4internal.h */
 #include <H5DSpublic.h>
-
+#include <H5Fpublic.h>
 #ifdef USE_HDF4
 #include <mfhdf.h>
 #endif
@@ -87,11 +87,6 @@ static int close_netcdf4_file(NC_HDF5_FILE_INFO_T *h5, int abort);
 size_t nc4_chunk_cache_size = CHUNK_CACHE_SIZE;
 size_t nc4_chunk_cache_nelems = CHUNK_CACHE_NELEMS;
 float nc4_chunk_cache_preemption = CHUNK_CACHE_PREEMPTION;
-
-/* To turn off HDF5 error messages, I have to catch an early
-   invocation of a netcdf function. */
-static int virgin = 1;
-
 
 /* For performance, fill this array only the first time, and keep it
  * in global memory for each further use. */
@@ -393,8 +388,10 @@ nc4_create_file(const char *path, int cmode, MPI_Comm comm, MPI_Info info,
 	__func__, nc4_chunk_cache_size, nc4_chunk_cache_nelems, nc4_chunk_cache_preemption));
 #endif /* USE_PARALLEL4 */
 
-   if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0)
+#ifdef HDF5_HAS_LIBVER_BOUNDS
+   if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_EARLIEST, H5F_LIBVER_LATEST) < 0)
       BAIL(NC_EHDFERR);
+#endif
 
    /* Create the property list. */
    if ((fcpl_id = H5Pcreate(H5P_FILE_CREATE)) < 0)
@@ -494,13 +491,8 @@ NC4_create(const char* path, int cmode, size_t initialsz, int basepe,
 #endif /* USE_PARALLEL4 */
 
    /* If this is our first file, turn off HDF5 error messages. */
-   if (virgin)
-   {
-      if (H5Eset_auto(NULL, NULL) < 0)
-	 LOG((0, "Couldn't turn off HDF5 error messages!"));
-      LOG((1, "HDF5 error messages have been turned off."));
-      virgin = 0;
-   }
+   if (!nc4_hdf5_initialized)
+	nc4_hdf5_initialize();
 
    /* Check the cmode for validity. */
    if((cmode & ILLEGAL_CREATE_FLAGS) != 0)
@@ -618,6 +610,7 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    new_dim->hdf5_objid.fileno[1] = statbuf->fileno[1];
    new_dim->hdf5_objid.objno[0] = statbuf->objno[0];
    new_dim->hdf5_objid.objno[1] = statbuf->objno[1];
+   new_dim->hash = hash_fast(obj_name, strlen(obj_name));
 
    /* If the dimscale has an unlimited dimension, then this dimension
     * is unlimited. */
@@ -673,11 +666,12 @@ exit:
 /* This function reads the hacked in coordinates attribute I use for
  * multi-dimensional coordinates. */
 static int
-read_coord_dimids(NC_VAR_INFO_T *var)
+read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
    hid_t coord_att_typeid = -1, coord_attid = -1, spaceid = -1;
    hssize_t npoints;
    int ret = 0;
+   int d;
 
    /* There is a hidden attribute telling us the ids of the
     * dimensions that apply to this multi-dimensional coordinate
@@ -698,6 +692,12 @@ read_coord_dimids(NC_VAR_INFO_T *var)
 
    if (!ret && H5Aread(coord_attid, coord_att_typeid, var->dimids) < 0) ret++;
    LOG((4, "dimscale %s is multidimensional and has coords", var->name));
+
+   /* Update var->dim field based on the var->dimids */
+   for (d = 0; d < var->ndims; d++) {
+     /* Ok if does not find a dim at this time, but if found set it */
+     nc4_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
+   }
 
    /* Set my HDF5 IDs free! */
    if (spaceid >= 0 && H5Sclose(spaceid) < 0) ret++;
@@ -1572,6 +1572,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       strcpy(var->name, obj_name);
    }
 
+   var->hash = hash_fast(var->name, strlen(var->name));
    /* Find out what filters are applied to this HDF5 dataset,
     * fletcher32, deflate, and/or shuffle, and other compressors. */
    if ((propid = H5Dget_create_plist(datasetid)) < 0)
@@ -1681,7 +1682,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       var->dimscale = NC_TRUE;
       if (var->ndims > 1)
       {
-	 if ((retval = read_coord_dimids(var)))
+	 if ((retval = read_coord_dimids(grp, var)))
 	    BAIL(retval);
       }
       else
@@ -2209,6 +2210,7 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
     * fail if there are any open objects in the file. */
    if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0)
       BAIL(NC_EHDFERR);
+
 #ifdef EXTRA_TESTS
    num_plists++;
 #endif
@@ -2219,6 +2221,7 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
    if (H5Pset_fclose_degree(fapl_id, H5F_CLOSE_STRONG))
       BAIL(NC_EHDFERR);
 #endif
+
 
 #ifdef USE_PARALLEL4
    /* If this is a parallel file create, set up the file creation
@@ -2675,10 +2678,12 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 	       dim->len = dim_len;
 	    else
 	       dim->len = *dimsize;
+	    dim->hash = hash_fast(dim_name, strlen(dim_name));
 	 }
 
 	 /* Tell the variable the id of this dimension. */
 	 var->dimids[d] = dim->dimid;
+	 var->dim[d] = dim;
       }
 
       /* Read the atts. */
@@ -2783,15 +2788,9 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 	parameters = &mpidfalt;
 #endif /* USE_PARALLEL4 */
 
-   /* If this is our first file, turn off HDF5 error messages. */
-   if (virgin)
-   {
-      if (H5Eset_auto(NULL, NULL) < 0)
-	 LOG((0, "Couldn't turn off HDF5 error messages!"));
-      LOG((1, "HDF5 error messages turned off!"));
-      virgin = 0;
-   }
-
+   /* If this is our first file, initialize HDF5. */
+   if (!nc4_hdf5_initialized)
+	nc4_hdf5_initialize();
 
    /* Check the mode for validity */
    if((mode & ILLEGAL_OPEN_FLAGS) != 0)
@@ -3284,7 +3283,7 @@ NC4_set_content(int ncid, size_t size, void* memory)
 	BAIL(NC_EHDFERR);
 #else
     retval = NC_EDISKLESS;
-#endif    				
+#endif
 
 done:
     return retval;

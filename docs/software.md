@@ -269,7 +269,7 @@ comments on EzGet, contact Karl Taylor (taylor13@llnl.gov).
 FAN
 -------------------------
 
-[FAN (File Array Notation)](/software/netcdf/fan_utils.html) is Harvey
+[FAN (File Array Notation)](fan_utils.html) is Harvey
 Davies' package for extracting and manipulating array data from netCDF
 files. The package includes the three utilities nc2text, text2nc, and
 ncrob for printing selected data from netCDF arrays, copying ASCII data
@@ -1704,19 +1704,9 @@ for more information.
 Quantum GIS (QGIS) {#QGIS}
 -----------------------------------------
 
-[Quantum GIS](http://www.qgis.org/) (QGIS) is an Open Source Geographic
-Information System (GIS) licensed under the GNU General Public License.
-QGIS is an official project of the Open Source Geospatial Foundation
-(OSGeo). It runs on Linux, Unix, Mac OSX, and Windows and supports
-numerous vector, raster, and database formats and functionalities. QGIS
-supports a desktop, browser, server, and client for viewing, editing,
-analysis, serving, and accessing data. Its server complies with the OGC
-WMS 1.3 standard. In addition to PostGIS and SpatiaLite formats, it can
-access data in vector formats supported by the OGR library as well as
-most raster formats supported by the GDAL library, including netCDF. For
-a more detailed list of features of the QGIS desktop, browser, server,
-and client, see the [QGIS features
-page](http://www.qgis.org/en/about-qgis/features.html).
+[Quantum GIS](http://www.qgis.org/) (QGIS) is an Open Source Geographic Information System (GIS) licensed under the GNU General Public License. QGIS is an official project of the Open Source Geospatial Foundation (OSGeo). It runs on Linux, Unix, Mac OSX, and Windows and supports numerous vector, raster, and database formats and functionalities. QGIS supports a desktop, browser, server, and client for viewing, editing, analysis, serving, and accessing data. Its server complies with the OGC WMS 1.3 standard. In addition to PostGIS and SpatiaLite formats, it can access data in vector formats supported by the OGR library as well as most raster formats supported by the GDAL library, including netCDF. For a more detailed list of features of the QGIS desktop, browser, server, and client, see the [QGIS features page](http://www.qgis.org/en/about-qgis/features.html).
+
+QGIS also supports displaying netCDF using the [Crayfish plugin in QGIS](http://www.lutraconsulting.co.uk/blog/2016/04/14/crayfish-2-2/).  The project repository may be found [here](https://github.com/lutraconsulting/qgis-crayfish-plugin).
 
 Ruby interface {#Ruby}
 -------------------------------------

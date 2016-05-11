@@ -1,4 +1,5 @@
-/** \file
+/** \file dfile.c
+
 File create and open functions
 
 These functions end up calling functions in one of the dispatch layers
@@ -27,7 +28,8 @@ Research/Unidata. See COPYRIGHT file for more info.
 extern int NC_initialized;
 extern int NC_finalized;
 
-/** \defgroup datasets NetCDF Files
+
+/** \defgroup datasets NetCDF File and Data I/O
 
 NetCDF opens datasets as files or remote access URLs.
 
@@ -62,8 +64,23 @@ any.
 interfaces, the rest of this chapter presents a detailed description
 of the interfaces for these operations.
 */
-/**@{*/
 
+
+/*!
+  Interpret the magic number found in the header of a netCDF file.
+
+  This function interprets the magic number/string contained in the header of a netCDF file and sets the appropriate NC_FORMATX flags.
+
+  @param[in] magic Pointer to a character array with the magic number block.
+  @param[out] model Pointer to an integer to hold the corresponding netCDF type.
+  @param[out] version Pointer to an integer to hold the corresponding netCDF version.
+  @param[in] use_parallel 1 if using parallel, 0 if not.
+  @return Returns an error code or 0 on success.
+
+\internal
+\ingroup datasets
+
+*/
 static int
 NC_interpret_magic_number(char* magic, int* model, int* version, int use_parallel)
 {
@@ -100,13 +117,12 @@ done:
      return status;
 }
 
-/**
+/*!
 Given an existing file, figure out its format
 and return that format value (NC_FORMATX_XXX)
 in model arg.
 */
-static int
-NC_check_file_type(const char *path, int flags, void *parameters,
+static int NC_check_file_type(const char *path, int flags, void *parameters,
 		   int* model, int* version)
 {
    char magic[MAGIC_NUMBER_LEN];
@@ -163,6 +179,23 @@ NC_check_file_type(const char *path, int flags, void *parameters,
 	    /* The file must be at least MAGIC_NUMBER_LEN in size,
 	       or otherwise the following fread will exhibit unexpected
   	       behavior. */
+
+        /* Windows and fstat have some issues, this will work around that. */
+#ifdef HAVE_FILE_LENGTH_I64
+        __int64 file_len = 0;
+        if((file_len = _filelengthi64(fileno(fp))) < 0) {
+          fclose(fp);
+          status = errno;
+          goto done;
+        }
+
+        if(file_len < MAGIC_NUMBER_LEN) {
+          fclose(fp);
+          status = NC_ENOTNC;
+          goto done;
+        }
+#else
+
 	    if(!(fstat(fileno(fp),&st) == 0)) {
 	        fclose(fp);
 	        status = errno;
@@ -170,10 +203,12 @@ NC_check_file_type(const char *path, int flags, void *parameters,
 	    }
 
 	    if(st.st_size < MAGIC_NUMBER_LEN) {
-		fclose(fp);
-		status = NC_ENOTNC;
-		goto done;
+          fclose(fp);
+          status = NC_ENOTNC;
+          goto done;
 	    }
+#endif //HAVE_FILE_LENGTH_I64
+
 #endif
 
 	    i = fread(magic, MAGIC_NUMBER_LEN, 1, fp);
@@ -465,6 +500,9 @@ and initial size for the file.
      status = nc__create("foo.nc", NC_NOCLOBBER, initialsz, bufrsize, &ncid);
      if (status != NC_NOERR) handle_error(status);
 \endcode
+
+\ingroup datasets
+
 */
 int
 nc__create(const char *path, int cmode, size_t initialsz,
@@ -490,7 +528,7 @@ nc__create_mp(const char *path, int cmode, size_t initialsz,
 		    chunksizehintp, 0, NULL, ncidp);
 }
 
-/**
+/** \ingroup datasets
 Open an existing netCDF file.
 
 This function opens an existing netCDF dataset for access. It
@@ -610,7 +648,7 @@ nc_open(const char *path, int mode, int *ncidp)
    return NC_open(path, mode, 0, NULL, 0, NULL, ncidp);
 }
 
-/**
+/** \ingroup datasets
 Open a netCDF file with extra performance parameters for the classic
 library.
 
@@ -673,7 +711,7 @@ nc__open(const char *path, int mode,
 		  NULL, ncidp);
 }
 
-/**
+/** \ingroup datasets
 Open a netCDF file with the contents taken from a block of memory.
 
 \param path Must be non-null, but otherwise only used to set the dataset name.
@@ -754,7 +792,7 @@ nc__open_mp(const char *path, int mode, int basepe,
 		  0, NULL, ncidp);
 }
 
-/**
+/** \ingroup datasets
 Get the file pathname (or the opendap URL) which was used to
 open/create the ncid's file.
 
@@ -788,7 +826,7 @@ nc_inq_path(int ncid, size_t *pathlen, char *path)
    return stat;
 }
 
-/**
+/** \ingroup datasets
 Put open netcdf dataset into define mode
 
 The function nc_redef puts an open netCDF dataset into define mode, so
@@ -845,7 +883,7 @@ nc_redef(int ncid)
    return ncp->dispatch->redef(ncid);
 }
 
-/**
+/** \ingroup datasets
 Leave define mode
 
 The function nc_enddef() takes an open netCDF dataset out of define
@@ -910,7 +948,7 @@ nc_enddef(int ncid)
    return ncp->dispatch->_enddef(ncid,0,1,0,1);
 }
 
-/**
+/** \ingroup datasets
 Leave define mode with performance tuning
 
 The function nc__enddef takes an open netCDF dataset out of define
@@ -1001,7 +1039,7 @@ nc__enddef(int ncid, size_t h_minfree, size_t v_align, size_t v_minfree,
    return ncp->dispatch->_enddef(ncid,h_minfree,v_align,v_minfree,r_align);
 }
 
-/**
+/** \ingroup datasets
 Synchronize an open netcdf dataset to disk
 
 The function nc_sync() offers a way to synchronize the disk copy of a
@@ -1077,10 +1115,11 @@ nc_sync(int ncid)
    return ncp->dispatch->sync(ncid);
 }
 
-/**
-\internal
+/** \ingroup datasets
+No longer necessary for user to invoke manually.
 
-Users no longer need to call this function, since it is called
+
+\warning Users no longer need to call this function since it is called
 automatically by nc_close() in case the dataset is in define mode and
 something goes wrong with committing the changes. The function
 nc_abort() just closes the netCDF dataset, if not in define mode. If
@@ -1138,7 +1177,7 @@ nc_abort(int ncid)
    return stat;
 }
 
-/**
+/** \ingroup datasets
 Close an open netCDF dataset
 
 If the dataset in define mode, nc_enddef() will be called before
@@ -1190,7 +1229,8 @@ nc_close(int ncid)
    if(ncp->refcount <= 0)
 #endif
    {
-       stat = ncp->dispatch->close(ncid);
+
+	   stat = ncp->dispatch->close(ncid);
        /* Remove from the nc list */
        del_from_NCList(ncp);
        free_NC(ncp);
@@ -1198,7 +1238,7 @@ nc_close(int ncid)
    return stat;
 }
 
-/**
+/** \ingroup datasets
 Change the fill-value mode to improve write performance.
 
 This function is intended for advanced usage, to optimize writes under
@@ -1345,7 +1385,7 @@ nc_set_base_pe(int ncid, int pe)
    return ncp->dispatch->set_base_pe(ncid,pe);
 }
 
-/**
+/** \ingroup datasets
 Inquire about the binary format of a netCDF file
 as presented by the API.
 
@@ -1372,9 +1412,10 @@ nc_inq_format(int ncid, int *formatp)
    return ncp->dispatch->inq_format(ncid,formatp);
 }
 
-/**
+/** \ingroup datasets
 Obtain more detailed (vis-a-vis nc_inq_format)
 format information about an open dataset.
+
 Note that the netcdf API will present the file
 as if it had the format specified by nc_inq_format.
 The true file format, however, may not even be
@@ -1406,7 +1447,7 @@ nc_inq_format_extended(int ncid, int *formatp, int *modep)
    return ncp->dispatch->inq_format_extended(ncid,formatp,modep);
 }
 
-/**
+/**\ingroup datasets
 Inquire about a file or group.
 
 \param ncid NetCDF or group ID, from a previous call to nc_open(),
@@ -1468,7 +1509,7 @@ nc_inq_nvars(int ncid, int *nvarsp)
    return ncp->dispatch->inq(ncid, NULL, nvarsp, NULL, NULL);
 }
 
-/**
+/**\ingroup datasets
 Inquire about a type.
 
 Given an ncid and a typeid, get the information about a type. This
@@ -1546,7 +1587,7 @@ nc_inq_type(int ncid, nc_type xtype, char *name, size_t *size)
    if(stat != NC_NOERR) { /* bad ncid; do what we can */
        /* For compatibility, we need to allow inq about
           atomic types, even if ncid is ill-defined */
-	if(xtype <= ATOMICTYPEMAX3) {
+	if(xtype <= ATOMICTYPEMAX5) {
             if(name) strncpy(name,NC_atomictypename(xtype),NC_MAX_NAME);
             if(size) *size = NC_atomictypelen(xtype);
             return NC_NOERR;
@@ -1569,7 +1610,6 @@ nc_inq_type(int ncid, nc_type xtype, char *name, size_t *size)
    }
 #endif
 }
-/**@}*/
 
 /**
 \internal
@@ -1618,6 +1658,7 @@ NC_create(const char *path, int cmode, size_t initialsz,
    int isurl = 0;   /* dap or cdmremote or neither */
    int xcmode = 0; /* for implied cmode flags */
 
+   TRACE(nc_create);
    /* Initialize the dispatch table. The function pointers in the
     * dispatch table will depend on how netCDF was built
     * (with/without netCDF-4, DAP, CDMREMOTE). */
@@ -1693,7 +1734,10 @@ NC_create(const char *path, int cmode, size_t initialsz,
    if((cmode & NC_MPIIO) && (cmode & NC_MPIPOSIX))
       return  NC_EINVAL;
 
-   if (!(dispatcher = NC_get_dispatch_override()))
+#ifdef OBSOLETE
+   dispatcher = NC_get_dispatch_override();
+#endif
+   if (dispatcher == NULL)
    {
 
       /* Figure out what dispatcher to use */
@@ -1767,6 +1811,7 @@ NC_open(const char *path, int cmode,
    int version = 0;
    int flags = 0;
 
+   TRACE(nc_open);
    if(!NC_initialized) {
       stat = nc_initialize();
       if(stat) return stat;
@@ -1837,7 +1882,9 @@ NC_open(const char *path, int cmode,
      return  NC_EINVAL;
 
    /* override any other table choice */
+#ifdef OBSOLETE
    dispatcher = NC_get_dispatch_override();
+#endif
    if(dispatcher != NULL) goto havetable;
 
    /* Figure out what dispatcher to use */

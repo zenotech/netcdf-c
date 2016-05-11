@@ -1,24 +1,33 @@
 # Test c output
-T=tst_compress
-VG=valgrind --leak-check=full
-GDB=gdb --args
-#ARGS="nozip zip bzip2"
+T=tst_chunk_hdf4
+#CMD=valgrind --leak-check=full
+CMD=gdb --args
 
-CFLAGS=-O0 -gstabs+ -I.. -I../include -I/usr/local/include
-LDFLAGS=../liblib/.libs/libnetcdf.a  -L/usr/local/lib -lhdf5_hl -lhdf5 -lz -lm -lcurl -lbz2
+#PAR=1
 
-EXP=export LD_LIBRARY_PATH="/usr/local/lib"
+CFLAGS=-Wall -Wno-unused-variable -Wno-unused-function -g -O0 -I.. -I../include
+
+ifdef PAR
+CC=mpicc
+#CC=/usr/local/bin/mpicc
+LDFLAGS=../liblib/.libs/libnetcdf.a -L/usr/local/lib -lhdf5_hl -lhdf5 -lz  -ldl -lcurl -lpnetcdf -lmpich -lm
+else
+CC=gcc
+#LDFLAGS=../liblib/.libs/libnetcdf.a  -L/usr/local/lib -lhdf5_hl -lhdf5 -lz -lm -lcurl
+LDFLAGS=../liblib/.libs/libnetcdf.a -L/usr/local/lib -lhdf5_hl -lhdf5 -lz  -ldl -lm -lcurl
+endif
 
 #	cd .. ; ${MAKE} all
 
-all::
-	${EXP}; gcc -o t ${CFLAGS} ${T}.c ${LDFLAGS}
+LLP=/usr/local/lib:${LD_LIBRARY_PATH}
 
-t::
-	${EXP}; ./t ${ARGS}
+all:: cmp
+	export LD_LIBRARY_PATH=${LLP}; export CFLAGS; export LDFLAGS; \
+	${CMD} ./t
 
-v::
-	${EXPR}; ${VG} ./t ${ARGS}
+cmp::
+	export LD_LIBRARY_PATH=${LLP}; export CFLAGS; export LDFLAGS; \
+	${CC} -o t ${CFLAGS} ${T}.c ${SRC} ${LDFLAGS}; \
 
-g::
-	${EXP}; ${GDB} ./t ${ARGS}
+cpp::
+	${CC} -E ${CFLAGS} ${T}.c > ${T}.txt

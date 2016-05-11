@@ -39,7 +39,7 @@ extern "C" {
 #define	NC_CHAR 	2	/**< ISO/ASCII character */
 #define	NC_SHORT 	3	/**< signed 2 byte integer */
 #define	NC_INT 	        4	/**< signed 4 byte integer */
-#define NC_LONG         NC_INT  /**< deprecated, but required for backward compatibility. */
+#define NC_LONG         NC_INT  /**< \deprecated required for backward compatibility. */
 #define	NC_FLOAT 	5	/**< single precision floating point number */
 #define	NC_DOUBLE 	6	/**< double precision floating point number */
 #define	NC_UBYTE 	7	/**< unsigned 1 byte int */
@@ -1002,13 +1002,19 @@ nc_del_att(int ncid, int varid, const char *name);
 
 /* End _att */
 /* Begin {put,get}_att */
-
 EXTERNL int
 nc_put_att_text(int ncid, int varid, const char *name,
 		size_t len, const char *op);
 
 EXTERNL int
 nc_get_att_text(int ncid, int varid, const char *name, char *ip);
+
+EXTERNL int
+nc_put_att_string(int ncid, int varid, const char *name,
+		  size_t len, const char **op);
+
+EXTERNL int
+nc_get_att_string(int ncid, int varid, const char *name, char **ip);
 
 EXTERNL int
 nc_put_att_uchar(int ncid, int varid, const char *name, nc_type xtype,
@@ -1088,12 +1094,6 @@ EXTERNL int
 nc_get_att_ulonglong(int ncid, int varid, const char *name,
 		     unsigned long long *ip);
 
-EXTERNL int
-nc_put_att_string(int ncid, int varid, const char *name,
-		  size_t len, const char **op);
-
-EXTERNL int
-nc_get_att_string(int ncid, int varid, const char *name, char **ip);
 
 /* End {put,get}_att */
 /* Begin _var */

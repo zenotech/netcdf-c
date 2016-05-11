@@ -25,10 +25,6 @@
 /* Always needed */
 #include "nc.h"
 
-/*#ifndef HAVE_SSIZE_T
-#define ssize_t int
-#endif*/
-
 #ifndef NC_ARRAY_GROWBY
 #define NC_ARRAY_GROWBY 4
 #endif
@@ -60,13 +56,30 @@ typedef enum {
 } NCtype;
 
 
+/*! Hashmap-related structs.
+  NOTE: 'data' is the dimid or varid which is non-negative.
+  we store the dimid+1 so a valid entry will have
+  data > 0
+*/
+typedef struct {
+  long data;
+  int flags;
+  unsigned long key;
+} hEntry;
+
+typedef struct s_hashmap {
+  hEntry* table;
+  unsigned long size;
+  unsigned long count;
+} NC_hashmap;
+
+
 /*
  * NC dimension structure
  */
 typedef struct {
 	/* all xdr'd */
 	NC_string *name;
- 	uint32_t hash;
 	size_t size;
 } NC_dim;
 
@@ -75,6 +88,7 @@ typedef struct NC_dimarray {
 	/* below gets xdr'd */
 	/* NCtype type = NC_DIMENSION */
 	size_t nelems;		/* length of the array */
+	NC_hashmap *hashmap;
 	NC_dim **value;
 } NC_dimarray;
 
@@ -165,7 +179,6 @@ typedef struct NC_var {
 	off_t *dsizes; /* compiled info: the right to left product of shape */
 	/* below gets xdr'd */
 	NC_string *name;
- 	uint32_t hash;
 	/* next two: formerly NC_iarray *assoc */ /* user definition */
 	size_t ndims;	/* assoc->count */
 	int *dimids;	/* assoc->value */
@@ -180,13 +193,11 @@ typedef struct NC_vararray {
 	/* below gets xdr'd */
 	/* NCtype type = NC_VARIABLE */
 	size_t nelems;		/* length of the array */
-	NC_var **value;
+  NC_hashmap *hashmap;
+  NC_var **value;
 } NC_vararray;
 
 /* Begin defined in lookup3.c */
-
-extern uint32_t
-hash_fast(const void *key, size_t length);
 
 /* End defined in lookup3.c */
 
@@ -224,6 +235,37 @@ extern int
 NC_lookupvar(NC3_INFO* ncp, int varid, NC_var **varp);
 
 /* End defined in var.c */
+
+/* defined in nc_hashmap.c */
+/** Creates a new hashmap near the given size. */
+extern NC_hashmap* NC_hashmapCreate(unsigned long startsize);
+
+/** Inserts a new element into the hashmap. */
+extern void NC_hashmapAddDim(const NC_dimarray*, long data, const char *name);
+
+/** Removes the storage for the element of the key and returns the element. */
+extern long NC_hashmapRemoveDim(const NC_dimarray*, const char *name);
+
+/** Returns the element for the key. */
+extern long NC_hashmapGetDim(const NC_dimarray*, const char *name);
+
+/** Inserts a new element into the hashmap. */
+extern void NC_hashmapAddVar(const NC_vararray*, long data, const char *name);
+
+/** Removes the storage for the element of the key and returns the element. */
+extern long NC_hashmapRemoveVar(const NC_vararray*, const char *name);
+
+/** Returns the element for the key. */
+extern long NC_hashmapGetVar(const NC_vararray*, const char *name);
+
+/** Returns the number of saved elements. */
+extern unsigned long NC_hashmapCount(NC_hashmap*);
+
+/** Removes the hashmap structure. */
+extern void NC_hashmapDelete(NC_hashmap*);
+
+/* end defined in nc_hashmap.c */
+
 
 #define IS_RECVAR(vp) \
 	((vp)->shape != NULL ? (*(vp)->shape == NC_UNLIMITED) : 0 )

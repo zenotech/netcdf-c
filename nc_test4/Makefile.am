@@ -21,9 +21,10 @@ tst_chunks tst_chunks2 tst_utf8 tst_fills tst_fills2 tst_fillbug	\
 tst_xplatform tst_xplatform2 tst_h_atts2 tst_endian_fill tst_atts	\
 t_type cdm_sea_soundings tst_camrun tst_vl tst_atts1 tst_atts2		\
 tst_vars2 tst_files5 tst_files6 tst_sync tst_h_strbug tst_h_refs        \
-tst_h_scalar tst_rename tst_h5_endians tst_atts_string_rewrite
+tst_h_scalar tst_rename tst_h5_endians tst_atts_string_rewrite \
+tst_hdf5_file_compat
 
-check_PROGRAMS = $(NC4_TESTS) renamegroup tst_compress
+check_PROGRAMS = $(NC4_TESTS) renamegroup tst_empty_vlen_unlim tst_compress
 
 # Add these if large file tests are turned on.
 if LARGE_FILE_TESTS
@@ -33,6 +34,7 @@ endif
 TESTS = $(NC4_TESTS)
 
 TESTS += run_grp_rename.sh
+TESTS += run_empty_vlen_test.sh
 TESTS += run_compress.sh
 
 # If the v2 API was built, add its test program.
@@ -109,7 +111,7 @@ endif # USE_VALGRIND_TESTS
 # with --enable-parallel-tests.
 if TEST_PARALLEL4
 check_PROGRAMS += tst_mpi_parallel tst_parallel tst_parallel3	\
-tst_parallel4 tst_nc4perf
+tst_parallel4 tst_nc4perf tst_mode
 TESTS += run_par_test.sh
 endif
 
@@ -124,7 +126,8 @@ ref_tst_interops4.nc run_get_knmi_files.sh CMakeLists.txt               \
 run_grp_rename.sh tst_formatx_hdf4.sh                                   \
 run_chunk_hdf4.sh contiguous.hdf4 chunked.hdf4 \
 tst_h5_endians.c tst_h4_lendian.c tst_atts_string_rewrite.c \
-run_compress.sh
+tst_put_vars_two_unlim_dim.c tst_empty_vlen_unlim.c run_empty_vlen_test.sh \
+ref_hdf5_compat1.nc ref_hdf5_compat2.nc ref_hdf5_compat3.nc run_compress.sh
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc	\
 bm_radar.nc bm_radar1.nc radar_3d_compression_test.txt			\
@@ -135,6 +138,7 @@ tst_elena_*.cdl tst_simple*.cdl tst_chunks.cdl pr_A1.* tauu_A1.*	\
 usi_01.* thetau_01.* tst_*.nc tst_*.h5                                  \
 tst_grp_rename.cdl tst_grp_rename.nc tst_grp_rename.dmp ref_grp_rename.cdl \
 foo1.nc tst_interops2.h4 tst_h5_endians.nc tst_h4_lendian.h4 test.nc \
+tst_atts_string_rewrite.nc tst_empty_vlen_unlim.nc tst_empty_vlen_lim.nc \
 tst_atts_string_rewrite.nc compress.cdl
 
 if USE_HDF4_FILE_TESTS

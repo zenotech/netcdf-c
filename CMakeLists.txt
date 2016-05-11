@@ -26,13 +26,13 @@ set(PACKAGE "netCDF" CACHE STRING "")
 
 SET(NC_VERSION_MAJOR 4)
 SET(NC_VERSION_MINOR 4)
-SET(NC_VERSION_PATCH 0)
+SET(NC_VERSION_PATCH 1)
 SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
 SET(NC_VERSION ${netCDF_VERSION})
-SET(netCDF_LIB_VERSION 7.3.0)
-SET(netCDF_SO_VERSION 7)
+SET(netCDF_LIB_VERSION 12.0.0)
+SET(netCDF_SO_VERSION 12)
 SET(PACKAGE_VERSION ${VERSION})
 
 # Get system configuration, Use it to determine osname, os release, cpu. These
@@ -76,12 +76,6 @@ ENDIF()
 
 # For CMAKE_INSTALL_LIBDIR
 INCLUDE(GNUInstallDirs)
-
-SET(CMAKE_INSTALL_CMAKEDIR cmake)
-
-IF(NOT DEFINED CMAKE_INSTALL_LIBDIR)
-  SET(CMAKE_INSTALL_LIBDIR lib)
-ENDIF(NOT DEFINED CMAKE_INSTALL_LIBDIR)
 
 IF(MSVC)
   SET(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -137,7 +131,6 @@ EXECUTE_PROCESS(
 IF(CONFIG_DATE)
 	string(STRIP ${CONFIG_DATE} CONFIG_DATE)
 ENDIF()
-
 ##
 # Allow for extra dependencies.
 ##
@@ -176,18 +169,28 @@ INCLUDE(GenerateExportHeader)
 
 
 ################################
-# Compiler Configuration
+# Compiler and Linker Configuration
 ################################
 
+##
 # Default building shared libraries.
 # BUILD_SHARED_LIBS is provided by/used by
 # CMake directly.
+##
 OPTION(BUILD_SHARED_LIBS "Configure netCDF as a shared library." ON)
 IF(BUILD_SHARED_LIBS)
   SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ENDIF()
 
-OPTION(FIND_SHARED_LIBS "Find shared variants of dependent libraries" ${BUILD_SHARED_LIBS})
+OPTION(NC_FIND_SHARED_LIBS "Find dynamically-built versions of dependent libraries" ${BUILD_SHARED_LIBS})
+
+##
+# We've had a request to allow for non-versioned shared libraries.
+# This seems reasonable enough to accomodate.  See
+# https://github.com/Unidata/netcdf-c/issues/228 for more info.
+##
+OPTION(ENABLE_SHARED_LIBRARY_VERSION "Encode the library SO version in the file name of the generated library file." ON)
+
 
 # Set some default linux gcc & apple compiler options for
 # debug builds.
@@ -469,42 +472,138 @@ IF(ENABLE_RPC)
   SET(BUILD_RPC ON CACHE BOOL "")
 ENDIF()
 
+##
 # Option to Enable HDF5
+#
+# The HDF5 cmake variables differ between platform (linux/osx and Windows),
+# as well as between HDF5 versions.  As a result, this section is a bit convoluted.
+#
+# Note that the behavior seems much more stable across HDF5 versions under linux,
+# so we do not have to do as much version-based tweaking.
+#
+# At the end of it, we should have the following defined:
+#
+# * HDF5_C_LIBRARY
+# * HDF5_HL_LIBRARY
+# * HDF5_LIBRARIES
+# * HDF5_INCLUDE_DIR
+# *
+##
 OPTION(USE_HDF5 "Use HDF5." ${ENABLE_NETCDF_4})
-
 IF(USE_HDF5 OR ENABLE_NETCDF_4)
   SET(USE_HDF5 ON)
   SET(USE_NETCDF4 ON)
+  ##
   # Accommodate developers who have hdf5 libraries and
   # headers on their system, but do not have a the hdf
   # .cmake files.  If this is the case, they should
   # specify HDF5_HL_LIB, HDF5_LIB, HDF5_INCLUDE_DIR manually.
-  IF(HDF5_LIB AND HDF5_HL_LIB AND HDF5_INCLUDE_DIR)
-    SET(HDF5_LIBRARIES ${HDF5_LIB} ${HDF5_HL_LIB})
-    SET(HDF5_C_LIBRARIES ${HDF5_LIB})
-    SET(HDF5_HL_LIBRARIES ${HDF5_HL_LIB})
-    MESSAGE(STATUS "Using HDF5 Library: ${HDF5_LIB}")
-    MESSAGE(STATUS "Using HDF5_HL LIbrary: ${HDF5_HL_LIB}")
-  ELSE()
-    IF(FIND_SHARED_LIBS)
-      SET(HDF5_USE_STATIC_LIBRARIES OFF)
-    ELSE()
-      SET(HDF5_USE_STATIC_LIBRARIES ON)
-    ENDIF()
+  ##
+  IF(HDF5_C_LIBRARY AND HDF5_HL_LIBRARY AND HDF5_INCLUDE_DIR)
+    SET(HDF5_LIBRARIES ${HDF5_C_LIBRARY} ${HDF5_HL_LIBRARY})
+    SET(HDF5_C_LIBRARIES ${HDF5_C_LIBRARY})
+    SET(HDF5_HL_LIBRARIES ${HDF5_HL_LIBRARY})
+    INCLUDE_DIRECTORIES(${HDF5_INCLUDE_DIR})
+    MESSAGE(STATUS "Using HDF5 C Library: ${HDF5_C_LIBRARY}")
+    MESSAGE(STATUS "Using HDF5 HL LIbrary: ${HDF5_HL_LIBRARY}")
+  ELSE(HDF5_C_LIBRARY AND HDF5_HL_LIBRARY AND HDF5_INCLUDE_DIR) # We are seeking out HDF5 with Find Package.
+    ###
+    # For now we assume that if we are building netcdf
+    # as a shared library, we will use hdf5 as a shared
+    # library. If we are building netcdf statically,
+    # we will use a static library.  This can be toggled
+    # by explicitely modifying NC_FIND_SHARED_LIBS.
+    ##
+    IF(NC_FIND_SHARED_LIBS)
+      SET(NC_HDF5_LINK_TYPE "shared")
+      SET(NC_HDF5_LINK_TYPE_UPPER "SHARED")
+      ADD_DEFINITIONS(-DH5_BUILT_AS_DYNAMIC_LIB)
+    ELSE(NC_FIND_SHARED_LIBS)
+      SET(NC_HDF5_LINK_TYPE "static")
+      SET(NC_HDF5_LINK_TYPE_UPPER "STATIC")
+      ADD_DEFINITIONS(-DH5_BUILT_AS_STATIC_LIB)
+    ENDIF(NC_FIND_SHARED_LIBS)
+
+    #####
+    # First, find the C and HL libraries.
+    #
+    # This has been updated to reflect what is in the hdf5
+    # examples, even though the previous version of what we
+    # had worked.
+    #####
     IF(MSVC)
-      FIND_PACKAGE(HDF5 COMPONENTS C HL NO_MODULE REQUIRED)
-    ELSE()
+      SET(SEARCH_PACKAGE_NAME ${HDF5_PACKAGE_NAME})
+      FIND_PACKAGE(HDF5 NAMES ${SEARCH_PACKAGE_NAME} COMPONENTS C HL NO_MODULES REQUIRED ${NC_HDF5_LINK_TYPE})
+    ELSE(MSVC)
       FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
-    ENDIF()
-  ENDIF()
+    ENDIF(MSVC)
 
+    ##
+    # Next, check the HDF5 version. This will inform which
+    # HDF5 variables we need to munge.
+    ##
+
+    ##
+    # Assert HDF5 version meets minimum required version.
+    ##
+    SET(HDF5_VERSION_REQUIRED 1.8.10)
+
+    IF(HDF5_VERSION_STRING AND NOT HDF5_VERSION)
+      SET(HDF5_VERSION ${HDF5_VERSION_STRING})
+    ENDIF()
+
+    IF("${HDF5_VERSION}" STREQUAL "")
+      MESSAGE(STATUS "Unable to determine hdf5 version.  NetCDF requires at least version ${HDF5_VERSION_REQUIRED}")
+    ELSE()
+      IF(${HDF5_VERSION} VERSION_LESS ${HDF5_VERSION_REQUIRED})
+        MESSAGE(FATAL_ERROR
+	      "netCDF requires at least HDF5 ${HDF5_VERSION_REQUIRED}. Found ${HDF5_VERSION}.")
+      ELSE()
+        MESSAGE(STATUS "Found HDF5 libraries version ${HDF5_VERSION}")
+      ENDIF()
+    ENDIF()
+
+    ##
+    # Include the HDF5 include directory.
+    ##
+    INCLUDE_DIRECTORIES(${HDF5_INCLUDE_DIR})
+
+    ###
+    # This is the block where we figure out what the appropriate
+    # variables are, and we ensure that we end up with
+    # HDF5_C_LIBRARY, HDF5_HL_LIBRARY and HDF5_LIBRARIES.
+    ###
+    IF(MSVC)
+      ##
+      # HDF5 1.8.15 defined HDF5_LIBRARIES.
+      ##
+      IF(${HDF5_VERSION} VERSION_LESS "1.8.16")
+        SET(HDF5_C_LIBRARY hdf5)
+      ENDIF(${HDF5_VERSION} VERSION_LESS "1.8.16")
+
+      IF(${HDF5_VERSION} VERSION_GREATER "1.8.15")
+        IF(NOT HDF5_LIBRARIES AND HDF5_C_${NC_HDF5_LINK_TYPE_UPPER}_LIBRARY AND HDF5_HL_${NC_HDF5_LINK_TYPE_UPPER}_LIBRARY)
+          SET(HDF5_C_LIBRARY ${HDF5_C_${NC_HDF5_LINK_TYPE_UPPER}_LIBRARY})
+          SET(HDF5_HL_LIBRARY ${HDF5_HL_${NC_HDF5_LINK_TYPE_UPPER}_LIBRARY})
+      	  SET(HDF5_LIBRARIES ${HDF5_C_${NC_HDF5_LINK_TYPE_UPPER}_LIBRARY} ${HDF5_HL_${NC_HDF5_LINK_TYPE_UPPER}_LIBRARY})
+        ENDIF()
+      ENDIF(${HDF5_VERSION} VERSION_GREATER "1.8.15")
+
+    ELSE(MSVC)
+
+      # Depending on the install, either HDF5_hdf_library or
+      # HDF5_C_LIBRARIES may be defined.  We must check for either.
+      IF(HDF5_C_LIBRARIES AND NOT HDF5_hdf5_LIBRARY)
+        SET(HDF5_hdf5_LIBRARY ${HDF5_C_LIBRARIES})
+      ENDIF()
+
+    ENDIF(MSVC)
+  ENDIF(HDF5_C_LIBRARY AND HDF5_HL_LIBRARY AND HDF5_INCLUDE_DIR)
+
+  ###
+  # The following options are not used in Windows.
+  ###
   IF(NOT MSVC)
-    # Depending on the install, either HDF5_hdf_library or
-    # HDF5_C_LIBRARIES may be defined.  We must check for either.
-    IF(HDF5_C_LIBRARIES)
-      SET(HDF5_hdf5_LIBRARY ${HDF5_C_LIBRARIES})
-    ENDIF()
-
     # Find out if HDF5 was built with parallel support.
     # Do that by checking for the targets H5Pget_fapl_mpiposx and
     # H5Pget_fapl_mpio in ${HDF5_LIB}.
@@ -528,14 +627,11 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     IF(ENABLE_DYNAMIC_LOADING)
       SET(USE_LIBDL ON CACHE BOOL "")
     ENDIF()
-
+    SET(HDF5_C_LIBRARY hdf5)
   ENDIF(NOT MSVC)
 
-  CHECK_LIBRARY_EXISTS(hdf5 H5free_memory "" HDF5_HAS_H5FREE)
-
-
-  # Assert HDF5 version.
-  SET(HDF5_VERSION_REQUIRED 1.8.10)
+  CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY} H5free_memory "" HDF5_HAS_H5FREE)
+  CHECK_LIBRARY_EXISTS(${HDF5_C_LIBRARY} H5Pset_libver_bounds "" HDF5_HAS_LIBVER_BOUNDS)
 
   IF(HDF5_PARALLEL)
 	SET(HDF5_CC h5pcc)
@@ -543,26 +639,14 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
 	SET(HDF5_CC h5cc)
   ENDIF()
 
-  execute_process(COMMAND sh -c "${HDF5_CC} -showconfig | grep -i 'HDF5 version' | cut -d: -f2 | tr -d ' '"
-  OUTPUT_VARIABLE HDF5_VERSION
-  ERROR_QUIET)
+  #  execute_process(COMMAND sh -c "${HDF5_CC} -showconfig | grep -i 'HDF5 version' | cut -d: -f2 | tr -d ' '"
+  #  OUTPUT_VARIABLE HDF5_VERSION
+  #  ERROR_QUIET)
 
   # It cannot be assumed that libhdf5.settings exists.  If it doesn't,
   # the call to h5cc will have failed.  At this point we will have to
   # trust the user that they have configured their system properly.
 
-  IF("${HDF5_VERSION}" STREQUAL "")
-    MESSAGE(STATUS "Unable to determine hdf5 version.  NetCDF requires at least version ${HDF5_VERSION_REQUIRED}")
-  ELSE()
-    IF(${HDF5_VERSION} VERSION_LESS ${HDF5_VERSION_REQUIRED})
-      MESSAGE(FATAL_ERROR
-	"netCDF requires at least HDF5 ${HDF5_VERSION_REQUIRED}. Found ${HDF5_VERSION}.")
-    ELSE()
-        MESSAGE(STATUS "Found HDF5 libraries version ${HDF5_VERSION}")
-    ENDIF()
-  ENDIF()
-
-  INCLUDE_DIRECTORIES(${HDF5_INCLUDE_DIR})
 
   # Starting with hdf5 1.8.11, dynamic loading is an option.
   # In case hdf5 has a dependency on libdl, the user must specify
@@ -600,16 +684,13 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     SET(H5_USE_16_API 0)
   ENDIF()
 
-  # Check for ZLib, but only if using HDF5.
-
   ################################
   # Locate compression filter libraries
   ################################
 
   # Apparently filter names must be upper case
-
   # Default is to look for all compression libraries
-
+  # (ZIP andSZIP are implied)
 
   SET(ALLFILTERS BZIP2 FPZIP ZFP)
 
@@ -618,14 +699,13 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
 	INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
   ENDIF()
 
-  # Check for ZLib, but only if using HDF5.
+  # Check for zlib, but only if using HDF5.
   FIND_PACKAGE(ZLIB)
   IF(NOT ZLIB_LIBRARY)
     MESSAGE(FATAL_ERROR "HDF5 Support specified, cannot find ZLib.")
   ENDIF()
   SET(USE_ZLIB ON)
   INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
-
 
   ##
   # Check for additional compression libraries.
@@ -653,22 +733,8 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       MESSAGE(WARNING "Warning: Couldn't find ${A}")
     ENDIF()
   ENDFOREACH()
-ENDIF() #USE_HDF5 OR ENABLE_NETCDF_4
 
-  ##
-  # Check to see if libhdf5 contains
-  # 'H5free_memory'.
-  ##
-#  CHECK_C_SOURCE_COMPILES("
-#  #include <hdf5.h>
-#  int main() {H5free_memory(NULL);}" HDF5_HAS_H5FREE)
-#  CHECK_SYMBOL_EXISTS(H5free_memory "H5public.h" HDF5_HAS_H5FREE)
-# CHECK_LIBRARY_EXISTS(hdf5 H5free_memory "-L${HDF5_hdf5_LIBRARY}" HDF5_HAS_H5FREE)
-#  MESSAGE(STATUS "HDF5_HAS_H5FREE: ${HDF5_HAS_H5FREE}")
-
-
-
-ENDIF()
+ENDIF(USE_HDF5 OR ENABLE_NETCDF_4)
 
 # Option to Build DAP Client
 OPTION(ENABLE_DAP "Enable DAP Client." ON)
@@ -711,6 +777,8 @@ IF(ENABLE_DAP)
   CHECK_C_SOURCE_COMPILES("
   #include <curl/curl.h>
   int main() {int x = CURLOPT_CHUNK_BGN_FUNCTION;}" HAVE_CURLOPT_CHUNK_BGN_FUNCTION)
+
+
 
 ENDIF()
 
@@ -918,44 +986,35 @@ IF(ENABLE_PNETCDF)
   FIND_LIBRARY(PNETCDF NAMES pnetcdf)
   FIND_PATH(PNETCDF_INCLUDE_DIR pnetcdf.h)
   IF(NOT PNETCDF)
-    MESSAGE(STATUS "Cannot find pNetCDF library. Disabling pNetCDF support.")
+    MESSAGE(STATUS "Cannot find PNetCDF library. Disabling PNetCDF support.")
     SET(USE_PNETCDF OFF CACHE BOOL "")
   ELSE(NOT PNETCDF)
     SET(USE_PARALLEL ON CACHE BOOL "")
+
+    # Check PNetCDF version. Must be >= 1.6.0
+    set(pnetcdf_h "${PNETCDF_INCLUDE_DIR}/pnetcdf.h" )
+    message(STATUS "PNetCDF include file ${pnetcdf_h} will be searched for version")
+    file(STRINGS "${pnetcdf_h}" pnetcdf_major_string REGEX "^#define PNETCDF_VERSION_MAJOR")
+    string(REGEX REPLACE "[^0-9]" "" pnetcdf_major "${pnetcdf_major_string}")
+    file(STRINGS "${pnetcdf_h}" pnetcdf_minor_string REGEX "^#define PNETCDF_VERSION_MINOR")
+    string(REGEX REPLACE "[^0-9]" "" pnetcdf_minor "${pnetcdf_minor_string}")
+    file(STRINGS "${pnetcdf_h}" pnetcdf_sub_string REGEX "^#define PNETCDF_VERSION_SUB")
+    string(REGEX REPLACE "[^0-9]" "" pnetcdf_sub "${pnetcdf_sub_string}")
+    set(pnetcdf_version "${pnetcdf_major}.${pnetcdf_minor}.${pnetcdf_sub}")
+    message(STATUS "Found PNetCDF version ${pnetcdf_version}")
+
+    if(${pnetcdf_version} VERSION_GREATER "1.6.0")
+      SET(STATUS_PNETCDF "ON")
+      INCLUDE_DIRECTORIES(${PNETCDF_INCLUDE_DIR})
+      SET(HAVE_LIBPNETCDF ON)
+      # pnetcdf => parallel
+      SET(STATUS_PARALLEL ON)
+      SET(USE_PARALLEL ON)
+      MESSAGE(STATUS "Using PNetCDF Library: ${PNETCDF}")
+    ELSE()
+      MESSAGE(WARNING "ENABLE_PNETCDF requires version 1.6.1 or later; found version ${pnetcdf_version}. PNetCDF is disabled")
+    ENDIF()
   ENDIF(NOT PNETCDF)
-#  ELSE()
-##	SET(TMP_INC ${CMAKE_REQUIRED_INCLUDES})
-#	SET(TMP_LB ${CMAKE_REQUIRED_LIBRARIES})
-#	SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${PNETCDF})
-#	SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${PNETCDF_INCLUDE_DIR})
-	# Check to see if version > 1.6.0
-	# CHECK_C_SOURCE_RUNS("
-		#include <stdio.h>
-      		#include <pnetcdf.h>
-    #  		int main() {
-    #  		int major = PNETCDF_VERSION_MAJOR;
-    #  		int minor = PNETCDF_VERSION_MINOR;
-    #  		int version = major*1000 + minor;
-    #  		int ok = (version >= (1*1000 + 6));
-    #  		return ok?0:1;}"
-    #  		HAVE_PNETCDF_16)
-
-#	SET(CMAKE_REQUIRED_INCLUDES ${TMP_INC})
-#	SET(CMAKE_REQUIRED_LIBRARIES ${TMP_LB})
-
-	#IF(HAVE_PNETCDF_16)
-	#	SET(ENABLE_PNETCDF "OFF")
-    #  		MESSAGE(WARNING "ENABLE_PNETCDF requires version 1.6.0 or later; disabled")
-    #	ELSE()
-
-   #	    SET(STATUS_PNETCDF "ON")
-    #	    INCLUDE_DIRECTORIES(${PNETCDF_INCLUDE_DIR})
-    #	    SET(HAVE_LIBPNETCDF ON)
-    	    # pnetcdf => parallel
-    #	    SET(STATUS_PARALLEL "ON")
-    #	    SET(USE_PARALLEL ON)
-  	#ENDIF()
-    #ENDIF()
 ENDIF()
 
 # Enable Parallel Tests.
@@ -1045,12 +1104,27 @@ ENDIF()
 MARK_AS_ADVANCED(ENABLE_INTERNAL_DOCS VALGRIND_TESTS ENABLE_COVERAGE_TESTS )
 MARK_AS_ADVANCED(ENABLE_DAP_REMOTE_TESTS ENABLE_DAP_LONG_TESTS USE_REMOTE_CDASH)
 MARK_AS_ADVANCED(ENABLE_DOXYGEN_BUILD_RELEASE_DOCS DOXYGEN_ENABLE_TASKS ENABLE_DOXYGEN_SERVER_SIDE_SEARCH)
+MARK_AS_ADVANCED(ENABLE_SHARED_LIBRARY_VERSION)
 ################################
 # Option checks
 ################################
 
+####
+# Check to see if char is signed or unsigned.
+####
 
-#
+SET(SIGNED_TEST_SOURCE "\n
+  #include <stdlib.h>\n
+  int main(void) {\n
+    char is_signed = (char) - 1;\n
+    if(is_signed < 0)\n
+      return 1;\n
+    else\n
+      return 0;\n
+}\n")
+
+CHECK_C_SOURCE_RUNS("${SIGNED_TEST_SOURCE}" __CHAR_UNSIGNED__)
+
 # Library include checks
 CHECK_INCLUDE_FILE("math.h"      HAVE_MATH_H)
 CHECK_INCLUDE_FILE("unistd.h"  HAVE_UNISTD_H)
@@ -1144,6 +1218,7 @@ CHECK_FUNCTION_EXISTS(strtoull  HAVE_STROULL)
 CHECK_FUNCTION_EXISTS(strstr  HAVE_STRSTR)
 CHECK_FUNCTION_EXISTS(mkstemp HAVE_MKSTEMP)
 CHECK_FUNCTION_EXISTS(rand  HAVE_RAND)
+CHECK_FUNCTION_EXISTS(random HAVE_RANDOM)
 CHECK_FUNCTION_EXISTS(gettimeofday  HAVE_GETTIMEOFDAY)
 CHECK_FUNCTION_EXISTS(fsync HAVE_FSYNC)
 CHECK_FUNCTION_EXISTS(MPI_Comm_f2C  HAVE_MPI_COMM_F2C)
@@ -1177,8 +1252,13 @@ IF(NC_M4)
 ENDIF()
 
 MACRO(GEN_m4 filename)
-#  IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c)
+
 IF(HAVE_M4)
+  # If m4 is available, remove generated file if it exists.
+  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c)
+    FILE(REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c)
+  ENDIF()
+
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${filename}.c
     COMMAND ${NC_M4}
@@ -1206,6 +1286,8 @@ MACRO(add_bin_env_temp_large_test prefix F)
     SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG
       ${CMAKE_CURRENT_BINARY_DIR})
     SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE
+      ${CMAKE_CURRENT_BINARY_DIR})
+   SET_TARGET_PROPERTIES(${prefix}_${F} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
       ${CMAKE_CURRENT_BINARY_DIR})
   ENDIF()
 ENDMACRO()
@@ -1461,7 +1543,7 @@ IF(USE_DAP)
   ADD_SUBDIRECTORY(libdap2)
 ENDIF()
 
-ADD_SUBDIRECTORY(liblib)
+add_subdirectory(liblib)
 
 # For tests and utilities, we are no longer
 # exporting symbols but rather importing them.
@@ -1510,25 +1592,8 @@ ENDIF()
 #####
 ADD_SUBDIRECTORY(docs)
 
-#####
-# Moving on to CPack, install packages.
-#####
-INSTALL(FILES ${netCDF_SOURCE_DIR}/include/netcdf.h
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  COMPONENT headers)
-
-INSTALL(FILES ${netCDF_BINARY_DIR}/include/netcdf_meta.h
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  COMPONENT headers)
-
-IF(ENABLE_PNETCDF OR ENABLE_PARALLEL)
-  INSTALL(FILES ${netCDF_SOURCE_DIR}/include/netcdf_par.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    COMPONENT headers)
-ENDIF()
-
 ##
-# Brute force, grab all of the dlls from the dependency directory,
+# Brute force, grab all of the dlls from the depency directory,
 # install them in the binary dir. Grab all of the .libs, put them
 # in the libdir.
 ##
@@ -1746,6 +1811,8 @@ install(
 ####
 # End export files
 ####
+
+
 
 # CPack inclusion must come last.
 # INCLUDE(CPack)

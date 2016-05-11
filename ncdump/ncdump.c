@@ -49,9 +49,31 @@ typedef int ssize_t;
 #include "isnan.h"
 #include "cdl.h"
 
+#define XML_VERSION "1.0"
 
 #define int64_t long long
 #define uint64_t unsigned long long
+
+/* If we have a variable named one of these:
+   we need to be careful about printing their attributes.
+*/
+static const char* keywords[] = {
+"variable",
+"dimension",
+"data",
+"group",
+"types",
+NULL
+};
+
+static int iskeyword(const char* kw)
+{
+    const char** p;
+    for(p=keywords;*p;p++) {
+	if(strcmp(kw,*p)==0) return 1;
+    }    
+    return 0;
+}
 
 /* globals */
 char *progname;
@@ -372,8 +394,8 @@ done:
 static void
 pr_initx(int ncid, const char *path)
 {
-    printf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<netcdf xmlns=\"http://www.unidata.ucar.edu/namespaces/netcdf/ncml-2.2\" location=\"%s\">\n",
-	   path);
+    printf("<?xml version=\"%s\" encoding=\"UTF-8\"?>\n<netcdf xmlns=\"http://www.unidata.ucar.edu/namespaces/netcdf/ncml-2.2\" location=\"%s\">\n",
+	   XML_VERSION, path);
 }
 
 /*
@@ -451,6 +473,7 @@ pr_att_string(
  */
 static void
 pr_attx_string(
+     const char* attname,
      size_t len,
      const char *string
      )
@@ -459,6 +482,7 @@ pr_attx_string(
     const char *cp;
     const char *sp;
     unsigned char uc;
+    int nulcount = 0;
 
     cp = string;
     printf ("\"");
@@ -488,6 +512,11 @@ pr_attx_string(
 	    break;
 	case '\t':
 	    printf ("&#x9;");
+	    break;
+	case '\0':
+	    printf ("&#0;");
+	    if(nulcount++ == 0)
+		fprintf(stderr,"Attribute: '%s'; value contains nul characters; producing illegal xml\n",attname);
 	    break;
 	default:
 	    if (iscntrl(uc))
@@ -751,6 +780,8 @@ pr_att(
     }
     /* 	printf ("\t\t%s:%s = ", varname, att.name); */
     print_name(varname);
+    if(iskeyword(varname)) /* see discussion about escapes in ncgen man page*/
+	printf(" ");    
     printf(":");
     print_name(att.name);
     printf(" = ");
@@ -1097,7 +1128,7 @@ pr_attx(
 		varid != NC_GLOBAL ? "  " : "",
 		att.name);
 	/* print attvals as a string with XML escapes */
-	pr_attx_string(attvalslen, attvals);
+	pr_attx_string(att.name, attvalslen, attvals);
     } else {			/* non-string attribute */
 	char att_type_name[NC_MAX_NAME + 1];
 	get_type_name(ncid, att.type, att_type_name);
@@ -1538,7 +1569,7 @@ do_ncdump_rec(int ncid, const char *path)
 	  printf ("UNLIMITED ; // (%u currently)\n",
 		  (unsigned int)dims[dimid].size);
       } else {
-	  printf ("%u ;\n", (unsigned int)dims[dimid].size);
+	  printf ("%llu ;\n", (unsigned long long)dims[dimid].size);
       }
    }
 #endif /* USE_NETCDF4 */

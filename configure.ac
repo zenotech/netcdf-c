@@ -15,11 +15,18 @@ AC_REVISION([$Id: configure.ac,v 1.450 2010/05/28 19:42:47 dmh Exp $])
 AC_PREREQ([2.59])
 
 # Initialize with name, version, and support email address.
-AC_INIT([netCDF], [4.4.0-development], [support-netcdf@unidata.ucar.edu])
+AC_INIT([netCDF], [4.4.1-development], [support-netcdf@unidata.ucar.edu])
+
+##
+# Prefer an empty CFLAGS variable instead of the default -g -O2.
+# See:
+#   * http://www.gnu.org/savannah-checkouts/gnu/autoconf/manual/autoconf-2.69/html_node/C-Compiler.html#C-Compiler
+##
+: ${CFLAGS=""}
 
 AC_SUBST([NC_VERSION_MAJOR]) NC_VERSION_MAJOR=4
 AC_SUBST([NC_VERSION_MINOR]) NC_VERSION_MINOR=4
-AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=0
+AC_SUBST([NC_VERSION_PATCH]) NC_VERSION_PATCH=1
 AC_SUBST([NC_VERSION_NOTE]) NC_VERSION_NOTE="-development"
 
 #####
@@ -47,6 +54,18 @@ AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
 AC_CONFIG_HEADERS([config.h])
+
+##
+# Some files need to exist in build directories
+# that do not correspond to their source directory, or
+# the test program makes an assumption about where files
+# live.  AC_CONFIG_LINKS provides a mechanism to link/copy files
+# if an out-of-source build is happening.
+##
+
+AC_CONFIG_LINKS([nc_test4/ref_hdf5_compat1.nc:nc_test4/ref_hdf5_compat1.nc])
+AC_CONFIG_LINKS([nc_test4/ref_hdf5_compat2.nc:nc_test4/ref_hdf5_compat2.nc])
+AC_CONFIG_LINKS([nc_test4/ref_hdf5_compat3.nc:nc_test4/ref_hdf5_compat3.nc])
 
 # This call is required by automake.
 AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects])
@@ -588,7 +607,6 @@ if test -n "$cc_version_info"; then
 fi
 
 
-
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_C_CONST
@@ -751,7 +769,7 @@ AC_HEADER_STDBOOL
 # Check for these functions...
 AC_CHECK_FUNCS([strlcat strerror snprintf strchr strrchr strcat strcpy \
                 strdup strcasecmp strtod strtoll strtoull strstr \
-		mkstemp rand memcmp \
+		mkstemp rand random memcmp \
 		getrlimit gettimeofday fsync MPI_Comm_f2c])
 
 # Does the user want to use NC_DISKLESS?
@@ -803,7 +821,7 @@ AC_STRUCT_ST_BLKSIZE
 UD_CHECK_IEEE
 AC_TYPE_SIZE_T
 AC_TYPE_OFF_T
-AC_CHECK_TYPES([ssize_t, ptrdiff_t, uchar, longlong, ushort, uint, int64, uint64])
+AC_CHECK_TYPES([size_t, ssize_t, ptrdiff_t, uchar, longlong, ushort, uint, int64, uint64])
 AC_C_CHAR_UNSIGNED
 AC_C_BIGENDIAN
 
@@ -1024,6 +1042,10 @@ if test "x$enable_netcdf_4" = xyes; then
 
    if test "x$ac_cv_func_H5free_memory" = xyes; then
       AC_DEFINE([HDF5_HAS_H5FREE], [1], [if true, H5free_memory() will be used to free hdf5-allocated memory in nc4file.])
+   fi
+
+   if test "x$ac_cv_func_H5Pset_libver_bounds" = xyes; then
+      AC_DEFINE([HDF5_HAS_LIBVER_BOUNDS], [1], [if true, netcdf4 file properties will be set using H5Pset_libver_bounds])
    fi
 
    # If the user wants hdf4 built in, check it out.
@@ -1295,7 +1317,8 @@ AC_SUBST(HAS_NC4,[$enable_netcdf_4])
 AC_SUBST(HAS_HDF4,[$enable_hdf4])
 AC_SUBST(HAS_PNETCDF,[$enable_pnetcdf])
 AC_SUBST(HAS_HDF5,[$enable_netcdf_4])
-AC_SUBST(HAS_SZLIB,[$nc_has_szlib])
+AC_SUBST(HAS_LOGGING, [$enable_logging])
+AC_SUBST(HAS_SZLIB,[$ac_cv_func_H4Z_SZIP])
 AC_SUBST(HAS_PARALLEL,[$enable_parallel])
 AC_SUBST(HAS_PARALLEL4,[$enable_parallel4])
 AC_SUBST(HAS_DISKLESS,[$enable_diskless])
@@ -1380,9 +1403,9 @@ AC_MSG_NOTICE([generating header files and makefiles])
 AC_CONFIG_FILES([Makefile
                  nc-config
                  netcdf.pc
-	         libnetcdf.settings
-		 postinstall.sh
-		 include/netcdf_meta.h
+	             libnetcdf.settings
+		         postinstall.sh
+		         include/netcdf_meta.h
                  include/Makefile
                  h5_test/Makefile
                  docs/Makefile

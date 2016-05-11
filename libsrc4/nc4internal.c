@@ -45,6 +45,21 @@ int nc_log_level = -1;
 
 #endif /* LOGGING */
 
+static int nc4_hdf5_initialized = 0;
+
+/*
+Provide a function to do any necessary initialization
+of the HDF5 library.
+*/
+void
+nc4_hdf5_initialize(void)
+{
+    if (H5Eset_auto(NULL, NULL) < 0)
+	LOG((0, "Couldn't turn off HDF5 error messages!"));
+    LOG((1, "HDF5 error messages have been turned off."));
+    nc4_hdf5_initialized = 1;
+}
+
 /* Check and normalize and name. */
 int
 nc4_check_name(const char *name, char *norm_name)
@@ -529,10 +544,12 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
 
    /* Now find the attribute by name or number. If a name is provided,
     * ignore the attnum. */
-   for (*att = attlist; *att; *att = (*att)->l.next)
-      if ((name && !strcmp((*att)->name, name)) ||
-	  (!name && (*att)->attnum == attnum))
-	 return NC_NOERR;
+   for (*att = attlist; *att; *att = (*att)->l.next) {
+      if (name && (*att)->name && !strcmp((*att)->name, name))
+	return NC_NOERR;
+      if (!name && (*att)->attnum == attnum)
+	return NC_NOERR;
+   }
 
    /* If we get here, we couldn't find the attribute. */
    return NC_ENOTATT;
@@ -747,7 +764,8 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
    NC_TYPE_INFO_T *type;
    NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
-
+   uint32_t hash;
+   
    /* Any types of this name? */
    for (type = grp->type; type; type = type->l.next)
       if (!strcmp(type->name, name))
@@ -759,8 +777,9 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
 	 return NC_ENAMEINUSE;
 
    /* Any variables of this name? */
+   hash =  hash_fast(name, strlen(name));
    for (var = grp->var; var; var = var->l.next)
-      if (!strcmp(var->name, name))
+      if (var->hash == hash && !strcmp(var->name, name))
 	 return NC_ENAMEINUSE;
 
    return NC_NOERR;
@@ -1387,6 +1406,9 @@ nc4_normalize_name(const char *name, char *norm_name)
 int
 nc_set_log_level(int new_level)
 {
+   if(!nc4_hdf5_initialized)
+	nc4_hdf5_initialize();
+
    /* If the user wants to completely turn off logging, turn off HDF5
       logging too. Now I truely can't think of what to do if this
       fails, so just ignore the return code. */
