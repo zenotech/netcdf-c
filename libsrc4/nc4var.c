@@ -820,6 +820,8 @@ NC4_def_var_extra(int ncid, int varid,
    int d;
    int retval;
    nc_bool_t ishdf4 = NC_FALSE; /* Use this to avoid so many ifdefs */
+   int hasfilter, hasshuffle, hasfletcher,
+       varcontig, varchunked; /* For conflict testing */
 
    LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
@@ -849,9 +851,9 @@ NC4_def_var_extra(int ncid, int varid,
       return NC_ENOTVAR;
 
    /* The following can only be set once (unless value is same) */
-   if(var->shuffle_set && shuffle && var->shuffle != *shuffle)
+   if(shuffle && var->shuffle_set && var->shuffle != *shuffle)
 	return NC_EINVAL;
-   if(var->fletcher32_set && fletcher32 && var->fletcher32 != *fletcher32)
+   if(fletcher32 && var->fletcher32_set && var->fletcher32 != *fletcher32)
 	return NC_EINVAL;
    if(var->algorithm_set && algorithm
       && strncmp(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME) != 0)
@@ -879,36 +881,32 @@ NC4_def_var_extra(int ncid, int varid,
 	}	
     }
     /* Some addition conflict tests */
-    if(algorithm && var->contiguous_set && var->contiguous)
+    hasfilter = (algorithm?1:0);
+    hasshuffle = (shuffle && *shuffle == NC_SHUFFLE?1:0);
+    hasfletcher = (fletcher32 && *fletcher32 == NC_FLETCHER32?1:0);
+    varcontig = (var->contiguous_set && var->contiguous?1:0);
+    varchunked = (var->chunks_set && var->contiguous?1:0);
+    if(algorithm && varcontig)
 	return NC_EINVAL;
-    if(shuffle && (*shuffle == NC_SHUFFLE) && var->chunks_set && var->contiguous)
+    if(hasshuffle  && varchunked)
 	return NC_EINVAL;
-    if(fletcher32 && *fletcher32 && var->chunks_set && var->contiguous)
+    if(hasfletcher && varchunked)
 	return NC_EINVAL;
-
-    if(chunksizes && var->contiguous_set && var->contiguous == NC_CONTIGUOUS)
+    if(chunksizes && varcontig)
 	return NC_EINVAL;    
 
+    /* Can't turn on parallel and filters */
+    if (nc->mode & (NC_MPIIO | NC_MPIPOSIX)) {
+      if (algorithm || hasfletcher || hasshuffle)
+	 return NC_EINVAL;
+    }
+
     /* Set var-algorithm so we can uniformly test against it */
-   if(algorithm) {
+    if(algorithm) {
 	strncpy(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME);
 	var->algorithm_set = NC_TRUE;
 	var->contiguous_set = NC_TRUE;
         var->contiguous = NC_FALSE;
-   }
-
-#if 0
-   /* Can't turn on contiguous and deflate/fletcher32/szip. */
-   if (contiguous)
-      if ((*contiguous != NC_CHUNKED)
-	  (*contiguous != NC_CHUNKED && fletcher32))
-	 return NC_EINVAL;
-#endif
-
-   /* Can't turn on parallel and deflate/fletcher32/szip/shuffle. */
-   if (nc->mode & (NC_MPIIO | NC_MPIPOSIX)) {
-      if (deflate || fletcher32 || shuffle)
-	 return NC_EINVAL;
    }
 
    /* If the HDF5 dataset has already been created, then it is too

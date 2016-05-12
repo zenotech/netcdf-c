@@ -30,12 +30,17 @@ fi
 
 CFLAGS=""
 #CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wconversion ${CFLAGS}"
-CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter ${CFLAGS}"
+CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wno-pointer-sign ${CFLAGS}"
 #CFLAGS="-Wall ${CFLAGS}"
 #CFLAGS="-Wconversion"
 
 stddir="/usr/local"
 PREFIX=/usr/local
+FPCOMP="d:/fpcomp"
+
+if test ! -e ${FPCOMP} ; then
+FPCOMP=/usr/local
+fi
 
 if test "x${cmds}" = x ; then
   cmds=""
@@ -60,23 +65,6 @@ CPPFLAGS=""
 LDFLAGS=""
 
 CFLAGS="-g -O0 $CFLAGS"
-
-case "$HOST" in
-  mort)
-	CFLAGS="-std=c99 $CFLAGS"
-	;;
-  yakov)
-	CFLAGS="-std=c99 $CFLAGS"
-	;;
-  spock)
-  	  CFLAGS="-Wdeclaration-after-statement -Wall $CFLAGS"
-	;;
-  spike)
-	CFLAGS="-Wall $CFLAGS"
-	;;
-  *)
-	;;
-esac
 
 MAKE=make
 IGNORE="test 0 = 1"
@@ -107,12 +95,6 @@ fi
 
 if test "x$SZIP" = "x1" ; then
 LDFLAGS="$LDFLAGS -lszip"
-fi
-
-if test -e /machine/dmh/lib ; then
-FPCOMP=/machine/dmh
-else
-FPCOMP=/usr/local
 fi
 
 if test "x$BZIP2" = "x1" ; then
@@ -148,7 +130,7 @@ FLAGS="$FLAGS --disable-examples"
 #FLAGS="$FLAGS --enable-large-file-tests"
 #FLAGS="$FLAGS --disable-testsets"
 #FLAGS="$FLAGS --disable-dap-remote-tests"
-#FLAGS="$FLAGS --enable-dap-auth-tests"
+FLAGS="$FLAGS --enable-dap-auth-tests"
 #FLAGS="$FLAGS --enable-doxygen"
 FLAGS="$FLAGS --enable-logging"
 #FLAGS="$FLAGS --disable-diskless"
@@ -171,10 +153,10 @@ fi
 
 #TMP=
 #rm -f ./test_mpi.tmp
-#if test -e $stddir/lib/libhdf5.a ; then
+#if test -f $stddir/lib/libhdf5.a ; then
 #  nm $stddir/lib/libhdf5.a | grep mpich_mpi_float$ >./test_mpi.tmp
 #else
-#  if test -e $stddir/lib/libhdf5.so ; then
+#  if test -f $stddir/lib/libhdf5.so ; then
 #    nm $stddir/lib/libhdf5.so | grep mpich_mpi_float$ >./test_mpi.tmp
 #  fi
 #fi
@@ -198,7 +180,7 @@ FLAGS="$FLAGS --disable-dap"
 fi
 
 if test "x$MPIO" = x1 ; then
-  if test -e /machine/local_mpich2 ; then
+  if test -f /machine/local_mpich2 ; then
     MPI1=/machine/local_mpich2
     MPI2=/machine/local_par7
     MPI3=/machine/local_par
@@ -251,7 +233,7 @@ if test -z "$NB" ; then
 fi
 
 if test -z "$FAST" ; then
-  if test -e Makefile ; then ${MAKE} distclean >/dev/null 2>&1 ; fi
+  if test -f Makefile ; then ${MAKE} distclean >/dev/null 2>&1 ; fi
 fi
 sh $X ./configure ${FLAGS}
 for c in $cmds; do
