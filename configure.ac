@@ -897,25 +897,14 @@ fi
   # Check for compression algorithms
   # The algorithm operates as follows.
   # 1. A specific set of filters is defined by --with-compression=<comma list of filters>
-  # 2. --enable-compression flag is equivalent to
-  #    --with-compression=$DFALTFILTERS
-  # 3. --with-compression overides --enable-compression
+  # 2. Using the 'all' keyword (e.g. --with-compression=all)
+  #    is equivalent to --with-compression=$DFALTFILTERS
 
   # Set of all known filters; must match arms of the case...esac below
   ALLFILTERS="zlib,szip,bzip2,fpzip,zfp"
   # Set of filters turned on by default 
   DFALTFILTERS="$ALLFILTERS"
 
-  # Does the user want all filters?
-  AC_MSG_CHECKING([if default filters are to be used ($DFALTFILTERS)])
-  AC_ARG_ENABLE([compression],
-              [AS_HELP_STRING([--enable-compression],
-                              [use all default filters])])
-  test "x$enable_compression" = xyes || enable_compression=no
-  AC_MSG_RESULT($enable_compression)
-  if test "x$enable_compression" = xyes ; then
-    ENABLEDFILTERS="$DFALTFILTERS"
-  fi
   AC_MSG_CHECKING([which specific compression filters to enable])
   AC_ARG_WITH([compression],
               [AS_HELP_STRING([--with-compression=filter,filter,...],
@@ -923,6 +912,11 @@ fi
               [WITHFILTERS=$with_compression],
               [WITHFILTERS=""])
   AC_MSG_RESULT([$WITHFILTERS])
+
+  # Does the user want all filters?
+  if test "x$WITHFILTERS" = xall ; then
+    ENABLEDFILTERS="$DFALTFILTERS"
+  fi
 
   # Figure out final set of enabled filters
   if test "x$WITHFILTERS" != x ; then
