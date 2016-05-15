@@ -9,6 +9,7 @@ DAP=1
 #PNETCDF=1
 #PAR4=1
 
+ALLFILTERS=1
 BZIP2=1
 FPZIP=1
 ZFP=1
@@ -30,13 +31,13 @@ fi
 
 CFLAGS=""
 #CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wconversion ${CFLAGS}"
-CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wno-pointer-sign ${CFLAGS}"
 #CFLAGS="-Wall ${CFLAGS}"
 #CFLAGS="-Wconversion"
+CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wno-pointer-sign -Wno-char-subscripts ${CFLAGS}"
 
 stddir="/usr/local"
 PREFIX=/usr/local
-FPCOMP="d:/fpcomp"
+FPCOMP=$PREFIX
 
 if test ! -e ${FPCOMP} ; then
 FPCOMP=/usr/local

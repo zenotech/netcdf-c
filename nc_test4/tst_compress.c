@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdlib.h>
+
+#include "netcdf.h"
+#include "netcdf_compress.h"
 
 /* Write using var1_T instead of var_T */
 #undef VAR1
@@ -313,14 +315,16 @@ showparameters(XZIP encoding, nc_compression_t* parms)
     switch (encoding) {
     case ZFP:
         fprintf(stderr,"parameters: "
-                   " rank=%d"
-                   " precision=%d"
+                   " type=%d"
                    " rate=%g"
-                   " tolerance=%g",
-	parms->zfp.rank,
-	parms->zfp.prec,
+                   " tolerance=%g"
+                   " precision=%d"
+                   " rank=%d",
+	parms->zfp.type,
 	parms->zfp.rate,
-	parms->zfp.tolerance);
+	parms->zfp.tolerance,
+	parms->zfp.precision,
+	parms->zfp.rank);
 	break;
     case FPZIP:
         fprintf(stderr,"parameters: "
@@ -363,8 +367,8 @@ test_zfp(void)
     printf("\n*** Testing zfp compression.\n");
 
     /* Use zfp compression */
-    parms.zfp.isdouble  = 0; /* single (0) or double (1) precision */
-    parms.zfp.prec      = 0; /* number of bits of precision */
+    parms.zfp.type      = zfp_type_float; /* single or double precision */
+    parms.zfp.precision = 0; /* number of bits of precision */
     parms.zfp.rate      = rate;
     parms.zfp.tolerance = tolerance;
     parms.zfp.rank      = actualdims;

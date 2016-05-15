@@ -1,9 +1,10 @@
 # Test c output
-T=tst_chunk_hdf4
+T=tst_compress
 #CMD=valgrind --leak-check=full
 CMD=gdb --args
 
 #PAR=1
+FILTERS=1
 
 CFLAGS=-Wall -Wno-unused-variable -Wno-unused-function -g -O0 -I.. -I../include
 
@@ -15,6 +16,10 @@ else
 CC=gcc
 #LDFLAGS=../liblib/.libs/libnetcdf.a  -L/usr/local/lib -lhdf5_hl -lhdf5 -lz -lm -lcurl
 LDFLAGS=../liblib/.libs/libnetcdf.a -L/usr/local/lib -lhdf5_hl -lhdf5 -lz  -ldl -lm -lcurl
+endif
+
+ifdef FILTERS
+LDFLAGS += -L/usr/local/lib -lbz2 -lfpzip -lzfp
 endif
 
 #	cd .. ; ${MAKE} all

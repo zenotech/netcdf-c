@@ -57,6 +57,7 @@ nc_get_att(int ncid, int varid, const char *name, void *value)
    TRACE(nc_get_att);
    return ncp->dispatch->get_att(ncid, varid, name, value, xtype);
 }
+
 /*! \} */
 
 /*!
@@ -346,4 +347,5 @@ nc_get_att_string(int ncid, int varid, const char *name, char **value)
     TRACE(nc_get_att_string);
     return ncp->dispatch->get_att(ncid,varid,name,(void*)value, NC_STRING);
 }
+
 /*! \} */

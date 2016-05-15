@@ -305,7 +305,7 @@ are set when opening a binary file on Windows. */
 #cmakedefine BZIP2_FILTER 1
 #cmakedefine FPZIP_FILTER 1
 #cmakedefine ZFP_FILTER 1
-
+#cmakedefine ENABLE_FILTERS 1
 
 #include <ncconfigure.h>
 #endif

@@ -90,6 +90,21 @@ static int NCD2_get_vars(int ncid, int varid,
 	    const size_t *start, const size_t *edges, const ptrdiff_t* stride,
             void *value, nc_type memtype);
 
+static int
+NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
+               int* ndimsp, int* dimidsp, int* nattsp,
+               int *shufflep, char** algorithmp,
+               int *nparams, unsigned int* compression_params,
+               int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
+               int *no_fill, void *fill_valuep, int *endiannessp);
+
+static int
+NCD2_def_var_extra(int ncid, int varid,
+		    const char* algorithm, int* nparams, unsigned int* params,
+		    int *contiguous, const size_t *chunksizes,
+                    int *no_fill, const void *fill_value,
+                    int *shuffle, int *fletcher32, int *endianness);
+
 static NC_Dispatch NCD2_dispatch_base = {
 
 NC_FORMATX_DAP2,
@@ -136,6 +151,7 @@ NCDEFAULT_get_varm,
 NCDEFAULT_put_varm,
 
 NCD2_inq_var_all,
+NCD2_def_var_extra,
 
 NCD2_var_par_access,
 
@@ -170,11 +186,6 @@ NCD2_insert_enum,
 NCD2_inq_enum_member,
 NCD2_inq_enum_ident,
 NCD2_def_opaque,
-NCD2_def_var_deflate,
-NCD2_def_var_fletcher32,
-NCD2_def_var_chunking,
-NCD2_def_var_fill,
-NCD2_def_var_endian,
 NCD2_set_var_chunk_cache,
 NCD2_get_var_chunk_cache,
 
@@ -2371,24 +2382,43 @@ NCD2_get_att(int ncid, int varid, const char* name, void* value, nc_type t)
     return THROW(ret);
 }
 
-int
+static int
 NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                int* ndimsp, int* dimidsp, int* nattsp,
-               int* shufflep, int* deflatep, int* deflate_levelp,
-               int* fletcher32p, int* contiguousp, size_t* chunksizesp,
-               int* no_fill, void* fill_valuep, int* endiannessp,
-	       int* options_maskp, int* pixels_per_blockp)
+               int *shufflep, char** algorithmp,
+               int *nparams, unsigned int* compression_params,
+               int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
+               int *no_fill, void *fill_valuep, int *endiannessp)
 {
     NC* drno;
     int ret;
     if((ret = NC_check_id(ncid, (NC**)&drno)) != NC_NOERR) return THROW(ret);
     ret = NCDISPATCH_inq_var_all(getnc3id(drno), varid, name, xtypep,
                ndimsp, dimidsp, nattsp,
-               shufflep, deflatep, deflate_levelp,
-               fletcher32p, contiguousp, chunksizesp,
-               no_fill, fill_valuep, endiannessp,
-	       options_maskp, pixels_per_blockp);
+               shufflep, algorithmp,
+               nparams, compression_params,
+               fletcher32p, contiguousp, chunksizesp, 
+               no_fill, fill_valuep, endiannessp);
     return THROW(ret);
+}
+
+static int
+NCD2_def_var_extra(int ncid, int varid,
+		    const char* algorithm, int* nparams, unsigned int* params,
+		    int *contiguous, const size_t *chunksizes,
+                    int *no_fill, const void *fill_value,
+                    int *shuffle, int *fletcher32, int *endianness)
+{
+    NC* drno;
+    int ret;
+    if((ret = NC_check_id(ncid, (NC**)&drno)) != NC_NOERR) return THROW(ret);
+    ret = NCDISPATCH_def_var_extra(getnc3id(drno), varid,
+		    algorithm, nparams, params,
+		    contiguous, chunksizes,
+                    no_fill, fill_value,
+                    shuffle, fletcher32, endianness);
+    return THROW(ret);
+
 }
 
 int
@@ -2418,6 +2448,8 @@ NCD2_var_par_access(int ncid, int p2, int p3)
 }
 
 
+
+
 #ifdef USE_NETCDF4
 
 EXTERNL int
@@ -2430,6 +2462,7 @@ NCD2_inq_ncid(int ncid, const char* name, int* grp_ncid)
     return THROW(ret);
 }
 
+EXTERNL int
 NCD2_show_metadata(int ncid)
 {
     NC* drno;

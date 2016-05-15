@@ -729,10 +729,31 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       IF(${A}_INCLUDE_DIR)
         INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
       ENDIF()
+      SET(ACTIVE_FILTERS ACTIVE_FILTERS $A)
     ELSE()
       MESSAGE(WARNING "Warning: Couldn't find ${A}")
     ENDIF()
   ENDFOREACH()
+
+  # verify that zfp versionis >= 0.4.0
+  SET(ZFP_TEST_SOURCE "\n
+  #include <stdlib.h>\n
+  #include <zfp.h>\n
+  int main(void) {\n
+    if(ZFP_VERSION < 0x0040)\n
+      return 1;\n
+    else\n
+      return 0;\n
+}\n")
+
+CHECK_C_SOURCE_RUNS("${ZFP_TEST_SOURCE}" __ZFP_VERSION__)
+IF(__ZFP_VERSION__) 
+    MESSAGE(WARNING "ZFP Library version must be at least 0.4.0")
+ENDIF()
+
+IF(ACTIVE_FILTERS EQUAL "")
+  SET(HAS_FILTERS ON)
+ENDIF()
 
 ENDIF(USE_HDF5 OR ENABLE_NETCDF_4)
 
@@ -1729,6 +1750,7 @@ is_enabled(USE_DAP HAS_DAP)
 is_enabled(USE_DISKLESS HAS_DISKLESS)
 is_enabled(USE_MMAP HAS_MMAP)
 is_enabled(JNA HAS_JNA)
+is_enabled(ENABLE_FILTERS HAS_FILTERS)
 
 # Generate file from template.
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/libnetcdf.settings.in"

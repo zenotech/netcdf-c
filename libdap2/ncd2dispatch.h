@@ -130,22 +130,6 @@ NCD2_def_var(int ncid, const char *name,
 	 nc_type xtype, int ndims, const int *dimidsp, int *varidp);
 
 EXTERNL int
-NCD2_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
-               int *ndimsp, int *dimidsp, int *nattsp,
-               int *shufflep, int *deflatep, int *deflate_levelp,
-               int *fletcher32p, int *contiguousp, size_t *chunksizesp,
-               int *no_fill, void *fill_valuep, int *endiannessp,
-	       int *options_maskp, int *pixels_per_blockp);
-
-EXTERNL int
-NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
-               int *ndimsp, int *dimidsp, int *nattsp,
-               int *shufflep, int *deflatep, int *deflate_levelp,
-               int *fletcher32p, int *contiguousp, size_t *chunksizesp,
-               int *no_fill, void *fill_valuep, int *endiannessp,
-	       int *options_maskp, int *pixels_per_blockp);
-
-EXTERNL int
 NCD2_inq_varid(int ncid, const char *name, int *varidp);
 
 EXTERNL int

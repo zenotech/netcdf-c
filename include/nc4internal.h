@@ -24,6 +24,7 @@
 #endif /* USE_PARALLEL */
 #include <netcdf.h>
 #include <netcdf_f.h>
+#include <netcdf_compress.h>
 
 /* Always needed */
 #include "nc.h"

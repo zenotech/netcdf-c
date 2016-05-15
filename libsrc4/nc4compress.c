@@ -94,6 +94,27 @@ static size_t H5Z_filter_fpzip(unsigned,size_t,const unsigned[],size_t,size_t*,v
 #endif
 #ifdef ZFP_FILTER
 static size_t H5Z_filter_zfp(unsigned,size_t,const unsigned[],size_t,size_t*,void**);
+static int zfp_init(const nc_compression_t* params, void** argv);
+
+struct ZFP_PARAMS {
+    zfp_stream* stream;    /* compressed stream */
+    unsigned int minbits;  /* minimum number of bits per 4^d block */
+    unsigned int maxbits;  /* maximum number of bits per 4^d block */
+    unsigned int maxprec;  /* maximum precision (# bit planes coded) */
+    int minexp;            /* minimum base-2 exponent; error <= 2^minexp */
+    bitstream* bstream;
+    zfp_field* field;
+    unsigned int dims;
+    void* buffer;
+    size_t bufsize;
+};
+
+#define ZP_UINT_SIZE ((sizeof(struct ZFP_PARAMS) + (sizeof(unsigned int) - 1))/sizeof(unsigned int))
+
+union ZFP_ARGV {
+    struct ZFP_PARAMS zparams;
+    unsigned int argv[ZP_UINT_SIZE];
+};
 #endif
 
 #ifndef DEBUG
@@ -924,8 +945,12 @@ static int
 zfp_attach(const NCC_COMPRESSOR* info, nc_compression_t* parms, hid_t plistid)
 {
     int status = NC_NOERR;
+    void* args;
     if(!registered[info->nccid]) {status = NC_ECOMPRESS; goto done;}
+    /* Validate */
     if((status = zfp_valid(info,parms)) != NC_NOERR) goto done;
+    /* Because the init is fairly complex, do it once */
+    if((status = zfp_init(parms,&args)) != NC_NOERR) goto done;
     if(H5Pset_filter(plistid,info->h5id,H5Z_FLAG_MANDATORY,NC_NELEMS_ZFP,parms->params))
 	status = NC_ECOMPRESS;
 done:
@@ -936,14 +961,143 @@ static int
 zfp_valid(const NCC_COMPRESSOR* info, nc_compression_t* parms)
 {
     int status = NC_NOERR;
-    if(parms->zfp.prec < 0 || parms->zfp.prec > 64) {status = NC_EINVAL; goto done;}
-    if(parms->zfp.prec > 32 && !parms->zfp.isdouble) {status = NC_EINVAL; goto done;}
     if(parms->zfp.rank < 0 || parms->zfp.rank > NC_COMPRESSION_MAX_DIMS) {status = NC_EINVAL; goto done;}
+    if(parms->zfp.precision < 0 || parms->zfp.precision > 64) {status = NC_EINVAL; goto done;}
+    if(parms->zfp.precision > 32 && parms->zfp.type != zfp_type_double) {status = NC_EINVAL; goto done;}
 done:
     return THROW(status);
 }
 
 #ifdef ZFP_FILTER
+static int
+zfp_init(const nc_compression_t* params, void** argv)
+{
+    int stat = NC_NOERR;
+    int i;
+    struct ZFP_PARAMS* zparams; /* This is what is given to the filter */
+    int isdouble;
+    size_t outbuflen;
+    char *outbuf = NULL;
+    size_t inbytes;
+    size_t bufbytes;
+    size_t elemsize;
+    size_t totalsize;
+    size_t chunksizes[NC_MAX_VAR_DIMS];
+    int nx,ny,nz;
+    size_t nzsize;
+    int mergedims = 0; /* default is prefix */
+    int sizeone = 0;
+    unsigned int dims = 0;
+    void* buffer;
+    
+    switch ((zfp_type)params->zfp.type) {
+    case zfp_type_float:
+	isdouble = 0;
+        break;
+    case zfp_type_double:
+        isdouble = 1;
+        break;
+    default:
+        stat = NC_ECOMPRESS;
+	goto done;
+    }
+
+    /* Compute total size of the chunk and if # of chunks with size > 1 */
+    for(sizeone=0,totalsize=1,i=0;i<params->zfp.rank;i++) {
+	chunksizes[i] = params->zfp.chunksizes[i];
+	totalsize *= chunksizes[i];
+	if(chunksizes[i] > 1) sizeone++;
+    }
+
+    /* If we have exactly 3 dims of size 1, and more than 3 dimensions,
+       then merge down to 3 dimensions
+    */
+    mergedims = (sizeone == 3 && params->zfp.rank > 3);
+    if(mergedims) {
+        nx = ny = nz = 1;
+        for(i=0;i<params->zfp.rank;i++) {
+            if(chunksizes[i] > 1) {
+                if(nx == 1) nx = chunksizes[i];
+                else if(ny == 1) ny = chunksizes[i];
+                else if(nz == 1) nz = chunksizes[i];
+            }
+        }
+    } else { /*prefix*/
+        /* Do some computations */
+        nzsize = 0;
+        if(params->zfp.rank > 2) {
+            for(nzsize=1,i=2;i<params->zfp.rank;i++) {
+                nzsize *= chunksizes[i];
+            }
+        }
+    }
+
+    zparams = (struct ZFP_PARAMS*)calloc(1,sizeof(struct ZFP_PARAMS));
+    if(zparams == NULL) {stat = NC_ENOMEM; goto done;}
+
+    /* set array type and size */
+    switch (params->zfp.rank) {
+    case 0:
+	stat = NC_ECOMPRESS;
+	goto done;
+    case 1:
+	ny = nz = 0;
+        zparams->field = zfp_field_1d(NULL, params->zfp.type, nx);
+	break;
+    case 2:
+	nz = 0;
+        zparams->field = zfp_field_2d(NULL, params->zfp.type, nx, ny);
+	break;
+    default:
+        zparams->field = zfp_field_3d(NULL, params->zfp.type, nx, ny, nz);
+	break;
+    }
+    zparams->dims = zfp_field_dimensionality(zparams->field);
+
+    /* Element size (in bytes) */
+    elemsize = (isdouble ? sizeof(double) : sizeof(float));
+
+    /* build the stream */
+
+    /* Number of uncompressed bytes */
+    inbytes = totalsize * elemsize;
+    /* Allocated size of the target buffer */
+    bufbytes = 1024 + inbytes; /* see fpzip? */
+    
+    zparams->buffer = (void*)malloc(bufbytes);
+    zparams->bufsize = bufbytes;
+    zparams->bstream = stream_open(zparams->buffer,zparams->bufsize);
+    if(zparams->bstream == NULL) {stat = NC_ENOMEM; goto done;}
+    zparams->stream = zfp_stream_open(zparams->bstream);
+    if(zparams->stream == NULL) {stat = NC_ENOMEM; goto done;}
+
+    /* Now set stream parameters */
+    zfp_stream_set_precision(zparams->stream,(unsigned int)params->zfp.precision,(zfp_type)params->zfp.type);
+    if(params->zfp.rate != 0)
+	zfp_stream_set_rate(zparams->stream,params->zfp.rate,(zfp_type)params->zfp.type,zparams->dims,0);
+    if(params->zfp.tolerance != 0)
+	zfp_stream_set_accuracy(zparams->stream,params->zfp.tolerance,(zfp_type)params->zfp.type);
+
+    /* Pull out the "real" params */
+    zfp_stream_params(zparams->stream,
+			&zparams->minbits,
+			&zparams->maxbits,
+			&zparams->maxprec,
+			&zparams->minexp);
+done:
+    if(stat != NC_NOERR && zparams != NULL) {
+	if(zparams->stream)
+	    zfp_stream_close(zparams->stream);
+	if(zparams->bstream)
+	    stream_close(zparams->bstream);
+	if(zparams->buffer)
+	    free(zparams->buffer);
+	free(zparams);
+    } else if(argv)
+	*argv = zparams;
+    return stat;
+}
+
 /**
 Assumptions:
 1. Each incoming block represents 1 complete chunk
@@ -954,155 +1108,47 @@ H5Z_filter_zfp(unsigned int flags, size_t cd_nelmts,
                      size_t *buf_size, void **buf)
 {
     int i;
-    zfp_params zfp;
-    nc_compression_t* params;
-    int rank;
-    int isdouble;
-    unsigned int prec;
-    double rate;
-    double accuracy;
-    size_t outbuflen;
-    char *outbuf = NULL;
-    size_t inbytes;
-    size_t bufbytes;
-    size_t elemsize;
-    size_t totalsize;
-    size_t chunksizes[NC_MAX_VAR_DIMS];
-    int nx,ny,nz;
-    size_t nzsize;
-    int choice = 0; /* default is prefix */
+    struct ZFP_PARAMS* zfp;
     
     if(nbytes == 0) return 0; /* sanity check */
 
-    params = (nc_compression_t*)argv;
-    isdouble = params->zfp.isdouble;
-    prec = params->zfp.prec;
-    rank = params->zfp.rank;
-    rate = params->zfp.rate;
-    accuracy = params->zfp.tolerance;
-
-    for(choice=0,totalsize=1,i=0;i<rank;i++) {
-	chunksizes[i] = params->zfp.chunksizes[i];
-	totalsize *= chunksizes[i];
-	if(chunksizes[i] > 1) choice++;
-    }
-    choice = (choice == 3 && rank > 3 ? 1 : 0);
-
-    if(choice) {
-        nx = ny = nz = 1;
-        for(i=0;i<rank;i++) {
-            if(chunksizes[i] > 1) {
-                if(nx == 1) nx = chunksizes[i];
-                else if(ny == 1) ny = chunksizes[i];
-                else if(nz == 1) nz = chunksizes[i];
-		else {
-	  	    fprintf(stderr,"At most, 3 zfp chunksizes can be > 1\n");
-		    return NC_ECOMPRESS;
-		}
-            }
-        }
-    } else { /*prefix*/
-        /* Do some computations */
-        nzsize = 0;
-        if(rank > 2) {
-            for(nzsize=1,i=2;i<rank;i++) {
-                nzsize *= chunksizes[i];
-            }
-        }
-    }
-
-    /* Element size (in bytes) */
-    elemsize = (isdouble ? sizeof(double) : sizeof(float));
+    zfp = (struct ZFP_PARAMS*)argv;
 
     if(flags & H5Z_FLAG_REVERSE) {
         /** Decompress data.
          **/
 
-        /* Number of uncompressed bytes */
-        inbytes = totalsize * elemsize;
-
-        /* Allocated size of the target buffer */
-        bufbytes = 1024 + inbytes; /* see fpzip? */
-
-	if(choice) {
-	    zfp.nx = nz;
-	    zfp.ny = ny;
-	    zfp.nz = nz;
-	} else {/* prefix */
-	    zfp.nx = chunksizes[0];
-	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
-	    zfp.nz = (rank >= 3 ? nzsize : 1);
-	}
-
-        zfp.type = isdouble ? ZFP_TYPE_DOUBLE : ZFP_TYPE_FLOAT;
-
-        zfp_set_precision(&zfp,(unsigned int)prec);
-        if(rate != 0)
-            zfp_set_rate(&zfp,rate);
-        if(accuracy != 0)
-            zfp_set_accuracy(&zfp,accuracy);
-
-        /* Create the decompressed data buffer */
-        outbuf = (char*)malloc(bufbytes);
-
-        /* Decompress into the compressed data buffer */
-        outbuflen = zfp_decompress(&zfp,outbuf,*buf,nbytes);
-        if(outbuflen == 0)
+        /* Decompress into the stream */
+	if(zfp_decompress(zfp->stream,zfp->field) == 0)
             goto cleanupAndFail;
 
         /* Replace the buffer given to us with our decompressed data buffer */
         free(*buf);
-        *buf = outbuf;
-        *buf_size = bufbytes;
-        outbuf = NULL;
-        return outbuflen; /* # valid bytes */
+        *buf = zfp->buffer;
+        *buf_size = zfp->bufsize;;
+        return *buf_size; /* # valid bytes */
 
     } else {
   
         /** Compress data.
          **/
 
-        /* fill in zfp */
-	if(choice) {
-	    zfp.nx = nz;
-	    zfp.ny = ny;
-	    zfp.nz = nz;
-	} else { /*prefix*/
-	    zfp.nx = chunksizes[0];
-	    zfp.ny = (rank >= 2 ? chunksizes[1] : 1);
-	    zfp.nz = (rank >= 3 ? nzsize : 1);
-	}
-
-        zfp.type = isdouble ? ZFP_TYPE_DOUBLE : ZFP_TYPE_FLOAT;
-
-        zfp_set_precision(&zfp,(unsigned int)prec);
-        if(rate != 0)
-            zfp_set_rate(&zfp,rate);
-        if(accuracy != 0)
-            zfp_set_accuracy(&zfp,accuracy);
-
-        /* Create the compressed data buffer */
-        bufbytes = zfp_estimate_compressed_size(&zfp);
-        outbuf = (char*)malloc(bufbytes);
-
         /* Compress into the compressed data buffer */
-        outbuflen = zfp_compress(&zfp,*buf,outbuf,bufbytes);
+        size_t outbuflen = zfp_compress(zfp->stream,zfp->field);
         if(outbuflen == 0)
             goto cleanupAndFail;
 
         /* Replace the buffer given to us with our decompressed data buffer */
         free(*buf);
-        *buf = outbuf;
-        *buf_size = bufbytes;
-        outbuf = NULL;
+        *buf = zfp->buffer;
+        *buf_size = zfp->bufsize;
         return outbuflen; /* # valid bytes */
     }
 
 cleanupAndFail:
-    if(outbuf)
-        free(outbuf);
     return 0;
 }
+
 #endif    
 
 /**************************************************/

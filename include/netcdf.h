@@ -1984,37 +1984,6 @@ ncrecput(int ncid, long recnum, void *const *datap);
 #define NC_HAVE_INQ_FORMAT_EXTENDED /*!< inq_format_extended() support. */
 #endif
 
-/* Compression API */
-
-/* Define the max size of a compression alg name; 16 - 1 for trailing null */
-#define NC_COMPRESSION_MAX_NAME 15
-/* This must be the max of the NC_NELEMS_XXX in nc4compress.h */
-#define NC_COMPRESSION_MAX_PARAMS 64
-/* Define the max number of dimensions that can be handled by
-   some of the compressors */
-#define NC_COMPRESSION_MAX_DIMS 16
-/* Compression max/min for simple deflates */
-#define NC_DEFLATE_LEVEL_MIN 0
-#define NC_DEFLATE_LEVEL_MAX 9
-
-/** 
-The compression parameters are stored in an
-array of unsigned ints. For the current set of algorithms,
-the array conforms to the union defined in nc4compress.h.
-*/
-
-/* Set compression settings for a variable.
-   Must be called after nc_def_var and before nc_enddef.
-   The form of the parameters is algorithm dependent.
-*/
-EXTERNL int
-nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params);
-
-/* Find out compression settings of a var. */
-EXTERNL int
-nc_inq_var_compress(int ncid, int varid,
-		    char**algorithmp, int* nparamsp, unsigned int* paramsp);
-
 /* Define the shuffle of a variable. */
 EXTERNL int
 nc_def_var_shuffle(int ncid, int varid, int shuffle);

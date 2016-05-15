@@ -895,26 +895,52 @@ if test "x$enable_netcdf_4" = xyes || test "x$enable_dap" = xyes; then
 fi
 
   # Check for compression algorithms
-  # Start by constructing the set of enabled compression filters
+  # The algorithm operates as follows.
+  # 1. A specific set of filters is defined by --with-compression=<comma list of filters>
+  # 2. --enable-compression flag is equivalent to
+  #    --with-compression=$DFALTFILTERS
+  # 3. --with-compression overides --enable-compression
 
   # Set of all known filters; must match arms of the case...esac below
-  ALLFILTERS="ZLIB,SZIP,BZIP2,FPZIP,ZFP"
+  ALLFILTERS="zlib,szip,bzip2,fpzip,zfp"
+  # Set of filters turned on by default 
+  DFALTFILTERS="$ALLFILTERS"
 
-  AC_MSG_CHECKING([which compression filters to enable])
+  # Does the user want all filters?
+  AC_MSG_CHECKING([if default filters are to be used ($DFALTFILTERS)])
+  AC_ARG_ENABLE([compression],
+              [AS_HELP_STRING([--enable-compression],
+                              [use all default filters])])
+  test "x$enable_compression" = xyes || enable_compression=no
+  AC_MSG_RESULT($enable_compression)
+  if test "x$enable_compression" = xyes ; then
+    ENABLEDFILTERS="$DFALTFILTERS"
+  fi
+  AC_MSG_CHECKING([which specific compression filters to enable])
   AC_ARG_WITH([compression],
               [AS_HELP_STRING([--with-compression=filter,filter,...],
                               [Specify filters to look for.])],
-              [ENABLEDFILTERS=$with_compression],
-              [ENABLEDFILTERS="$ALLFILTERS"])
-  AC_MSG_RESULT([$ENABLEDFILTERS])
+              [WITHFILTERS=$with_compression],
+              [WITHFILTERS=""])
+  AC_MSG_RESULT([$WITHFILTERS])
+
+  # Figure out final set of enabled filters
+  if test "x$WITHFILTERS" != x ; then
+    ENABLEDFILTERS="$WITHFILTERS"
+  fi
+
+  # Set specific filter flags
   ENABLEDFILTERS=`echo $ENABLEDFILTERS | tr ',' ' '`
+  # Always include zip
   ENABLEDFILTERS="zip $ENABLEDFILTERS"
   # Iterate over enabled filters
   ACTIVEFILTERS=""      
   for f in ${ENABLEDFILTERS} ; do
+      # Lower-case the filter name
+      flc=`echo $f | tr ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz`
       DUP=0
       for a in ${ACTIVEFILTERS} ; do
-        if test "x$a" = "x$f" ; then
+        if test "x$a" = "x${flc}" ; then
           DUP=1;
           break;
         fi
@@ -922,7 +948,7 @@ fi
       if test $DUP = 1 ; then
         continue;
       fi
-      case "$f" in
+      case "${flc}" in
       zip)
 	# Check to see if it is enabled in hdf5
 	AC_SEARCH_LIBS([H5Pset_deflate],[hdf5 hdf5_hl],
@@ -961,24 +987,47 @@ fi
 
       zfp)
 	# Warning, this test may be library specific
-	AC_SEARCH_LIBS([zfp_compress],[zfp],
-			[havefilter=yes],[havefilter=no])
-        if test "x$havefilter" = xyes; then
-          AC_DEFINE([ZFP_FILTER], [1], [if true, support zfp compression])
-	fi
+	AC_SEARCH_LIBS([zfp_compress],[zfp],[havefilter=yes],[havefilter=no])
+	if test x$havefilter = xyes ; then
+            # Verify version
+            SAVELIBS=$LIBS
+            SAVECFLAGS="$CFLAGS"
+            AC_RUN_IFELSE([AC_LANG_PROGRAM([#include <zfp.h>],
+                 [[
+		   if(ZFP_VERSION >= 0x040)
+                       return 0;
+                   return 1;]])],
+                 [zfpverok=yes],
+                 [zfpverok=no])
+            CFLAGS="$SAVECFLAGS"
+            LIBS="$SAVELIBS"
+            AC_MSG_CHECKING([Is libzfp version 0.4.0 or later?])
+            AC_MSG_RESULT([$zfpverok])
+            if test x$zfpver = xno; then
+                AC_MSG_WARN([ZFP compression requires version 0.4.0 or later; disabling])
+	        havefilter=no
+            fi
+          fi
+          if test "x$havefilter" = xyes; then
+              AC_DEFINE([ZFP_FILTER], [1], [if true, support zfp compression])
+              LIBS="$LIBS -lzfp"
+          fi
         ;;
-      *) AC_MSG_NOTICE([Unknown filter: $f ; ignored])
+      *) AC_MSG_NOTICE([Unknown filter: ${flc} ; ignored])
          havefilter=no
          ;;
       esac
       if test "x$havefilter" = xyes ; then
-        ACTIVEFILTERS="${ACTIVEFILTERS} $f"
-        AC_MSG_NOTICE([$f library located])
+        ACTIVEFILTERS="${ACTIVEFILTERS} ${flc}"
+        AC_MSG_NOTICE([${flc} library activated])
       else
-        AC_MSG_NOTICE([$f support required but cannot locate library.])
+        AC_MSG_NOTICE([${flc} support requested but cannot locate library.])
       fi
   done
-  echo "enabled and available filters=$ACTIVEFILTERS"
+  AC_MSG_NOTICE([Available and enabled filters=$ACTIVEFILTERS"])
+  if test "x$ACTIVEFILTERS" != x ; then
+    AC_DEFINE([ENABLE_FILTERS], [1], [if true, support zfp compression])
+  fi
 
 # We need the math library
 AC_CHECK_LIB([m], [floor], [],
@@ -1223,6 +1272,7 @@ AM_CONDITIONAL(BUILD_DISKLESS, [test x$enable_diskless = xyes])
 AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
+AM_CONDITIONAL([ENABLE_FILTERS], [test "x$ACTIVEFILTERS" != x])
 
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
