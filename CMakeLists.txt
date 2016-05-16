@@ -688,12 +688,23 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   # Locate compression filter libraries
   ################################
 
-  # Apparently filter names must be upper case
   # Default is to look for all compression libraries
-  # (ZIP andSZIP are implied)
+  # (zip and szip are implied)
 
-  SET(ALLFILTERS BZIP2 FPZIP ZFP)
+  SET(ALLFILTERS "zip szip bzip2 fpzip zfp")
+  SET(DFALTFILTERS "bzip2 fpzip zfp")
 
+  OPTION(WITH_COMPRESS "List of compressions to use or 'all'" "")
+
+  string(TOUPPER ${WITH_COMPRESS} WITHFILTERS)
+
+  string(COMPARE EQUAL "ALL" "${WITHFILTERS}" ISALL)
+  IF(${ISALL})
+    SET(WITHFILTERS ${DFALTFILTERS})
+  ENDIF()
+  string(TOUPPER ${WITHFILTERS} WITHFILTERS)
+  string(REPLACE "," " " WITHFILTERS ${WITHFILTERS})
+  string(REPLACE " " ";" WITHFILTERS ${WITHFILTERS})
   IF(USE_SZIP)
 	FIND_PACKAGE(SZIP NO_MODULE REQUIRED)
 	INCLUDE_DIRECTORIES(${SZIP_INCLUDE_DIR})
@@ -715,13 +726,13 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ##
   FIND_LIBRARY(HAVE_BZIP2 NAMES bzip2 bz2)
   FIND_LIBRARY(HAVE_FPZIP NAMES fpzip)
-  FIND_LIBRARY(HAVE_ZFP NAMES ZFP)
+  FIND_LIBRARY(HAVE_ZFP NAMES zfp)
 
   FIND_PATH(BZIP2_INCLUDE_DIR bzlib.h)
   FIND_PATH(FPZIP_INCLUDE_DIR fpzip.h)
   FIND_PATH(ZFP_INCLUDE_DIR zfp.h)
 
-  FOREACH(A ${ALLFILTERS})
+  FOREACH(A ${WITHFILTERS})
     IF(HAVE_${A})
       MESSAGE(STATUS "Found ${A}: ${HAVE_${A}}")
       SET(USE_${A} ON)
@@ -729,7 +740,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       IF(${A}_INCLUDE_DIR)
         INCLUDE_DIRECTORIES(${${A}_INCLUDE_DIR})
       ENDIF()
-      SET(ACTIVE_FILTERS ACTIVE_FILTERS $A)
+      SET(ACTIVEFILTERS "${ACTIVEFILTERS} ${A}")
     ELSE()
       MESSAGE(WARNING "Warning: Couldn't find ${A}")
     ENDIF()
@@ -744,16 +755,12 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
       return 1;\n
     else\n
       return 0;\n
-}\n")
+    }\n")
 
-CHECK_C_SOURCE_RUNS("${ZFP_TEST_SOURCE}" __ZFP_VERSION__)
-IF(__ZFP_VERSION__) 
+  CHECK_C_SOURCE_RUNS("${ZFP_TEST_SOURCE}" ZFP_VERSION_OK)
+  IF(NOT ${ZFP_VERSION_OK})
     MESSAGE(WARNING "ZFP Library version must be at least 0.4.0")
-ENDIF()
-
-IF(ACTIVE_FILTERS EQUAL "")
-  SET(HAS_FILTERS ON)
-ENDIF()
+  ENDIF()
 
 ENDIF(USE_HDF5 OR ENABLE_NETCDF_4)
 
@@ -1750,6 +1757,7 @@ is_enabled(USE_DAP HAS_DAP)
 is_enabled(USE_DISKLESS HAS_DISKLESS)
 is_enabled(USE_MMAP HAS_MMAP)
 is_enabled(JNA HAS_JNA)
+string(COMPARE NOTEQUAL "" "${ACTIVEFILTERS}" HAS_FILTERS)
 is_enabled(ENABLE_FILTERS HAS_FILTERS)
 
 # Generate file from template.

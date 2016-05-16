@@ -140,7 +140,7 @@ ENDIF()
     # Add this test by hand, as it is also called from a script.
     # Editing the script would break autotools compatibility.
     add_bin_test_no_prefix(tst_special_atts)
-    add_bin_test_no_prefix(tst_compress)
+    add_bin_test_no_prefix(tst_compression)
     add_bin_test_no_prefix(tst_chunking)
 
 

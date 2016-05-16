@@ -16,11 +16,13 @@ build_bin_test(renamegroup)
 add_sh_test(nc_test4 run_grp_rename)
 
 # Note, tst_compress needs to be compiled before run_compress
+IF(ENABLE_FILTERS)
 CONFIGURE_FILE(
   run_compress.sh.in
   run_compress.sh @ONLY)
 build_bin_test(tst_compress)
 add_sh_test(nc_test4 run_compress)
+ENDIF()
 
 ##
 # The shell script, run_empty_vlen_test.sh,

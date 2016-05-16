@@ -1,10 +1,12 @@
 # Is netcdf-4 and/or DAP enabled?
-#NC4=1
+NC4=1
 #DAP=1
 
 # Is visual studio being used?
 #VS=yes
 CYGWIN=yes
+
+FILTERSET="bzip2 fpcomp zfp"
 
 if test "x$VS" = x ; then
 #CC=mpicc
@@ -40,8 +42,6 @@ HP=`cygpath -w "$HP"`
 CP=`cygpath -w "$CP"`
 fi
 
-#if test "x$VS" != x ; then USR=c:/cygwin/usr; else USR=/usr; fi
-
 ZLIB="-DZLIB_LIBRARY=${ZP}/$ZLIB -DZLIB_INCLUDE_DIR=${ZP}/include -DZLIB_INCLUDE_DIRS=${ZP}/include"
 if test "x$NC4" = x1 ; then
 HDF5="-DHDF5_LIB=${HP}/$H5LIB -DHDF5_HL_LIB=${HP}/$H5LIB_HL -DHDF5_INCLUDE_DIR=${HP}/include"
@@ -49,6 +49,44 @@ fi
 if test "x$DAP" = x1 ; then
 CURL="-DCURL_LIBRARY=${CP}/$CURLLIB -DCURL_INCLUDE_DIR=${CP}/include -DCURL_INCLUDE_DIRS=${CP}/include"
 fi
+
+PAT=
+if test "x$VS" != x -a "x$CYGWIN" != x ; then
+   PAT="cygXXX.dll"
+elif test "x$VS" = x -a "x$CYGWIN" != x ; then
+   PAT="libXXX.dll.a"
+elif test "x$VS" = x -a "x$CYGWIN" == x ; then
+   PAT="libXXX.so"
+else
+   echo "cannot determine filter library pattern"
+   exit 1
+fi
+
+for filter in $FILTERSET; do
+  FNAME=
+  FINCL=
+  UCF=
+  case "$filter" in
+  bzip2*) FNAME=bz2 ; FINCL=bzlib.h ; UCF=BZIP2 ;;
+  fpzip*) FNAME=fpzip ; FINCL=fpzip.h ; UCF=FPZIP ;;
+  bzip2*) FNAME=zfp ; FINCL=zfp.h ; UCF=ZFP ;;
+  esac
+  LIBNAME="${PAT/XXX/$FNAME}"
+  LIBPATH=
+  for p in /usr/bin /usr/local/bin /usr/local/lib /usr/lib ; do
+    TMP="${p}/$LIBNAME"
+    if test "x$CYGWIN" != x -a "x$VS" != x; then
+      TMP=`cygpath -w "$TMP"`
+    fi
+    if test -f $TMP ; then
+      LIBPATH=$p
+      break
+    fi
+  done
+  if test "x$LIBPATH" != x ; then
+    FILTERFLAGS="${FILTERFLAGS} -D${UCF}_LIBRARY=$LIBPATH/$LIBNAME -D${UCF}_INCLUDE_DIR=$LIBPATH/include -D${UCF}_INCLUDE_DIRS=${LIBPATH}/include"
+  fi
+done
 
 #FLAGS="$FLAGS -DCMAKE_C_FLAGS='-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter'"x2
 
@@ -59,6 +97,9 @@ if test "x$NC4" = x ; then
 FLAGS="$FLAGS -DENABLE_NETCDF_4=false"
 fi
 FLAGS="$FLAGS -DENABLE_CONVERSION_WARNINGS=false"
+
+#FLAGS="$FLAGS $FILTERFLAGS"
+FLAGS="$FLAGS -DWITH_COMPRESS=all"
 
 FLAGS="$FLAGS -DCMAKE_INSTALL_PREFIX=$USR/local"
 #FLAGS="-DCMAKE_PREFIX_PATH=$PPATH"

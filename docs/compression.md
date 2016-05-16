@@ -37,7 +37,8 @@ Support for zlib is on by default.
 
 The last three require that the netcdf library be compiled
 with the library and include directory specified
-in the *LDFLAGS* and *CPPFLAGS* environment variables.
+in the *LDFLAGS* and *CPPFLAGS* environment variables
+-- for autoconf -- or via arguments to cmake.
 
 Some of these can present a problem because the library API
 may not entirely standardized.
@@ -45,7 +46,8 @@ may not entirely standardized.
 # Extensions to *netcdf.h*
 
 In order to support multiple kinds of compressors, the netcdf
-API has been extended by adding declarations and functions into netcdf.h
+API has been extended by adding declarations and functions into 
+a new include file called netcdf_compress.h.
 The changes have been defined so as to avoid the need for
 compression specific arguments.
 
@@ -56,7 +58,7 @@ First, a number of constants are defined.
   name of the compression method: "zip", "bzip2", etc.
 - NC_COMPRESSION_MAX_PARAMS -- define the maximum number of
   parameters that can be provided to the compression method.
-  This must be the max of the NC_NELEMS_XXX in nc4compress.h.
+  This must be the max of the NC_NELEMS_XXX in netcdf_compress.h.
 - NC_COMPRESSION_MAX_DIMS -- define the max number of dimensions
   that all allowed for any of the compression schemes. This
   is currently less than NC_MAX_VAR_DIMS for implementation
@@ -64,38 +66,33 @@ First, a number of constants are defined.
 
 The compression scheme parameters are stored in an array of
 unsigned ints (32 bits). For the current set of algorithms,
-the array conforms to the following union
-(see nc4compress.h for the definitive declaration).
-It is subject to change as new
-schemes are added.
+the array conforms to the following nc_compression_t union 
+(see netcdf_compress.h for the definitive declaration).
+It is subject to change as new schemes are added.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 typedef union {
-    unsigned int params[NC_COMPRESSION_MAX_PARAMS];//arbitrary 32 bit values
-    struct {
-        unsigned int level;
-    } zip;
-    struct {
-        unsigned int level;
-    } bzip2;
+    unsigned int params[NC_COMPRESSION_MAX_PARAMS];/*arbitrary 32 bit values*/
+    struct {unsigned int level;} zip;
+    struct {unsigned int level;} bzip2;
     struct {
         unsigned int options_mask;
         unsigned int pixels_per_block;
     } szip;
     struct {
-        int isdouble;
-        int prec; // number of bits of precision (zero = full)
-        int rank;
-        size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
+	int isdouble;
+	int prec; /* number of bits of precision (zero = full) */
+	int rank;
+	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
     } fpzip;
     struct {
-        int isdouble;
-        int prec;
+        /*zfp_type*/ int type;
         double rate;
         double tolerance;
+	int precision;
         int rank;
-        size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
-    } zfp;
+	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
+    } zfp; 
 } nc_compression_t;
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -113,7 +110,7 @@ for the variable.
 
 ### nc_def_var_compress
 
-The *nc_def_var_compress* function is a generization of
+The *nc_def_var_compress* function is a generalization of
 *nc_def_var_deflate*.  It sets compression settings for a
 variable for any supported compression scheme.  It must be
 called after nc_def_var and before nc_enddef.  The form of
@@ -191,7 +188,6 @@ The possible return codes are as follows.
 - *NC_ENOTVAR* -- Invalid variable ID.
 - *NC_ECOMPRESS* -- Invalid compression parameters.
 
-
 ### nc_def_var_shuffle
 
 In order to simplify the compression related API,
@@ -258,20 +254,21 @@ int v(d1,d2,d3,...dN)
 
 The fpzip (and zfp) have the problem that they are only defined
 for variables with 1 to 3 dimensions. So, some way must be defined
-to support variables with N dimensions, where N is less than 3.
+to support variables with N dimensions, where N is greater than 3.
 
-The following schemes have been defined to handle this case.
-1. Prefix (the default) -- The first two dimensions are kept as is, and the
-   third dimension is increased to cover all of the dimensions
-   after the first two. So the above is treated as if it was defined
-   as follows.
+The following scheme has been defined to handle this case.
+The scheme is called "Prefix"
+For Prefix, The first two dimensions are kept as is, and the
+third dimension is increased to cover all of the dimensions
+after the first two. So the above is treated as if it was defined
+as follows.
 ~~~~~~~~~~
 int v(d1,d2,dM)
 ~~~~~~~~~~
-   where dM is defined to have the size d3 x d4 ...x dN.
-   Since we are actually dealing with chunks, the actual last chunk
-   is treated as if it was of size c3 x d4 ...x cN.
-
+where dM is defined to have the size d3 x d4 ...x dN.
+Since we are actually dealing with chunks, the actual last chunk
+is treated as if it was of size c3 x d4 ...x cN.
+<!--
 2. Choice (M out of N) -- The idea here is to define the chunks so that
    at most three have chunk sizes greater than one. This potentially
    has significant consequences for performance because it can increase
@@ -283,6 +280,7 @@ The choice of scheme is determined as follows.
 1. If all but three of the chunksizes are set to 1 (one),
    then the choice scheme will be used.
 2. Otherwise, prefix will be used.
+-->
 
 <!--
 # Adding a New Compression Algorithm
@@ -332,17 +330,22 @@ two criteria must be met.
 1. The ./configure flag --with-compression=c1,c2,...cn
    must be used and the name of the desired compression algorithm
    (e.g. bzip2) must appear as one of the comma separated ci.
-2. The library for the compression algorithm must be accessible,
+2. The library for each of the compression algorithms must be accessible,
    typically thru the *LDFLAGS* and *CPPFLAGS* environment variables.
 
 If *--with-compression* is not specified, then it defaults to zip only.
+Using --with-compression=all will cause a default set of compression
+algorithms to be used.
 
 ## Cmake
-1. The flag *-DCOMPRESSION=c1,c2,...cn*
+1. The flag *-DWITH_COMPRESSION=c1,c2,...cn*
    must be used and the name of the desired compression algorithm
    (e.g. bzip2) must appear as one of the comma separated ci.
 2. The library for the compression algorithm must be accessible.
    Typically, the flag *-DCMAKE_PREFIX_PATH=...* is used
    to specify these libraries.
 
-If *-DCOMPRESSION* is not specified, then it defaults to zip only.
+If *-DWITH_COMPRESSION* is not specified, then it defaults to zip only.
+Using -DWITH_COMPRESSION=all will cause a default set of compression
+algorithms to be used.
+

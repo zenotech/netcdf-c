@@ -24,7 +24,11 @@ tst_vars2 tst_files5 tst_files6 tst_sync tst_h_strbug tst_h_refs        \
 tst_h_scalar tst_rename tst_h5_endians tst_atts_string_rewrite \
 tst_hdf5_file_compat
 
-check_PROGRAMS = $(NC4_TESTS) renamegroup tst_empty_vlen_unlim tst_compress
+check_PROGRAMS = $(NC4_TESTS) renamegroup tst_empty_vlen_unlim
+
+if ENABLE_FILTERS
+check_PROGRAMS += tst_compress
+endif
 
 # Add these if large file tests are turned on.
 if LARGE_FILE_TESTS
@@ -35,7 +39,9 @@ TESTS = $(NC4_TESTS)
 
 TESTS += run_grp_rename.sh
 TESTS += run_empty_vlen_test.sh
+if ENABLE_FILTERS
 TESTS += run_compress.sh
+endif
 
 # If the v2 API was built, add its test program.
 if BUILD_V2

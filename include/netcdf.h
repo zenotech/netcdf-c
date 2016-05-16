@@ -1984,14 +1984,6 @@ ncrecput(int ncid, long recnum, void *const *datap);
 #define NC_HAVE_INQ_FORMAT_EXTENDED /*!< inq_format_extended() support. */
 #endif
 
-/* Define the shuffle of a variable. */
-EXTERNL int
-nc_def_var_shuffle(int ncid, int varid, int shuffle);
-
-/* Learn about the shuffle of a variable. */
-EXTERNL int
-nc_inq_var_shuffle(int ncid, int varid, int *shufflep);
-
 #define NC_HAVE_META_H
 
 
