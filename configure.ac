@@ -988,17 +988,17 @@ fi
             SAVECFLAGS="$CFLAGS"
             AC_RUN_IFELSE([AC_LANG_PROGRAM([#include <zfp.h>],
                  [[
-		   if(ZFP_VERSION >= 0x040)
+		   if(ZFP_VERSION >= 0x050)
                        return 0;
                    return 1;]])],
                  [zfpverok=yes],
                  [zfpverok=no])
             CFLAGS="$SAVECFLAGS"
             LIBS="$SAVELIBS"
-            AC_MSG_CHECKING([Is libzfp version 0.4.0 or later?])
+            AC_MSG_CHECKING([Is libzfp version 0.5.0 or later?])
             AC_MSG_RESULT([$zfpverok])
             if test x$zfpver = xno; then
-                AC_MSG_WARN([ZFP compression requires version 0.4.0 or later; disabling])
+              AC_MSG_WARN([ZFP compression requires version 0.5.0 or later; disabling])
 	        havefilter=no
             fi
           fi
