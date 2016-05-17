@@ -31,8 +31,8 @@ SET(NC_VERSION_NOTE "-development")
 SET(netCDF_VERSION ${NC_VERSION_MAJOR}.${NC_VERSION_MINOR}.${NC_VERSION_PATCH}${NC_VERSION_NOTE})
 SET(VERSION ${netCDF_VERSION})
 SET(NC_VERSION ${netCDF_VERSION})
-SET(netCDF_LIB_VERSION 12.0.0)
-SET(netCDF_SO_VERSION 12)
+SET(netCDF_LIB_VERSION 11.2.0)
+SET(netCDF_SO_VERSION 11)
 SET(PACKAGE_VERSION ${VERSION})
 
 # Get system configuration, Use it to determine osname, os release, cpu. These
@@ -124,10 +124,17 @@ STRING(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
 
 # Determine the configure date.
 
-EXECUTE_PROCESS(
-  COMMAND date
-  OUTPUT_VARIABLE CONFIG_DATE
-  )
+IF(DEFINED ENV{SOURCE_DATE_EPOCH})
+	EXECUTE_PROCESS(
+	  COMMAND "date" "-u" "-d" "@$ENV{SOURCE_DATE_EPOCH}"
+	  OUTPUT_VARIABLE CONFIG_DATE
+	  )
+ELSE()
+	EXECUTE_PROCESS(
+	  COMMAND date
+	  OUTPUT_VARIABLE CONFIG_DATE
+	  )
+ENDIF()
 IF(CONFIG_DATE)
 	string(STRIP ${CONFIG_DATE} CONFIG_DATE)
 ENDIF()
@@ -190,7 +197,6 @@ OPTION(NC_FIND_SHARED_LIBS "Find dynamically-built versions of dependent librari
 # https://github.com/Unidata/netcdf-c/issues/228 for more info.
 ##
 OPTION(ENABLE_SHARED_LIBRARY_VERSION "Encode the library SO version in the file name of the generated library file." ON)
-
 
 # Set some default linux gcc & apple compiler options for
 # debug builds.
@@ -1133,6 +1139,15 @@ MARK_AS_ADVANCED(ENABLE_INTERNAL_DOCS VALGRIND_TESTS ENABLE_COVERAGE_TESTS )
 MARK_AS_ADVANCED(ENABLE_DAP_REMOTE_TESTS ENABLE_DAP_LONG_TESTS USE_REMOTE_CDASH)
 MARK_AS_ADVANCED(ENABLE_DOXYGEN_BUILD_RELEASE_DOCS DOXYGEN_ENABLE_TASKS ENABLE_DOXYGEN_SERVER_SIDE_SEARCH)
 MARK_AS_ADVANCED(ENABLE_SHARED_LIBRARY_VERSION)
+
+# This option is temporary and should always be on except if netcdf-4 is off.
+IF(ENABLE_NETCDF_4)
+OPTION(ENABLE_FILEINFO "Enable FILEINFO." ON)
+ELSE()
+OPTION(ENABLE_FILEINFO "Enable FILEINFO." OFF)
+ENDIF()
+MARK_AS_ADVANCED(ENABLE_FILEINFO)
+
 ################################
 # Option checks
 ################################

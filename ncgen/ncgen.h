@@ -4,7 +4,7 @@
  *   Copyright 1993, UCAR/Unidata
  *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
  *   $Header: /upc/share/CVS/netcdf-3/ncgen/ncgen.h,v 1.18 2010/06/01 15:34:53 ed Exp $
- *********************************************************************/
+*********************************************************************/
 
 #ifdef _MSC_VER
 #include <float.h>
@@ -71,7 +71,7 @@ typedef nc_type nc_subclass;
 
 /*
 Define data structure
-to hold special attribute values
+xto hold special attribute values
 for a given variable.
 Global values are kept as
 various C global variables
@@ -79,6 +79,7 @@ various C global variables
 
 /* Define a bit set for indicating which*/
 /* specials were explicitly specified*/
+/* See also: ncgen.y.tag2name */
 #define _STORAGE_FLAG       0x001
 #define _CHUNKSIZES_FLAG    0x002
 #define _FLETCHER32_FLAG    0x004
@@ -87,8 +88,17 @@ various C global variables
 #define _ENDIAN_FLAG        0x020
 #define _NOFILL_FLAG        0x040
 #define _FILLVALUE_FLAG     0x080
-#define _FORMAT_FLAG        0x100
-#define _COMPRESSION_FLAG   0x200
+#define _NCPROPS_FLAG       0x100
+#define _ISNETCDF4_FLAG     0x200
+#define _SUPERBLOCK_FLAG    0x400
+#define _FORMAT_FLAG        0x800
+#define _COMPRESSION_FLAG   0x1000
+
+extern struct Specialtoken {
+    char* name;
+    int   token;
+    int   tag;
+} specials[];
 
 /* Define an enumeration of supported languages */
 typedef enum Language {
@@ -122,6 +132,13 @@ typedef struct Specialdata {
     char           _Algorithm[NC_COMPRESSION_MAX_NAME];    /* HDf5 compression algorithm name; ""=>none */
 } Specialdata;
 
+typedef struct GlobalSpecialdata {
+    int           _Format ;      /* kflag */
+    const char*   _NCProperties ;
+    int           _IsNetcdf4 ;   /* 0 => false, 1 => true */
+    int           _Superblock  ; /* HDF5 file superblock version */
+} GlobalSpecialData;
+
 /* Track a set of dimensions*/
 /* (Note: the netcdf type system is deficient here)*/
 typedef struct Dimset {
@@ -145,7 +162,7 @@ typedef struct Typeinfo {
 	nc_type         typecode;
         unsigned long   offset;   /* fields in struct*/
         unsigned long   alignment;/* fields in struct*/
-        NCConstant        econst;   /* for enum values*/
+        NCConstant      econst;   /* for enum values*/
         Dimset          dimset;     /* for NC_VAR/NC_FIELD/NC_ATT*/
         size_t   size;     /* for opaque, compound, etc.*/
         size_t   nelems;   /* size in terms of # of datalist constants
@@ -192,10 +209,10 @@ typedef struct Symbol {  /* symbol table entry*/
         /* use more than one part*/
         Typeinfo  typ; /* type info for e.g. var, att, etc.*/
         Varinfo   var;
-        Attrinfo  att;        
+        Attrinfo  att;
         Diminfo   dim;
         Groupinfo grp;
- 	Reference ref; /* symbol is really a referene to another symbol*/ 
+ 	Reference ref; /* symbol is really a referene to another symbol*/
 	/* Misc pieces of info*/
 	int             lineno;  /* at point of creation*/
 	int		touched; /* for sorting*/

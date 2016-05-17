@@ -70,6 +70,8 @@ char* primtypenames[PRIMNO] = {
 "string"
 };
 
+static int GLOBAL_SPECIAL = _NCPROPS_FLAG | _ISNETCDF4_FLAG | _SUPERBLOCK_FLAG | _FORMAT_FLAG ;
+
 /*Defined in ncgen.l*/
 extern int lineno;              /* line number for error messages */
 extern Bytebuffer* lextext;           /* name or string with escapes removed */
@@ -113,6 +115,7 @@ static Symbol* makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int 
 static int containsfills(Datalist* list);
 static void datalistextend(Datalist* dl, NCConstant* con);
 static void vercheck(int ncid);
+static long long extractint(NCConstant con);
 
 int yylex(void);
 
@@ -186,8 +189,11 @@ NCConstant       constant;
         _ENDIANNESS
         _NOFILL
         _FLETCHER32
+	_NCPROPS
+	_ISNETCDF4
+	_SUPERBLOCK
         _COMPRESSION
-	DATASETID	
+	DATASETID
 
 %type <sym> ident typename primtype dimd varspec
 	    attrdecl enumid path dimref fielddim fieldspec
@@ -440,9 +446,9 @@ dimdeclist:     dimdecl
                 ;
 
 dimdecl:
-	  dimd '=' UINT64_CONST
+	  dimd '=' constint
               {
-		$1->dim.declsize = (size_t)uint64_val;
+		$1->dim.declsize = (size_t)extractint($3);
 #ifdef GENDEBUG1
 fprintf(stderr,"dimension: %s = %llu\n",$1->name,(unsigned long long)$1->dim.declsize);
 #endif
@@ -690,7 +696,13 @@ type_var_ref:
 attrdecllist: /*empty*/ {} | attrdecl ';' attrdecllist {} ;
 
 attrdecl:
-	  ':' ident '=' datalist
+	  ':' _NCPROPS '=' conststring
+	    {$$ = makespecial(_NCPROPS_FLAG,NULL,NULL,(void*)&$4,ATTRGLOBAL);}
+	| ':' _ISNETCDF4 '=' constbool
+	    {$$ = makespecial(_ISNETCDF4_FLAG,NULL,NULL,(void*)&$4,ATTRGLOBAL);}
+	| ':' _SUPERBLOCK '=' constint
+	    {$$ = makespecial(_SUPERBLOCK_FLAG,NULL,NULL,(void*)&$4,ATTRGLOBAL);}
+	| ':' ident '=' datalist
 	    { $$=makeattribute($2,NULL,NULL,$4,ATTRGLOBAL);}
 	| typeref type_var_ref ':' ident '=' datalist
 	    {Symbol* tsym = $1; Symbol* vsym = $2; Symbol* asym = $4;
@@ -1116,6 +1128,9 @@ specialname(int flag)
     case _SHUFFLE_FLAG: return "_Shuffle";
     case _ENDIAN_FLAG: return "_Endianness";
     case _NOFILL_FLAG: return "_NoFill";
+    case _NCPROPS_FLAG: return "_NCProperties";
+    case _ISNETCDF4_FLAG: return "_IsNetcdf4";
+    case _SUPERBLOCK_FLAG: return "_SuperblockVersion";
     case _COMPRESSION_FLAG: return "_Compression";
     default: break;
     }
@@ -1158,7 +1173,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
     char* sdata = NULL;
     int idata =  -1;
 
-    if(tag == _FORMAT_FLAG) {
+    if((GLOBAL_SPECIAL & tag) != 0) {
         if(vsym != NULL) {
             derror("_Format: must be global attribute");
             vsym = NULL;
@@ -1185,6 +1200,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
     switch (tag) {
     case _FLETCHER32_FLAG:
     case _SHUFFLE_FLAG:
+    case _ISNETCDF4_FLAG:
     case _NOFILL_FLAG:
 	iconst.nctype = (con->nctype == NC_STRING?NC_STRING:NC_INT);
 	convert1(con,&iconst);
@@ -1192,6 +1208,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 	break;
     case _FORMAT_FLAG:
     case _STORAGE_FLAG:
+    case _NCPROPS_FLAG:
     case _ENDIAN_FLAG:
     case _COMPRESSION_FLAG:
 	iconst.nctype = NC_STRING;
@@ -1201,6 +1218,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 	else
 	    derror("%s: illegal value",specialname(tag));
 	break;
+    case _SUPERBLOCK_FLAG:
     case _DEFLATE_FLAG:
 	iconst.nctype = NC_INT;
 	convert1(con,&iconst);
@@ -1220,12 +1238,12 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 	/* Watch out: this is a global attribute */
 	struct Kvalues* kvalue;
 	int found = 0;
-
 	/* Use the table in main.c */
         for(kvalue = legalkinds; kvalue->name; kvalue++) {
           if(sdata) {
             if(strcmp(sdata, kvalue->name) == 0) {
-              /*Main.*/format_flag = kvalue->k_flag;
+              globalspecials._Format = kvalue->k_flag;
+	      /*Main.*/format_attribute = 1;
               found = 1;
               break;
             }
@@ -1233,13 +1251,17 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 	}
 	if(!found)
 	    derror("_Format: illegal value: %s",sdata);
-	/*Main.*/format_attribute = 1;
+    } else if((GLOBAL_SPECIAL & tag) != 0) {
+	if(tag == _ISNETCDF4_FLAG)
+	    globalspecials._IsNetcdf4 = tf;
+	else if(tag == _SUPERBLOCK_FLAG)
+	    globalspecials._Superblock = idata;
+	else if(tag == _NCPROPS_FLAG)
+	    globalspecials._NCProperties = strdup(sdata);
     } else {
         Specialdata* special;
-
         /* Set up special info */
         special = &vsym->var.special;
-
         if(tag == _FILLVALUE_FLAG) {
             special->_Fillvalue = list;
             /* fillvalue must be a single value*/
@@ -1299,7 +1321,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
                 special->_Fill = (1 - tf); /* negate */
                 special->flags |= _NOFILL_FLAG;
                 break;
-            case _CHUNKSIZES_FLAG: {
+          case _CHUNKSIZES_FLAG: {
                 int i;
                 special->nchunks = list->length;
                 special->_ChunkSizes = (size_t*)emalloc(sizeof(size_t)*special->nchunks);
@@ -1339,17 +1361,18 @@ makeattribute(Symbol* asym,
 {
     asym->objectclass = NC_ATT;
     asym->data = data;
-    addtogroup(asym);
     switch (kind) {
     case ATTRVAR:
         asym->att.var = vsym;
         asym->typ.basetype = tsym;
         listpush(attdefs,(void*)asym);
+        addtogroup(asym);
 	break;
     case ATTRGLOBAL:
         asym->att.var = NULL; /* NULL => NC_GLOBAL*/
         asym->typ.basetype = tsym;
         listpush(gattdefs,(void*)asym);
+        addtogroup(asym);
 	break;
     default: PANIC1("unexpected attribute type: %d",kind);
     }
@@ -1358,6 +1381,24 @@ makeattribute(Symbol* asym,
 	derror("Attribute data may not contain fill values (i.e. _ ): %s",asym->name);
     }
     return asym;
+}
+
+static long long
+extractint(NCConstant con)
+{
+    switch (con.nctype) {
+    case NC_BYTE: return (long long)(con.value.int8v);
+    case NC_SHORT: return (long long)(con.value.int16v);
+    case NC_INT: return (long long)(con.value.int32v);
+    case NC_UBYTE: return (long long)(con.value.uint8v);
+    case NC_USHORT: return (long long)(con.value.uint16v);
+    case NC_UINT: return (long long)(con.value.uint32v);
+    case NC_INT64: return (long long)(con.value.int64v);
+    default:
+	derror("Not a signed integer type: %d",con.nctype);
+	break;
+    }
+    return 0;
 }
 
 static int
@@ -1397,6 +1438,17 @@ vercheck(int tid)
     case NC_COMPOUND: markcdf4("netCDF4 type: COMPOUND"); break;
     default: break;
     }
+}
+
+const char*
+specialname(int tag)
+{
+    struct Specialtoken* spp = specials;
+    for(;spp->name;spp++) {
+	if(spp->tag == tag)
+	    return spp->name;
+    }
+    return "<unknown>";
 }
 
 /*

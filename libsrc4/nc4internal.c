@@ -19,10 +19,6 @@ conditions.
 #include "H5DSpublic.h"
 #include <utf8proc.h>
 
-#if 0 /*def USE_PNETCDF*/
-#include <pnetcdf.h>
-#endif
-
 #define MEGABYTE 1048576
 
 /* These are the default chunk cache sizes for HDF5 files created or
@@ -45,7 +41,7 @@ int nc_log_level = -1;
 
 #endif /* LOGGING */
 
-static int nc4_hdf5_initialized = 0;
+int nc4_hdf5_initialized = 0;
 
 /*
 Provide a function to do any necessary initialization
@@ -252,16 +248,6 @@ nc4_find_nc_grp_h5(int ncid, NC **nc, NC_GRP_INFO_T **grpp,
 
     if(f == NULL) return NC_EBADID;
     *nc = f;
-
-#if 0 /* I do not understand this code at all */
-#if 0 /*def USE_PNETCDF*/
-    if (h5->pnetcdf_file) {
-      *h5p = NULL;
-      *grpp = NULL;
-      return NC_NOERR;
-    }
-#endif
-#endif
 
     if (h5) {
 	assert(h5->root_grp);
@@ -544,12 +530,13 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
 
    /* Now find the attribute by name or number. If a name is provided,
     * ignore the attnum. */
-   for (*att = attlist; *att; *att = (*att)->l.next) {
-      if (name && (*att)->name && !strcmp((*att)->name, name))
-	return NC_NOERR;
-      if (!name && (*att)->attnum == attnum)
-	return NC_NOERR;
-   }
+   if(attlist)
+       for (*att = attlist; *att; *att = (*att)->l.next) {
+           if (name && (*att)->name && !strcmp((*att)->name, name))
+	       return NC_NOERR;
+           if (!name && (*att)->attnum == attnum)
+	       return NC_NOERR;
+       }
 
    /* If we get here, we couldn't find the attribute. */
    return NC_ENOTATT;

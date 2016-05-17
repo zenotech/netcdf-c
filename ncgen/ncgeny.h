@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.2.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,17 +92,20 @@ extern int ncgdebug;
     _ENDIANNESS = 302,
     _NOFILL = 303,
     _FLETCHER32 = 304,
-    _COMPRESSION = 305,
-    DATASETID = 306
+    _NCPROPS = 305,
+    _ISNETCDF4 = 306,
+    _SUPERBLOCK = 307,
+    _COMPRESSION = 308,
+    DATASETID = 309
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
-#line 132 "ncgen.y" /* yacc.c:1909  */
+#line 135 "ncgen.y" /* yacc.c:1909  */
 
 Symbol* sym;
 unsigned long  size; /* allow for zero size to indicate e.g. UNLIMITED*/
@@ -111,8 +114,10 @@ int            nctype; /* for tracking attribute list type*/
 Datalist*      datalist;
 NCConstant       constant;
 
-#line 115 "ncgeny.h" /* yacc.c:1909  */
+#line 118 "ncgeny.h" /* yacc.c:1909  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
