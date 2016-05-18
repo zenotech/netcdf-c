@@ -1,0 +1,12 @@
+set breakpoint pending on
+break test_get.c:1101 if i == 1 && allInExtRange == 1 && allInIntRange == 0 && canConvert == 1 && expect[0] == -2
+commands
+break NC3_get_vara
+commands
+break getNCvx_schar_uchar
+continue
+end
+continue
+end
+
+break test_get.c:1111
