@@ -6,9 +6,10 @@ Research/Unidata. See COPYRIGHT file for more info.
 */
 
 #include "ncdispatch.h"
-#ifdef USE_NETCDF4
-#include "nc4compress.h"
+#ifdef FPZIP_FILTER
+#include "fpzip.h"
 #endif
+#include "nc4compress.h"
 #include "netcdf_f.h"
 
 /** \defgroup variables Variables
@@ -626,7 +627,7 @@ nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_le
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
     stat = ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
+		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,
 		&shuffle,NULL,NULL);
@@ -635,7 +636,7 @@ nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_le
         nct.zip.level = deflate_level;
         nparams = 1;
         stat = ncp->dispatch->def_var_extra(ncid,varid,
-		"zip",&nparams,nct.params,
+		"zip",&nct,
 		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,NULL);
@@ -667,7 +668,7 @@ nc_def_var_fletcher32(int ncid, int varid, int fletcher32)
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
     return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
+		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,
 		NULL,&fletcher32,NULL);
@@ -701,7 +702,7 @@ nc_def_var_chunking(int ncid, int varid, int storage,
     int stat = NC_check_id(ncid, &ncp);
     if(stat != NC_NOERR) return stat;
     return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
+		NULL,NULL,
 		&storage,chunksizesp,
 		NULL,NULL,
 		NULL,NULL,NULL);
@@ -734,7 +735,7 @@ nc_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
     return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
+		NULL,NULL,
 		NULL,NULL,
 		&no_fill,fill_value,
 		NULL,NULL,NULL);
@@ -766,7 +767,7 @@ nc_def_var_endian(int ncid, int varid, int endianness)
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
     return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
+		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,&endianness);
@@ -796,7 +797,7 @@ nc_def_var_shuffle(int ncid, int varid, int shuffle)
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
     return ncp->dispatch->def_var_extra(ncid,varid,
-		NULL,NULL,NULL,
+		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,
 		&shuffle,NULL,NULL);
@@ -827,13 +828,13 @@ compression algorithm.
 \returns ::NC_ECOMPRESS Invalid compression parameters.
 */
 int
-nc_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params)
+nc_def_var_compress(int ncid, int varid, const char* algorithm, void* params)
 {
     NC* ncp;
     int stat = NC_check_id(ncid,&ncp);
     if(stat != NC_NOERR) return stat;
     return ncp->dispatch->def_var_extra(ncid,varid,
-		algorithm,&nparams,params,
+		algorithm,&params,
 		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,NULL);

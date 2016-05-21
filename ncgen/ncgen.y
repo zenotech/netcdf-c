@@ -192,7 +192,6 @@ NCConstant       constant;
 	_NCPROPS
 	_ISNETCDF4
 	_SUPERBLOCK
-        _COMPRESSION
 	DATASETID
 
 %type <sym> ident typename primtype dimd varspec
@@ -742,8 +741,6 @@ attrdecl:
 	    {$$ = makespecial(_ENDIAN_FLAG,$1,NULL,(void*)&$5,1);}
 	| type_var_ref ':' _NOFILL '=' constbool
 	    {$$ = makespecial(_NOFILL_FLAG,$1,NULL,(void*)&$5,1);}
-	| type_var_ref ':' _COMPRESSION '=' conststring
-	    {$$ = makespecial(_COMPRESSION_FLAG,$1,NULL,(void*)&$5,1);}
 	| ':' _FORMAT '=' conststring
 	    {$$ = makespecial(_FORMAT_FLAG,NULL,NULL,(void*)&$4,1);}
 	;
@@ -1115,28 +1112,6 @@ basetypefor(nc_type nctype)
     return primsymbols[nctype];
 }
 
-char*
-specialname(int flag)
-{
-    switch (flag) {
-    case _FILLVALUE_FLAG: return "_FillValue";
-    case _FORMAT_FLAG: return "_Format";
-    case _STORAGE_FLAG: return "_Storage";
-    case _CHUNKSIZES_FLAG: return "_ChunkSizes";
-    case _FLETCHER32_FLAG: return "_Fletcher32";
-    case _DEFLATE_FLAG: return "_DeflateLevel";
-    case _SHUFFLE_FLAG: return "_Shuffle";
-    case _ENDIAN_FLAG: return "_Endianness";
-    case _NOFILL_FLAG: return "_NoFill";
-    case _NCPROPS_FLAG: return "_NCProperties";
-    case _ISNETCDF4_FLAG: return "_IsNetcdf4";
-    case _SUPERBLOCK_FLAG: return "_SuperblockVersion";
-    case _COMPRESSION_FLAG: return "_Compression";
-    default: break;
-    }
-    return "<unknown>";
-}
-
 static int
 truefalse(NCConstant* con, int tag)
 {
@@ -1210,7 +1185,6 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
     case _STORAGE_FLAG:
     case _NCPROPS_FLAG:
     case _ENDIAN_FLAG:
-    case _COMPRESSION_FLAG:
 	iconst.nctype = NC_STRING;
 	convert1(con,&iconst);
 	if(iconst.nctype == NC_STRING)
@@ -1340,12 +1314,6 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
                 special->flags |= _STORAGE_FLAG;
                 special->_Storage = NC_CHUNKED;
                 } break;
-            case _COMPRESSION_FLAG:
-                strncpy(special->_Algorithm,sdata,NC_COMPRESSION_MAX_NAME);
-	        /* overrides zip (DEFLATE_FLAG) */
-		special->flags &= (~_DEFLATE_FLAG);
-                special->flags |= _COMPRESSION_FLAG;
-                break;
             default: PANIC1("makespecial: illegal token: %d",tag);
          }
     }

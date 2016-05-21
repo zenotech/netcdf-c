@@ -247,20 +247,6 @@ genbin_definespecialattributes(Symbol* var)
 		                 (special->_Shuffle?NC_SHUFFLE:NC_NOSHUFFLE));
         check_err(stat,__LINE__,__FILE__);
     }
-    if(special->flags & (_COMPRESSION_FLAG) && (special->_Algorithm > 0)) {
-	int nparams = NC_COMPRESSION_MAX_PARAMS;
-	nc_compression_t parms;
-	const char* algorithm;
-	parms.zip.level = special->_DeflateLevel;
-	algorithm = special->_Algorithm;
-	if(strlen(algorithm)==0) algorithm = NULL;
-        stat = nc_def_var_compress(var->container->ncid,
-                                  var->ncid,
-                                  algorithm,
-				  nparams,
-				  parms.params);
-        check_err(stat,__LINE__,__FILE__);
-    }
 }
 #endif /*USE_NETCDF4*/
 

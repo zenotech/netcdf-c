@@ -1,9 +1,10 @@
 # Test c output
-T=tst_fileinfo
+T=tst_compression
 #CMD=valgrind --leak-check=full
 CMD=gdb --args
 
 #PAR=1
+CMP=1
 
 CFLAGS=-Wall -g -O0 -I.. -I../include
 
@@ -17,7 +18,9 @@ CC=gcc
 LDFLAGS=../liblib/.libs/libnetcdf.a -L/usr/local/lib -lhdf5_hl -lhdf5 -lz  -ldl -lm -lcurl
 endif
 
-#	cd .. ; ${MAKE} all
+ifdef CMP
+LDFLAGS += -lbz2 -lfpzip -lzfp
+endif
 
 LLP=/usr/local/lib:${LD_LIBRARY_PATH}
 

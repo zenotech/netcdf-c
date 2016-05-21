@@ -11,6 +11,9 @@ the COPYRIGHT file for copying and redistribution conditions.
 $Id: nc4dim.c,v 1.41 2010/05/25 17:54:23 dmh Exp $
 */
 
+#include "config.h"
+#include "netcdf.h"
+#include "nc4compress.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
 

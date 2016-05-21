@@ -22,9 +22,9 @@
 #ifdef USE_PARALLEL
 #include "netcdf_par.h"
 #endif /* USE_PARALLEL */
-#include <netcdf.h>
-#include <netcdf_f.h>
-#include <netcdf_compress.h>
+#include "netcdf.h"
+#include "netcdf_f.h"
+#include "nc4compress.h"
 
 /* Always needed */
 #include "nc.h"
@@ -179,13 +179,6 @@ typedef struct NC_VAR_INFO
    nc_bool_t contiguous_set;
    nc_bool_t contiguous; /* True if variable is stored contiguously in HDF5 file */
 
-   nc_bool_t compress_set;
-   int compress_nparams; /* actual # of compression params */
-   unsigned int compress_params[NC_COMPRESSION_MAX_PARAMS];
-
-   nc_bool_t algorithm_set;
-   char algorithm[NC_COMPRESSION_MAX_NAME]; /* Deflate algorithm name ; "" => none */
-
    nc_bool_t shuffle_set;
    nc_bool_t shuffle;           /* True if var has shuffle filter applied */
 
@@ -202,6 +195,8 @@ typedef struct NC_VAR_INFO
 #endif /* USE_HDF4 */
    /* Stuff below for diskless data files. */
    void *diskless_data;
+
+   NC_compression_info compression;
 } NC_VAR_INFO_T;
 
 typedef struct NC_FIELD_INFO

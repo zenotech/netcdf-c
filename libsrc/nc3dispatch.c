@@ -32,13 +32,13 @@
 
 static int NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
                int *ndimsp, int *dimidsp, int *nattsp, 
-               int *shufflep, char** algorithmp,
-               int *nparams, unsigned int* compression_params,
+               int *shufflep, char* algorithmp,
+               void* compression_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp);
 
 static int NC3_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
+		    const char* algorithm, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness);
@@ -183,25 +183,28 @@ NC3_finalize(void)
 static int
 NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
                int *ndimsp, int *dimidsp, int *nattsp, 
-               int *shufflep, char** algorithmp,
-	       int *nparamsp, unsigned int* paramsp,
+               int *shufflep, char* algorithmp,
+	       void* paramsp,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp)
 {
     int stat = NC3_inq_var(ncid,varid,name,xtypep,ndimsp,dimidsp,nattsp);
     if(stat) return stat;
-    if(shufflep) *shufflep = 0;
-    if(algorithmp) *algorithmp = 0;
-    if(fletcher32p) *fletcher32p = 0;
-    if(contiguousp) *contiguousp = NC_CONTIGUOUS;
-    if(no_fill) *no_fill = 1;
-    if(endiannessp) return NC_ENOTNC4;
+    if(shufflep
+       || algorithmp
+       || fletcher32p
+       || contiguousp
+       || no_fill
+       || endiannessp
+       || paramsp
+    )
+	return NC_ENOTNC4;
     return NC_NOERR;
 }
 
 static int
 NC3_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
+		    const char* algorithm, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness)

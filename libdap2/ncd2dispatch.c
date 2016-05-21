@@ -93,14 +93,14 @@ static int NCD2_get_vars(int ncid, int varid,
 static int
 NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                int* ndimsp, int* dimidsp, int* nattsp,
-               int *shufflep, char** algorithmp,
-               int *nparams, unsigned int* compression_params,
+               int *shufflep, char* algorithmp,
+               void* compression_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp);
 
 static int
 NCD2_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
+		    const char* algorithm, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness);
@@ -2385,8 +2385,8 @@ NCD2_get_att(int ncid, int varid, const char* name, void* value, nc_type t)
 static int
 NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                int* ndimsp, int* dimidsp, int* nattsp,
-               int *shufflep, char** algorithmp,
-               int *nparams, unsigned int* compression_params,
+               int *shufflep, char* algorithmp,
+               void* compression_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp)
 {
@@ -2396,7 +2396,7 @@ NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
     ret = NCDISPATCH_inq_var_all(getnc3id(drno), varid, name, xtypep,
                ndimsp, dimidsp, nattsp,
                shufflep, algorithmp,
-               nparams, compression_params,
+               compression_params,
                fletcher32p, contiguousp, chunksizesp, 
                no_fill, fill_valuep, endiannessp);
     return THROW(ret);
@@ -2404,7 +2404,7 @@ NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
 
 static int
 NCD2_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
+		    const char* algorithm, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness)

@@ -12,7 +12,6 @@ conditions.
 #include "config.h"
 #include <math.h>
 #include "netcdf.h"
-#include "nc4compress.h"
 #include "nc4dispatch.h"
 #include "nc4internal.h"
 
@@ -632,8 +631,8 @@ NC4_def_var(int ncid, const char *name, nc_type xtype, int ndims,
 int 
 NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
                int *ndimsp, int *dimidsp, int *nattsp, 
-               int *shufflep, char** algorithmp,
-               int *nparamsp, unsigned int* compress_paramsp,
+               int *shufflep, char* algorithmp,
+               void* compress_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp)
 {
@@ -764,12 +763,12 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
       *endiannessp = var->type_info->endianness;
 
    /* Filter stuff. */
-   if(algorithmp) 
-     *algorithmp = var->algorithm;
-   if(nparamsp)
-	*nparamsp = var->compress_nparams;
-   if (compress_paramsp)
-     memcpy((void*)compress_paramsp,(void*)var->compress_params,var->compress_nparams*sizeof(unsigned int));
+   if(var->compression.algorithm != NC_NOZIP) {
+       if(algorithmp) 
+           strncpy(algorithmp,NC_algorithm_name(var->compression.algorithm),NC_COMPRESSION_MAX_NAME);
+	if(NC_compress_cvt_from(&var->compression,compress_params) != NC_NOERR)
+	    return NC_ECOMPRESS;
+   }
    if (shufflep)
       *shufflep = (int)var->shuffle;
    if (fletcher32p)
@@ -787,7 +786,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
 */
 int
 NC4_def_var_extra(int ncid, int varid,
-		    const char* algorithm, int* nparams, unsigned int* params,
+		    const char* algorithm, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness)
@@ -802,6 +801,7 @@ NC4_def_var_extra(int ncid, int varid,
    nc_bool_t ishdf4 = NC_FALSE; /* Use this to avoid so many ifdefs */
    int hasfilter, hasshuffle, hasfletcher,
        varcontig, varchunked; /* For conflict testing */
+    NC_algorithm alg;
 
    LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
@@ -835,22 +835,18 @@ NC4_def_var_extra(int ncid, int varid,
 	return NC_EINVAL;
    if(fletcher32 && var->fletcher32_set && var->fletcher32 != *fletcher32)
 	return NC_EINVAL;
-   if(var->algorithm_set && algorithm
-      && strncmp(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME) != 0)
-	return NC_EINVAL;
    if(var->contiguous_set && contiguous && var->contiguous != *contiguous)
 	return NC_EINVAL;
-   if(var->compress_set && nparams) {
-	int i;
-	if(var->compress_nparams != *nparams)
-	    return NC_EINVAL;
-	if(params != NULL) {
-	    for(i=0;i<var->compress_nparams;i++) {
-	        if(var->compress_params[i] != params[i])
-		    return NC_EINVAL;
-	    }
-	}	
+   if(!var->chunks_set && params) {
+	LOG((1, "%s: error: compression requires chunking"));
+	return NC_ECOMPRESS;
+   }
+   alg = NC_algorithm_id(algorithm);
+   if(alg == NC_NOZIP) {
+	LOG((1, "%s: error: unsupported compression: %s",algorithm));
+	return NC_ECOMPRESS;
     }
+    var->compression.algorithm = alg;
     if(var->chunks_set) {
 	int i;
 	if(chunksizes != NULL) {
@@ -861,12 +857,12 @@ NC4_def_var_extra(int ncid, int varid,
 	}	
     }
     /* Some addition conflict tests */
-    hasfilter = (algorithm?1:0);
+    hasfilter = (var->compression.algorithm?1:0);
     hasshuffle = (shuffle && *shuffle == NC_SHUFFLE?1:0);
     hasfletcher = (fletcher32 && *fletcher32 == NC_FLETCHER32?1:0);
     varcontig = (var->contiguous_set && var->contiguous?1:0);
     varchunked = (var->chunks_set && var->contiguous?1:0);
-    if(algorithm && varcontig)
+    if(var->compression.algorithm && varcontig)
 	return NC_EINVAL;
     if(hasshuffle  && varchunked)
 	return NC_EINVAL;
@@ -877,17 +873,9 @@ NC4_def_var_extra(int ncid, int varid,
 
     /* Can't turn on parallel and filters */
     if (nc->mode & (NC_MPIIO | NC_MPIPOSIX)) {
-      if (algorithm || hasfletcher || hasshuffle)
+      if (var->compression.algorithm || hasfletcher || hasshuffle)
 	 return NC_EINVAL;
     }
-
-    /* Set var-algorithm so we can uniformly test against it */
-    if(algorithm) {
-	strncpy(var->algorithm,algorithm,NC_COMPRESSION_MAX_NAME);
-	var->algorithm_set = NC_TRUE;
-	var->contiguous_set = NC_TRUE;
-        var->contiguous = NC_FALSE;
-   }
 
    /* If the HDF5 dataset has already been created, then it is too
     * late to set all the extra stuff. */
@@ -915,7 +903,7 @@ NC4_def_var_extra(int ncid, int varid,
     * for this data. */
    if (contiguous && *contiguous == NC_CONTIGUOUS)
    {
-      if (var->algorithm_set || var->fletcher32 || var->shuffle)
+      if (var->compression.algorithm || var->fletcher32 || var->shuffle)
 	 return NC_EINVAL;
 
      if (!ishdf4) {
@@ -954,7 +942,7 @@ NC4_def_var_extra(int ncid, int varid,
 
    /* Is this a variable with a chunksize greater than the current
     * cache size? */
-   if (!var->contiguous && (chunksizes || var->algorithm_set || contiguous))
+   if (!var->contiguous && (chunksizes || var->compression.algorithm || contiguous))
    {
       /* Determine default chunksizes for this variable. */
       if (!var->chunksizes[0])
@@ -997,29 +985,22 @@ NC4_def_var_extra(int ncid, int varid,
       var->type_info->endianness = *endianness;
 
    /* Check compression options. */
-   if (algorithm != NULL && (nparams == NULL || params == NULL))
+   if (var->compression.algorithm && params == NULL)
       return NC_EINVAL;      
-   if (nparams != NULL && *nparams > NC_COMPRESSION_MAX_PARAMS)
-      return NC_EINVAL;      
-       
+
    /* set compression */
-   if (algorithm != NULL && (nparams != NULL && params != NULL))
+   if (var->compression.algorithm && params != NULL)
    {
       /* For scalars, just ignore attempt to deflate. */
       if (!var->ndims)
             return NC_NOERR;
 
-      /* validate the parameters */
-      retval = nc_compress_validate(algorithm,*nparams,params);
-      if(retval != NC_NOERR)
-	return retval;
       /* Well, if we couldn't find any obvious errors, I guess we have to take
        * the users settings. Darn! */
-      var->contiguous = NC_FALSE; var->contiguous_set = NC_TRUE;
-      var->compress_set = NC_TRUE;
-      var->compress_nparams = *nparams;
-      if(*nparams > 0)
-          memcpy((void*)var->compress_params,(void*)params,*nparams*sizeof(unsigned int));
+      if(params) {
+	if(NC_compress_cvt_to(alg,params,&var->compression) != NC_NOERR)
+	    return NC_ECOMPRESS;
+      }
    }
 
    return NC_NOERR;
@@ -1036,11 +1017,10 @@ NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
    int status = NC_NOERR;
    status = NC4_def_var_shuffle(ncid,varid,shuffle);
    if(status == NC_NOERR) {
-       nc_compression_t parms;
        int nparams = NC_NELEMS_ZIP;
        parms.zip.level = deflate_level;
        status = nc_def_var_compress(ncid, varid, "zip",
-                           &nparams,parms.params,
+                           &params,
 			   NULL, NULL, NULL, NULL, NULL, NULL);
     }
     return status;

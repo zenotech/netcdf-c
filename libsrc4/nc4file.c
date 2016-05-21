@@ -12,7 +12,9 @@ COPYRIGHT file for copying and redistribution conditions.
 #include "config.h"
 #include <errno.h>  /* netcdf functions sometimes return system errors */
 
+#include "netcdf.h"
 #include "nc.h"
+#include "nc4compress.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
 
@@ -1645,16 +1647,13 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
               var->fletcher32 = NC_TRUE;
               break;
            default:
-	      status = nc_compress_inq_parameters(
-                                      nc_compress_name_for(filter),
-				      propid,
-				      (int)cd_nelems,
-				      cd_values,
-				      var->algorithm,
-				      &var->compress_nparams,
-                                      var->compress_params);
-	      if(status != NC_NOERR)
+	      if((NC_compress_inq_argv(propid,f,
+                                       &var->compression.algorithm,
+                                       &var->compression.argc,
+                                       var->compression.params.argv) != 0)) {
                   LOG((1, "Yikes! Unknown filter type found on dataset!"));
+		  var->compression.argc = 0;
+	      }
   	      break;
         }
    }

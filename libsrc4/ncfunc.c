@@ -11,6 +11,9 @@ netcdf-4/docs/COPYRIGHT file for copying and redistribution
 conditions.
 */
 
+#include "config.h"
+#include "netcdf.h"
+#include "nc4compress.h"
 #include "nc4internal.h"
 #include "nc3dispatch.h"
 

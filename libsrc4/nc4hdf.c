@@ -14,11 +14,14 @@
 */
 
 #include "config.h"
+#include <math.h>
+
+#include "netcdf.h"
+#include "nc4compress.h"
 #include "nc4internal.h"
 #include "nc4dispatch.h"
-#include "nc4compress.h"
+
 #include <H5DSpublic.h>
-#include <math.h>
 
 #ifdef USE_PARALLEL
 #include "netcdf_par.h"
@@ -1538,9 +1541,10 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
       BAIL(NC_EHDFERR);
 
   /* If the user wants to deflate the data, set that up now. */
-  if (strlen(var->algorithm) > 0) {
-     if(nc_compress_set(var->algorithm,plistid,var->compress_nparams,
-                       var->compress_params) != NC_NOERR)
+  if (var->compression.algorithm != NC_NOZIP) {
+     if(NC_compress_set(&var->compression, plistid, 
+			var->ndims,
+			(var->chunks_set?var->chunksizes:NULL)) != NC_NOERR)
 	 BAIL(NC_EHDFERR);
   }
 
@@ -1569,7 +1573,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
        * has not specified chunksizes, use contiguous variable for
        * better performance. */
 
-     if(!var->shuffle && strlen(var->algorithm) == 0 && !var->fletcher32
+     if(!var->shuffle && var->compression.algorithm == NC_NOZIP && !var->fletcher32
         && (var->chunksizes == NULL || !var->chunksizes[0])) {
 #ifdef USE_HDF4
         NC_HDF5_FILE_INFO_T *h5 = grp->nc4_info;

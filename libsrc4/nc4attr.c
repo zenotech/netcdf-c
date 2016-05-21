@@ -12,10 +12,12 @@ Research. See COPYRIGHT file for copying and redistribution
 conditions.
 */
 
-#include "nc4internal.h"
+#include "netcdf.h"
 #include "nc.h"
-#include "nc4dispatch.h"
+#include "nc4compress.h"
+#include "nc4internal.h"
 #include "ncdispatch.h"
+#include "nc4dispatch.h"
 
 #ifdef ENABLE_FILEINFO
 static int nc4_get_att_special(NC_HDF5_FILE_INFO_T*, const char*,

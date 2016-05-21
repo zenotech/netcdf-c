@@ -92,7 +92,6 @@ various C global variables
 #define _ISNETCDF4_FLAG     0x200
 #define _SUPERBLOCK_FLAG    0x400
 #define _FORMAT_FLAG        0x800
-#define _COMPRESSION_FLAG   0x1000
 
 extern struct Specialtoken {
     char* name;
@@ -129,7 +128,6 @@ typedef struct Specialdata {
     int           _Shuffle;      /* 0 => false, 1 => true*/
     int           _Endianness;   /* 1 =>little, 2 => big*/
     int           _Fill ;        /* 0 => false, 1 => true WATCHOUT: this is inverse of NOFILL*/
-    char           _Algorithm[NC_COMPRESSION_MAX_NAME];    /* HDf5 compression algorithm name; ""=>none */
 } Specialdata;
 
 typedef struct GlobalSpecialdata {

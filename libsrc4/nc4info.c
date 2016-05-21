@@ -8,6 +8,7 @@
 #include <string.h>
 #include <hdf5.h>
 #include "netcdf.h"
+#include "nc4compress.h"
 #include "nc4internal.h"
 
 #define IGNORE 0

@@ -95,8 +95,7 @@ extern int ncgdebug;
     _NCPROPS = 305,
     _ISNETCDF4 = 306,
     _SUPERBLOCK = 307,
-    _COMPRESSION = 308,
-    DATASETID = 309
+    DATASETID = 308
   };
 #endif
 
@@ -114,7 +113,7 @@ int            nctype; /* for tracking attribute list type*/
 Datalist*      datalist;
 NCConstant       constant;
 
-#line 118 "ncgeny.h" /* yacc.c:1909  */
+#line 117 "ncgeny.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

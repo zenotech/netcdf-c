@@ -13,6 +13,8 @@ conditions.
 
 */
 #include "config.h"
+#include "netcdf.h"
+#include "nc4compress.h"
 #include "nc4internal.h"
 #include "nc.h" /* from libsrc */
 #include "ncdispatch.h" /* from libdispatch */
