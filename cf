@@ -9,12 +9,11 @@ HDF5=1
 #PNETCDF=1
 #PAR4=1
 
-ALLFILTERS=1
 BZIP2=1
 FPZIP=1
 ZFP=1
 #No point in turning this on
-SZIP=0
+#SZIP=0
 
 if test $# != 0 ; then
 cmds=$@

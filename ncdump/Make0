@@ -1,5 +1,5 @@
 # Test c output
-T=tst_compression
+T=tst_special_atts
 #CMD=valgrind --leak-check=full
 CMD=gdb --args
 

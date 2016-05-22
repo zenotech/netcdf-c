@@ -1540,12 +1540,16 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     if (H5Pset_shuffle(plistid) < 0)
       BAIL(NC_EHDFERR);
 
-  /* If the user wants to deflate the data, set that up now. */
+  /* If the user wants to compress/decompress the data, set that up now. */
   if (var->compression.algorithm != NC_NOZIP) {
-     if(NC_compress_set(&var->compression, plistid, 
-			var->ndims,
-			(var->chunks_set?var->chunksizes:NULL)) != NC_NOERR)
-	 BAIL(NC_EHDFERR);
+    if(!var->chunks_set) {
+	LOG((1, "%s: error: compression requires chunking"));
+	return NC_ECOMPRESS;
+    }
+    if(NC_compress_set(&var->compression, plistid, 
+			   var->ndims,
+			   var->chunksizes) != NC_NOERR)
+	    BAIL(NC_EHDFERR);
   }
 
   /* If the user wants to fletcher error correcton, set that up now. */

@@ -766,8 +766,10 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    if(var->compression.algorithm != NC_NOZIP) {
        if(algorithmp) 
            strncpy(algorithmp,NC_algorithm_name(var->compression.algorithm),NC_COMPRESSION_MAX_NAME);
-	if(NC_compress_cvt_from(&var->compression,compress_params) != NC_NOERR)
-	    return NC_ECOMPRESS;
+	if(compress_params) {
+	    if(NC_compress_cvt_from(&var->compression,compress_params) != NC_NOERR)
+	        return NC_ECOMPRESS;
+	}
    }
    if (shufflep)
       *shufflep = (int)var->shuffle;
@@ -837,16 +839,14 @@ NC4_def_var_extra(int ncid, int varid,
 	return NC_EINVAL;
    if(var->contiguous_set && contiguous && var->contiguous != *contiguous)
 	return NC_EINVAL;
-   if(!var->chunks_set && params) {
-	LOG((1, "%s: error: compression requires chunking"));
-	return NC_ECOMPRESS;
-   }
-   alg = NC_algorithm_id(algorithm);
-   if(alg == NC_NOZIP) {
-	LOG((1, "%s: error: unsupported compression: %s",algorithm));
-	return NC_ECOMPRESS;
-    }
-    var->compression.algorithm = alg;
+   if(algorithm != NULL) {
+        alg = NC_algorithm_id(algorithm);
+        if(alg == NC_NOZIP) {
+  	    LOG((1, "%s: error: unsupported compression: %s",algorithm));
+	    return NC_ECOMPRESS;
+	}
+    } else
+	alg = NC_NOZIP;
     if(var->chunks_set) {
 	int i;
 	if(chunksizes != NULL) {
@@ -857,12 +857,12 @@ NC4_def_var_extra(int ncid, int varid,
 	}	
     }
     /* Some addition conflict tests */
-    hasfilter = (var->compression.algorithm?1:0);
+    hasfilter = (alg?1:0);
     hasshuffle = (shuffle && *shuffle == NC_SHUFFLE?1:0);
     hasfletcher = (fletcher32 && *fletcher32 == NC_FLETCHER32?1:0);
     varcontig = (var->contiguous_set && var->contiguous?1:0);
     varchunked = (var->chunks_set && var->contiguous?1:0);
-    if(var->compression.algorithm && varcontig)
+    if(alg && varcontig)
 	return NC_EINVAL;
     if(hasshuffle  && varchunked)
 	return NC_EINVAL;
@@ -873,7 +873,7 @@ NC4_def_var_extra(int ncid, int varid,
 
     /* Can't turn on parallel and filters */
     if (nc->mode & (NC_MPIIO | NC_MPIPOSIX)) {
-      if (var->compression.algorithm || hasfletcher || hasshuffle)
+      if (alg || hasfletcher || hasshuffle)
 	 return NC_EINVAL;
     }
 
@@ -903,7 +903,7 @@ NC4_def_var_extra(int ncid, int varid,
     * for this data. */
    if (contiguous && *contiguous == NC_CONTIGUOUS)
    {
-      if (var->compression.algorithm || var->fletcher32 || var->shuffle)
+      if (alg || var->fletcher32 || var->shuffle)
 	 return NC_EINVAL;
 
      if (!ishdf4) {
@@ -942,7 +942,7 @@ NC4_def_var_extra(int ncid, int varid,
 
    /* Is this a variable with a chunksize greater than the current
     * cache size? */
-   if (!var->contiguous && (chunksizes || var->compression.algorithm || contiguous))
+   if (!var->contiguous && (chunksizes || contiguous))
    {
       /* Determine default chunksizes for this variable. */
       if (!var->chunksizes[0])
@@ -985,11 +985,11 @@ NC4_def_var_extra(int ncid, int varid,
       var->type_info->endianness = *endianness;
 
    /* Check compression options. */
-   if (var->compression.algorithm && params == NULL)
+   if (alg && params == NULL)
       return NC_EINVAL;      
 
    /* set compression */
-   if (var->compression.algorithm && params != NULL)
+   if (alg && params != NULL)
    {
       /* For scalars, just ignore attempt to deflate. */
       if (!var->ndims)
@@ -997,10 +997,9 @@ NC4_def_var_extra(int ncid, int varid,
 
       /* Well, if we couldn't find any obvious errors, I guess we have to take
        * the users settings. Darn! */
-      if(params) {
-	if(NC_compress_cvt_to(alg,params,&var->compression) != NC_NOERR)
+      if(NC_compress_cvt_to(alg,params,&var->compression) != NC_NOERR)
 	    return NC_ECOMPRESS;
-      }
+      var->compression.algorithm = alg;
    }
 
    return NC_NOERR;
@@ -1031,8 +1030,11 @@ NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
 int
 NC4_def_var_fletcher32(int ncid, int varid, int fletcher32)
 {
-   return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL,
-                           &fletcher32, NULL, NULL, NULL, NULL, NULL);
+   return nc_def_var_extra(ncid, varid,
+                           NULL, NULL,
+                           NULL, NULL,
+			   NULL, NULL,
+                           NULL, &fletcher32, NULL);
 }
 
 /* Define chunking stuff for a var. This must be done after nc_def_var
@@ -1047,8 +1049,11 @@ NC4_def_var_fletcher32(int ncid, int varid, int fletcher32)
 int
 NC4_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
 {
-   return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
-                           &contiguous, chunksizesp, NULL, NULL, NULL);
+   return nc_def_var_extra(ncid, varid,
+                           NULL, NULL,
+                           &contiguous, chunksizesp,
+                           NULL, NULL,
+                           NULL, NULL, NULL);
 }
 
 /* Inquire about chunking stuff for a var. This is a private,
@@ -1134,8 +1139,11 @@ nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
    for (i = 0; i < var->ndims; i++)
       cs[i] = chunksizesp[i];
 
-   retval = nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
-                             &contiguous, cs, NULL, NULL, NULL);
+   retval = nc_def_var_extra(ncid, varid,
+                             NULL, NULL,
+                             &contiguous, cs,
+			     NULL, NULL,
+                             NULL, NULL, NULL);
 
    if (var->ndims)
       free(cs);
@@ -1147,35 +1155,46 @@ nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
 int
 NC4_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 {
-   return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
-                           NULL, NULL, &no_fill, fill_value, NULL);
+   return nc_def_var_extra(ncid, varid,
+                           NULL, NULL,
+                           NULL, NULL,
+                           &no_fill, fill_value,
+                           NULL, NULL, NULL);
 }
 
 /* Define the endianness of a variable. */
 int
 NC4_def_var_endian(int ncid, int varid, int endianness)
 {
-   return nc_def_var_extra(ncid, varid, NULL, NULL, NULL, NULL, NULL,
-                           NULL, NULL, NULL, NULL, &endianness);
+   return nc_def_var_extra(ncid, varid,
+                           NULL, NULL,
+                           NULL, NULL,
+                           NULL, NULL,
+                           NULL, NULL, &endianness);
 }
 
 /* Define the shuffle of a variable. */
 int
 NC4_def_var_shuffle(int ncid, int varid, int shuffle)
 {
-   return nc_def_var_extra(ncid, varid, &shuffle, NULL, NULL, NULL, NULL,
-                           NULL, NULL, NULL, NULL, NULL);
+   return nc_def_var_extra(ncid, varid,
+                           NULL, NULL,
+                           NULL, NULL,
+                           NULL, NULL,
+                           &shuffle, NULL, NULL);
 }
 
 /* Set the compression algorithm for a var.
    Must be called after nc_def_var and before nc_enddef or any
    functions which writes data to the file. */
 int
-NC4_def_var_compress(int ncid, int varid, const char* algorithm, int nparams, unsigned int* params)
+NC4_def_var_compress(int ncid, int varid, const char* algorithm, void* params)
 {
-   return nc_def_var_extra(ncid, varid, NULL, algorithm,
-                           &nparams, params,
-			   NULL, NULL, NULL, NULL, NULL, NULL);
+   return nc_def_var_extra(ncid, varid,
+                           algorithm, params,
+                           NULL, NULL,
+                           NULL, NULL,
+                           NULL, NULL, NULL);
 }
 #endif
 

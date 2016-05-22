@@ -192,7 +192,7 @@ NC_compress_inq_argv(hid_t h5filterid, /*in*/
 {
     H5Z_filter_t filter;
     NC_algorithm alg = NC_NOZIP;
-    int nelems = 0;
+    size_t nelems = 0;
     const NCC_COMPRESSOR* cmp;
     int stat = NC_NOERR;
     if((filter = H5Pget_filter2(h5filterid, findex, NULL, &nelems, elems, 0, NULL, NULL)) < 0) 

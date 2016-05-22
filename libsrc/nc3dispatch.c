@@ -190,12 +190,13 @@ NC3_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
 {
     int stat = NC3_inq_var(ncid,varid,name,xtypep,ndimsp,dimidsp,nattsp);
     if(stat) return stat;
-    if(shufflep
-       || algorithmp
-       || fletcher32p
-       || contiguousp
-       || no_fill
-       || endiannessp
+    /* Where possible provide a reasonable value for non-NC3 arguments */
+    if(shufflep) *shufflep = 0;
+    if(algorithmp) *algorithmp = 0;
+    if(fletcher32p) *fletcher32p = 0;
+    if(contiguousp) *contiguousp = NC_CONTIGUOUS;
+    if(no_fill) *no_fill = 1;
+    if(endiannessp
        || paramsp
     )
 	return NC_ENOTNC4;

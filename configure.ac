@@ -72,7 +72,7 @@ AC_CONFIG_LINKS([nc_test4/ref_hdf5_compat2.nc:nc_test4/ref_hdf5_compat2.nc])
 AC_CONFIG_LINKS([nc_test4/ref_hdf5_compat3.nc:nc_test4/ref_hdf5_compat3.nc])
 
 # This call is required by automake.
-AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects serial-tests])
+AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects])
 
 
 # Check for the existence of this file before proceeding.
@@ -921,8 +921,8 @@ fi
 
   # Set of all known filters; must match arms of the case...esac below
   ALLFILTERS="zlib,szip,bzip2,fpzip,zfp"
-  # Set of filters turned on by default 
-  DFALTFILTERS="$ALLFILTERS"
+  # Set of filters turned on by default
+  DFALTFILTERS="zlib,bzip2,fpzip,zfp"
 
   AC_MSG_CHECKING([which specific compression filters to enable])
   AC_ARG_WITH([compression],

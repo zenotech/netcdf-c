@@ -634,7 +634,6 @@ nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_le
     if(stat != NC_NOERR) return stat;
     if(deflate) {
         nct.zip.level = deflate_level;
-        nparams = 1;
         stat = ncp->dispatch->def_var_extra(ncid,varid,
 		"zip",&nct,
 		NULL,NULL,
