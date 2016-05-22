@@ -182,6 +182,7 @@ NC_compress_register_all(void)
     return THROW(NC_NOERR);
 }
 
+#if 0
 int
 NC_compress_inq_argv(hid_t h5filterid, /*in*/
                      int findex, /*in*/
@@ -211,6 +212,7 @@ NC_compress_inq_argv(hid_t h5filterid, /*in*/
 fail:
     return THROW(stat);		
 }
+#endif
 
 int
 NC_compress_validate(NC_compression_info* info)
@@ -1169,6 +1171,7 @@ NC_compress_cvt_to(NC_algorithm alg, void* src0, NC_compression_info* dst)
     int stat = NC_NOERR;
     nc_compression_t* src = (nc_compression_t*)src0;
 
+    dst->algorithm = alg;
     switch (alg) {
     case NC_ZIP:
         dst->params.zip.level = src->zip.level;

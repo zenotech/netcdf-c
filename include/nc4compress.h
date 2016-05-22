@@ -43,7 +43,7 @@ NC_COMPRESSORS = (NC_ZFP+1)
 
 typedef struct NC_compression_info {
     NC_algorithm algorithm;
-    unsigned int argc; /* Number of unsigned ints per algorithm */
+    size_t argc; /* Number of unsigned ints per algorithm */
     union {/* Per-algorithm arms */
         unsigned int argv[NC_COMPRESSION_MAX_PARAMS];/*arbitrary 32 bit values*/
         struct ZIPINFO {unsigned int level;} zip;
@@ -78,10 +78,12 @@ Turn on shuffle for a variable (via plist)
 */
 EXTERNL int NC_compress_shuffle(hid_t plistid, int);
 
+#if 0
 /*
 Get the compression parameters from file variable into NC_VAR_INFO_T instance
 */
 EXTERNL int NC_compress_inq_argv(hid_t h5id, int filterindex, NC_algorithm*, int* nelemsp, unsigned int* elems);
+#endif
 
 /*
 Validate a set of compression parameters
