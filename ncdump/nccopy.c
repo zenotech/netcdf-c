@@ -42,8 +42,9 @@ int optind;
 
 /* Global variables for command-line requests */
 char *progname;	       /* for error messages */
-static int option_kind = SAME_AS_INPUT;
+static int option_compress = 1; /* carry over compression */
 static int option_deflate_level = -1;	/* default, compress output only if input compressed */
+static char option_compress[NC_COMPRESS_MAX_NAME] = "";
 static int option_shuffle_vars = NC_NOSHUFFLE; /* default, no shuffling on compression */
 static int option_fix_unlimdims = 0; /* default, preserve unlimited dimensions */
 static char* option_chunkspec = 0;   /* default, no chunk specification */
@@ -532,10 +533,18 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid)
 	    free(chunkp);
 	}
     }
-    { /* handle compression parameters, copying from input, overriding
+    if(option_compress) {
+      /* handle compression parameters, copying from input, overriding
        * with command-line options */
 	int shuffle_in=0, deflate_in=0, deflate_level_in=0;
 	int shuffle_out=0, deflate_out=0, deflate_level_out=0;
+	nc_compression_t compress_inout;
+	char algorithm[NC_COMPRESS_MAX_NAME];
+
+	NC_CHECK(nc_inq_var_compress(igrp,varid,algorithm,&compress_inout));
+	
+
+
 	if(option_deflate_level != 0) {
 	    NC_CHECK(nc_inq_var_deflate(igrp, varid, &shuffle_in, &deflate_in, &deflate_level_in));
 	    if(option_deflate_level == -1) { /* not specified, copy input compression and shuffling */
@@ -1609,7 +1618,7 @@ main(int argc, char**argv)
        usage();
     }
 
-    while ((c = getopt(argc, argv, "k:3467d:sum:c:h:e:rwxg:G:v:V:")) != -1) {
+    while ((c = getopt(argc, argv, "k:3467d:sum:c:h:e:rwxC:g:G:v:V:")) != -1) {
 	switch(c) {
         case 'k': /* for specifying variant of netCDF format to be generated 
                      Format names:
@@ -1660,6 +1669,10 @@ main(int argc, char**argv)
 	    if(option_deflate_level < 0 || option_deflate_level > 9) {
 		error("invalid deflation level: %d", option_deflate_level);
 	    }
+	    break;
+	case 'C':
+	    if(strcmpcase(optarg,"no")==0)
+	        option_compress = 0;
 	    break;
 	case 's':		/* shuffling, may improve compression */
 	    option_shuffle_vars = NC_SHUFFLE;
