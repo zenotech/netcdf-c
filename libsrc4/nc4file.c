@@ -1632,9 +1632,9 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       BAIL(NC_EHDFERR);
    for (f = 0; f < num_filters; f++)
    {
-      size_t cd_nelems = NC_COMPRESSION_MAX_PARAMS;
-      unsigned int cd_values[NC_COMPRESSION_MAX_PARAMS];
       int status;
+
+      var->compression.argc = NC_COMPRESSION_MAX_PARAMS; /* allow at most */
       if ((filter = H5Pget_filter2(propid, f, NULL,
                                    &var->compression.argc,
                                    var->compression.params.argv,
@@ -1651,8 +1651,15 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
            default:
 	      var->compression.algorithm = NC_algorithm_for_filter(filter);
 	      if(var->compression.algorithm == NC_NOZIP) {
-                  LOG((1, "Yikes! Unknown filter type found on dataset!"));
-		  var->compression.argc = 0;
+                  LOG((1, "Unknown filter type found on dataset!"));
+		  BAIL(NC_ECOMPRESS);
+	      }
+	      if(NC_algorithm_nelems(var->compression.algorithm) != var->compression.argc) {
+                  LOG((1, "%s: parameter count mismatch: infile=%d expected=%d",
+			NC_algorithm_name(var->compression.algorithm),
+		        var->compression.argc,
+			NC_algorithm_nelems(var->compression.algorithm)));
+		  BAIL(NC_ECOMPRESS);
 	      }
   	      break;
         }

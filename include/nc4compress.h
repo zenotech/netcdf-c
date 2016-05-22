@@ -103,6 +103,7 @@ EXTERNL int NC_compress_register_all(void);
 EXTERNL NC_algorithm NC_algorithm_id(const char* name);
 EXTERNL const char* NC_algorithm_name(NC_algorithm id);
 EXTERNL NC_algorithm NC_algorithm_for_filter(H5Z_filter_t h5id);
+EXTERNL size_t NC_algorithm_nelems(NC_algorithm);
 
 /* Convert NC_compression_info -> arm of NC_compression_t */
 EXTERNL int NC_compress_cvt_from(NC_compression_info*,void*);

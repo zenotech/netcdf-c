@@ -1199,6 +1199,17 @@ NC_compress_cvt_to(NC_algorithm alg, void* src0, NC_compression_info* dst)
     return THROW(stat);
 }
 
+size_t
+NC_algorithm_nelems(NC_algorithm alg)
+{
+    const NCC_COMPRESSOR* cmp;
+    cmp = NC_compressor_for(alg);
+    if(cmp == NULL)
+	return 0;
+    return cmp->nelems;
+}
+
+
 #ifdef VERIFYSIZE
 static void
 verifysize()
