@@ -52,8 +52,9 @@
 typedef struct NCC_COMPRESSOR {
     NC_algorithm nccid;
     char name[NC_COMPRESSION_MAX_NAME+1]; /* canonical compressor name */
-    int nelems; /* size of the compression parameters */
+    size_t nelems; /* size of the compression parameters in units of uint32 */
     H5Z_filter_t h5filterid;
+    unsigned int flags; /* currently unused */
     /* Tell HDF5 about the filter */
     int (*_register)(const struct NCC_COMPRESSOR*, H5Z_class2_t*);
     /* Attach a set of parameters to a specific variable (via plist) */
@@ -66,8 +67,8 @@ typedef struct NCC_COMPRESSOR {
 #define H5Z_FILTER_ZFP 257
 #define H5Z_FILTER_JP2 258
 
-static H5Z_class2_t H5Z_INFO[NC_COMPRESSORS];
-static int registered[NC_COMPRESSORS];
+static H5Z_class2_t H5Z_INFO[NC_NCOMPRESSORS];
+static int registered[NC_NCOMPRESSORS];
 
 static int zip_valid(const struct NCC_COMPRESSOR*, NC_compression_info*);
 static int zip_valid(const struct NCC_COMPRESSOR*, NC_compression_info*);
@@ -129,7 +130,7 @@ static int checkerr(int e, const char* file, int line)
 
 /* Forward */
 static int available(const NCC_COMPRESSOR* info, H5Z_class2_t*);
-static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1];
+static const NCC_COMPRESSOR compressors[NC_NCOMPRESSORS+1];
 static const NCC_COMPRESSOR* NC_compressor_for(NC_algorithm index);
 static void verifysize();
 
@@ -662,9 +663,9 @@ fpzip_valid(const struct NCC_COMPRESSOR* cmp, NC_compression_info* info)
 {
     int status = NC_NOERR;
 #ifdef FPZIP_FILTER
-    if(info->params.fpzip.fpz.prec < 0 || info->params.fpzip.fpz.prec > 64) {status = NC_EINVAL; goto done;}
-    if(info->params.fpzip.fpz.prec > 32
-       && info->params.fpzip.fpz.type != 1) {status = NC_EINVAL; goto done;}
+    if(info->params.fpzip.precision < 0 || info->params.fpzip.precision > 64) {status = NC_EINVAL; goto done;}
+    if(info->params.fpzip.precision > 32
+       && info->params.fpzip.type != FPZIP_TYPE_DOUBLE) {status = NC_EINVAL; goto done;}
 done:
 #endif
     return THROW(status);
@@ -679,7 +680,8 @@ fpzip_init(NC_compression_info* info, int rank, size_t* chunksizes)
     int choice,onesies,i,isdouble;
     size_t totalsize,elemsize;
     size_t nx,ny,nz,nf,nzsize;
-    struct FPZIPINFO* fpzinfo = &info->params.fpzip;
+    struct FPZIP_PARAMS* fpz = &info->params.fpzip;
+    struct fpzip_reserved* resv = (struct fpzip_reserved*)fpz->reserved;
 
     for(onesies=0,totalsize=1,i=0;i<rank;i++) {
 	totalsize *= chunksizes[i];
@@ -706,27 +708,27 @@ fpzip_init(NC_compression_info* info, int rank, size_t* chunksizes)
 	}
     }
 
-    isdouble = (fpzinfo->fpz.type == FPZIP_TYPE_DOUBLE);
+    isdouble = (fpz->type == FPZIP_TYPE_DOUBLE);
 
     /* Element size (in bytes) */
     elemsize = (isdouble ? sizeof(double) : sizeof(float));
 
     /* precision */
-    if(fpzinfo->fpz.prec == 0)
-        fpzinfo->fpz.prec = CHAR_BIT * elemsize;
+    if(fpz->precision == 0)
+        fpz->precision = CHAR_BIT * elemsize;
 
     if(choice) {
-	fpzinfo->fpz.nx = nx;
-	fpzinfo->fpz.ny = ny;
-	fpzinfo->fpz.nz = nz;
-	fpzinfo->fpz.nf = nf;
+	resv->nx = nx;
+	resv->ny = ny;
+	resv->nz = nz;
+	resv->nf = nf;
     } else {/*prefix*/
-	fpzinfo->fpz.nx = chunksizes[0];
-	fpzinfo->fpz.ny = (rank >= 2 ? chunksizes[1] : 1);
-	fpzinfo->fpz.nz = (rank >= 3 ? nzsize : 1);
-	fpzinfo->fpz.nf = 1;
+	resv->nx = chunksizes[0];
+	resv->ny = (rank >= 2 ? chunksizes[1] : 1);
+	resv->nz = (rank >= 3 ? nzsize : 1);
+	resv->nf = 1;
     }
-    fpzinfo->totalsize = totalsize;
+    resv->totalsize = totalsize;
     return THROW(stat);
 }
 
@@ -743,8 +745,8 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 {
     int i;
     NC_compression_info* info;
-    FPZ* fpz;
-    struct FPZIPINFO* finfo;
+    struct FPZIP_PARAMS* finfo;
+    struct fpzip_reserved* resv;
     int rank;
     int isdouble;
     int prec;
@@ -758,10 +760,11 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 
     info = (NC_compression_info*)argv;
     finfo = &info->params.fpzip;
+    resv = (struct fpzip_reserved*)finfo->reserved;
 
-    isdouble = (finfo->fpz.type == FPZIP_TYPE_DOUBLE);
-    prec = finfo->fpz.prec;
-    totalsize = finfo->totalsize;
+    isdouble = (resv->type == FPZIP_TYPE_DOUBLE);
+    prec = finfo->precision;
+    totalsize = resv->totalsize;
 
     /* Element size (in bytes) */
     elemsize = (isdouble ? sizeof(double) : sizeof(float));
@@ -777,8 +780,13 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
         if(fpzip_errno != fpzipSuccess)
 	    goto cleanupAndFail;
 
-	/* Overwrite fpz */
-        *fpz = finfo->fpz;
+	/* Fill fpz */
+	fpz->type = finfo->type;
+	fpz->precision = finfo->precision;
+	fpz->nx = resv->nx;
+	fpz->ny = resv->ny;
+	fpz->nz = resv->nz;
+	fpz->nf = resv->nf;
 
         /* Create the decompressed data buffer */
 	outbuf = (char*)malloc(databytes);
@@ -815,8 +823,13 @@ H5Z_filter_fpzip(unsigned int flags, size_t cd_nelmts,
 	if(fpzip_errno != fpzipSuccess)
   	    goto cleanupAndFail;
 
-	/* Overwrite fpz */
-        *fpz = finfo->fpz;
+	/* Fill fpz */
+	fpz->type = finfo->type;
+	fpz->precision = finfo->precision;
+	fpz->nx = resv->nx;
+	fpz->ny = resv->ny;
+	fpz->nz = resv->nz;
+	fpz->nf = resv->nf;
 
 	outbuf_used = fpzip_write(fpz,*buf);
 	if(outbuf_used == 0 && fpzip_errno  == fpzipSuccess)
@@ -1136,26 +1149,31 @@ NC_algorithm_for_filter(H5Z_filter_t h5filterid)
 
 /* Convert NC_compression_info -> NC_compression_t */
 int
-NC_compress_cvt_from(NC_compression_info* src, void* dst0)
+NC_compress_cvt_from(NC_compression_info* src, size_t dstsize, void* dst0)
 {
     int stat = NC_NOERR;
     nc_compression_t* dst = (nc_compression_t*)dst0;
     switch (src->algorithm) {
     case NC_ZIP:
+	if(sizeof(dst->zip) > dstsize) return NC_ECOMPRESS;
         dst->zip.level = src->params.zip.level;
 	break;
     case NC_BZIP2:
+	if(sizeof(dst->bzip2) > dstsize) return NC_ECOMPRESS;
         dst->bzip2.level = src->params.bzip2.level;
 	break;
     case NC_SZIP:
+	if(sizeof(dst->szip) > dstsize) return NC_ECOMPRESS;
         dst->szip.options_mask = src->params.szip.options_mask;
         dst->szip.pixels_per_block = src->params.szip.pixels_per_block;
 	break;
     case NC_FPZIP:
+	if(sizeof(dst->fpzip) > dstsize) return NC_ECOMPRESS;
 	dst->fpzip.isdouble = (src->params.fpzip.fpz.type == FPZIP_TYPE_DOUBLE);
 	dst->fpzip.precision = src->params.fpzip.fpz.prec;
 	break;
     case NC_ZFP:
+	if(sizeof(dst->zfp) > dstsize) return NC_ECOMPRESS;
 	dst->zfp = src->params.zfp.params;
 	break;
     default:
@@ -1166,7 +1184,7 @@ NC_compress_cvt_from(NC_compression_info* src, void* dst0)
 
 /* Convert nc_compression_t -> NC_compression_info */
 int
-NC_compress_cvt_to(NC_algorithm alg, void* src0, NC_compression_info* dst)
+NC_compress_cvt_to(NC_algorithm alg, size_t srcsize, void* src0, NC_compression_info* dst)
 {
     int stat = NC_NOERR;
     nc_compression_t* src = (nc_compression_t*)src0;
@@ -1174,22 +1192,32 @@ NC_compress_cvt_to(NC_algorithm alg, void* src0, NC_compression_info* dst)
     dst->algorithm = alg;
     switch (alg) {
     case NC_ZIP:
+        if(sizeof(src->zip) < srcsize) return NC_ECOMPRESS;
+	dst->argc = NC_NELEMS_ZIP;	
         dst->params.zip.level = src->zip.level;
 	break;
     case NC_BZIP2:
+        if(sizeof(src->bzip2) < srcsize) return NC_ECOMPRESS;
+	dst->argc = NC_NELEMS_BZIP2;
         dst->params.bzip2.level = src->bzip2.level;
 	break;
     case NC_SZIP:
+        if(sizeof(src->szip) < srcsize) return NC_ECOMPRESS;
+	dst->argc = NC_NELEMS_SZIP;
         dst->params.szip.options_mask = src->szip.options_mask;
         dst->params.szip.pixels_per_block = src->szip.pixels_per_block;
 	break;
     case NC_FPZIP:
+        if(sizeof(src->fpzip) < srcsize) return NC_ECOMPRESS;
+	dst->argc = NC_NELEMS_FPZIP;
 	memset(&dst->params.fpzip,0,sizeof(dst->params.fpzip));
 	dst->params.fpzip.fpz.type = (src->fpzip.isdouble?FPZIP_TYPE_DOUBLE
                                                          :FPZIP_TYPE_FLOAT);
 	dst->params.fpzip.fpz.prec = src->fpzip.precision;
 	break;
     case NC_ZFP:
+        if(sizeof(src->zfp) < srcsize) return NC_ECOMPRESS;
+	dst->argc = NC_NELEMS_ZFP;
 	memset(&dst->params.zfp,0,sizeof(dst->params.zfp));
 	dst->params.zfp.params = src->zfp;
 	break;
@@ -1210,13 +1238,43 @@ NC_algorithm_nelems(NC_algorithm alg)
 }
 
 
+/**************************************************/
+
+size_t
+nc_inq_algorithm_argc(const char* algname)
+{
+    NC_algorithm alg = NC_algorithm_id(algname);
+    if(alg == NC_NOZIP) return 0;
+    return NC_algorithm_nelems(alg);
+}
+
+static const char* algorithm_names[NC_NCOMPRESSORS+1] = {NULL};
+
+/* Get set of known algorithms by name */
+const char**
+nc_inq_compressor_names(void)
+{
+    if(algorithm_names[0] == NULL) {
+	int i,j;
+	char** names = (char**)algorithm_names; /* break const */
+	for(j=0,i=NC_NOZIP+1;i<NC_NCOMPRESSORS;i++) {
+	    const NCC_COMPRESSOR* cmp = &compressors[i];
+	    if(registered[i])
+		names[j++] = (char*)cmp->name; /* remove const */
+	}
+	names[j] = NULL; /* NULL terminate */
+    }
+    return algorithm_names;
+}
+
+/**************************************************/
 #ifdef VERIFYSIZE
 static void
 verifysize()
 {
     int i;
     NC_compression_info info;
-    for(i=0;i<NC_COMPRESSORS;i++) {
+    for(i=0;i<NC_NCOMPRESSORS;i++) {
 	int defined, computed, usize;
 	switch (i) {
         case NC_ZIP:
@@ -1259,11 +1317,11 @@ verifysize()
 /**************************************************/
 
 /* Provide access to all the compressors */
-static const NCC_COMPRESSOR compressors[NC_COMPRESSORS+1] = {
-    {NC_ZIP, "zip", NC_NELEMS_ZIP, H5Z_FILTER_DEFLATE, zip_register, zip_attach, zip_valid},
-    {NC_SZIP, "szip", NC_NELEMS_SZIP, H5Z_FILTER_SZIP, szip_register, szip_attach, szip_valid},
-    {NC_BZIP2, "bzip2", NC_NELEMS_BZIP2, H5Z_FILTER_BZIP2, bzip2_register, bzip2_attach, bzip2_valid},
-    {NC_FPZIP, "fpzip", NC_NELEMS_FPZIP, H5Z_FILTER_FPZIP, fpzip_register, fpzip_attach, fpzip_valid},
-    {NC_ZFP, "zfp", NC_NELEMS_ZFP, H5Z_FILTER_ZFP, zfp_register, zfp_attach, zfp_valid},
-    {NC_NOZIP, "\0", 0, 0, NULL, NULL, NULL} /* must be last */
+static const NCC_COMPRESSOR compressors[NC_NCOMPRESSORS+1] = {
+    {NC_ZIP, "zip", NC_NELEMS_ZIP, H5Z_FILTER_DEFLATE, 0, zip_register, zip_attach, zip_valid},
+    {NC_SZIP, "szip", NC_NELEMS_SZIP, H5Z_FILTER_SZIP, 0, szip_register, szip_attach, szip_valid},
+    {NC_BZIP2, "bzip2", NC_NELEMS_BZIP2, H5Z_FILTER_BZIP2, 0, bzip2_register, bzip2_attach, bzip2_valid},
+    {NC_FPZIP, "fpzip", NC_NELEMS_FPZIP, H5Z_FILTER_FPZIP, 0, fpzip_register, fpzip_attach, fpzip_valid},
+    {NC_ZFP, "zfp", NC_NELEMS_ZFP, H5Z_FILTER_ZFP, 0, zfp_register, zfp_attach, zfp_valid},
+    {NC_NOZIP, "", 0, 0, 0, NULL, NULL, NULL} /* must be last */
 };

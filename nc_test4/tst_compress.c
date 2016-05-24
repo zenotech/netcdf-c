@@ -562,6 +562,14 @@ main(int argc, char **argv)
 
     init(argc,argv);
 
+    const char** anames;
+
+    printf("*** Reporting active compression algorithms:");
+    anames = nc_inq_compression_names();
+    for(i=0;anames[i] != NULL;i++)
+	printf("%s %s",(i==0?"":","),anames[i]);
+    printf("\n");
+
     if(test[ZFP]) {
 	if(!test_zfp()) ERRR;
 	SUMMARIZE_ERR;

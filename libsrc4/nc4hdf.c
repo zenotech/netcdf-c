@@ -1542,7 +1542,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
 
   /* If the user wants to compress/decompress the data, set that up now. */
   if (var->compression.algorithm != NC_NOZIP) {
-    if(!var->chunks_set) {
+    if(var->contiguous_set && var->contiguous) {
 	LOG((1, "%s: error: compression requires chunking"));
 	return NC_ECOMPRESS;
     }

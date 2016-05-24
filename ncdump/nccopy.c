@@ -8,6 +8,7 @@
 
 #include "config.h"		/* for USE_NETCDF4 macro */
 #include <stdlib.h>
+#include <stdio.h>
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
@@ -16,6 +17,7 @@
 #endif
 #include <string.h>
 #include <netcdf.h>
+#include <netcdf_compress.h>
 #include "nciter.h"
 #include "utils.h"
 #include "chunkspec.h"
@@ -42,9 +44,9 @@ int optind;
 
 /* Global variables for command-line requests */
 char *progname;	       /* for error messages */
+static int option_kind = SAME_AS_INPUT;
 static int option_compress = 1; /* carry over compression */
 static int option_deflate_level = -1;	/* default, compress output only if input compressed */
-static char option_compress[NC_COMPRESS_MAX_NAME] = "";
 static int option_shuffle_vars = NC_NOSHUFFLE; /* default, no shuffling on compression */
 static int option_fix_unlimdims = 0; /* default, preserve unlimited dimensions */
 static char* option_chunkspec = 0;   /* default, no chunk specification */
@@ -68,6 +70,10 @@ static char** option_lvars = 0;         /* list of variable names specified with
 static bool_t option_varstruct = false;   /* if -v set, copy structure for non-selected vars */
 static int option_compute_chunkcaches = 0; /* default, don't try still flaky estimate of
 					    * chunk cache for each variable */
+
+/* Forward */
+static int copycompression(int igrp, int ivarid, int o_grp, int o_varid);
+static int set_var_deflate(int ogrp, int o_varid);
 
 /* get group id in output corresponding to group igrp in input,
  * given parent group id (or root group id) parid in output. */
@@ -533,31 +539,11 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid)
 	    free(chunkp);
 	}
     }
-    if(option_compress) {
-      /* handle compression parameters, copying from input, overriding
-       * with command-line options */
-	int shuffle_in=0, deflate_in=0, deflate_level_in=0;
-	int shuffle_out=0, deflate_out=0, deflate_level_out=0;
-	nc_compression_t compress_inout;
-	char algorithm[NC_COMPRESS_MAX_NAME];
-
-	NC_CHECK(nc_inq_var_compress(igrp,varid,algorithm,&compress_inout));
-	
-
-
-	if(option_deflate_level != 0) {
-	    NC_CHECK(nc_inq_var_deflate(igrp, varid, &shuffle_in, &deflate_in, &deflate_level_in));
-	    if(option_deflate_level == -1) { /* not specified, copy input compression and shuffling */
-		shuffle_out = shuffle_in;
-		deflate_out = deflate_in;
-		deflate_level_out = deflate_level_in;
-	    } else if(option_deflate_level > 0) { /* change to specified compression, shuffling */
-		shuffle_out = option_shuffle_vars;
-		deflate_out=1;
-		deflate_level_out = option_deflate_level;
-	    }
-	    NC_CHECK(nc_def_var_deflate(ogrp, o_varid, shuffle_out, deflate_out, deflate_level_out));
-	}
+    if(option_deflate_level > 0) {
+	/* Set compression if specified in command line option */
+	NC_CHECK(set_var_deflate(ogrp, o_varid));
+    } else if(option_compress) { /* carry over compression, (if any) */
+	NC_CHECK(copycompression(igrp, varid, ogrp, o_varid));
     }
     {				/* handle checksum parameters */
 	int fletcher32 = 0;
@@ -571,6 +557,51 @@ copy_var_specials(int igrp, int varid, int ogrp, int o_varid)
 	NC_CHECK(nc_inq_var_endian(igrp, varid, &endianness));
 	if(endianness != NC_ENDIAN_NATIVE) { /* native is the default */
 	    NC_CHECK(nc_def_var_endian(ogrp, o_varid, endianness));
+	}
+    }
+    return stat;
+}
+
+static int
+copycompression(int igrp, int ivarid, int o_grp, int o_varid)
+{
+    /* handle compression parameters, copying from input, overriding
+     * with command-line options */
+    int stat = NC_NOERR;
+    int shuffle_in=0;
+    int shuffle_out=0;
+    size_t paramsize = 0;
+    nc_compression_t compress_params;
+    char algorithm[NC_COMPRESSION_MAX_NAME];
+
+    /* Start by optionally carrying over shuffle */
+    if((stat=nc_inq_var_shuffle(igrp, ivarid, &shuffle_in))!=NC_NOERR)
+	return stat;
+    shuffle_out = shuffle_in;
+    if(shuffle_out == NC_NOSHUFFLE)
+	shuffle_out = option_shuffle_vars;
+    if((stat=nc_def_var_shuffle(o_grp, o_varid, shuffle_out)) != NC_NOERR)
+	return stat;
+    if((stat=nc_inq_var_compress(igrp,ivarid,algorithm,&paramsize,&compress_params))!=NC_NOERR)
+	return stat;
+    if(algorithm[0] == 0 && option_deflate_level == -1)
+	return NC_NOERR; /* do nothing */
+    if(algorithm[0] == 0 && option_deflate_level > 0) {
+	/* Force zip compression on output */
+	strcpy(algorithm,"zip");
+	compress_params.zip.level = option_deflate_level;
+    } else if(algorithm[0] != 0) { /* carry over, if we can */
+	/* Allow zip and bzip2 override */
+	if(option_deflate_level >= 0) {
+	    if(strcmp(algorithm,"zip") == 0) /* Use cmd line deflate level */
+	        compress_params.zip.level = option_deflate_level;
+	    else if(strcmp(algorithm,"bzip2") == 0)
+	        compress_params.bzip2.level = option_deflate_level;
+	}
+	/* Try to transfer compression */
+	if((stat=nc_def_var_compress(o_grp,o_varid, algorithm,paramsize,&compress_params))!=NC_NOERR) {
+	    fprintf(stderr,"Compression %s: unsupported",algorithm);
+	    return stat;
 	}
     }
     return stat;
@@ -657,9 +688,9 @@ set_var_chunked(int ogrp, int o_varid)
     return stat;
 }
 
-/* Set variable to compression specified on command line */
+/* Set variable to use zip compression specified on command line */
 static int
-set_var_compressed(int ogrp, int o_varid)
+set_var_deflate(int ogrp, int o_varid)
 {
     int stat = NC_NOERR;
     if (option_deflate_level > 0) {
@@ -847,8 +878,10 @@ copy_var(int igrp, int varid, int ogrp)
 	int outkind;
 	NC_CHECK(nc_inq_format(igrp, &inkind));
 	NC_CHECK(nc_inq_format(ogrp, &outkind));
-	if(outkind == NC_FORMAT_NETCDF4 || outkind == NC_FORMAT_NETCDF4_CLASSIC) {
-	    if((inkind == NC_FORMAT_NETCDF4 || inkind == NC_FORMAT_NETCDF4_CLASSIC)) {
+	if(outkind == NC_FORMAT_NETCDF4
+           || outkind == NC_FORMAT_NETCDF4_CLASSIC) {
+	   if(inkind == NC_FORMAT_NETCDF4
+              || inkind == NC_FORMAT_NETCDF4_CLASSIC) {
 		/* Copy all netCDF-4 specific variable properties such as
 		 * chunking, endianness, deflation, checksumming, fill, etc. */
 		NC_CHECK(copy_var_specials(igrp, varid, ogrp, o_varid));
@@ -856,7 +889,7 @@ copy_var(int igrp, int varid, int ogrp)
 		/* Set chunking if specified in command line option */
 		NC_CHECK(set_var_chunked(ogrp, o_varid));
 		/* Set compression if specified in command line option */
-		NC_CHECK(set_var_compressed(ogrp, o_varid));
+		NC_CHECK(set_var_deflate(ogrp, o_varid));
 	    }
 	}
     }
@@ -1671,7 +1704,7 @@ main(int argc, char**argv)
 	    }
 	    break;
 	case 'C':
-	    if(strcmpcase(optarg,"no")==0)
+	    if(strcasecmp(optarg,"no")==0)
 	        option_compress = 0;
 	    break;
 	case 's':		/* shuffling, may improve compression */
@@ -1753,6 +1786,10 @@ main(int argc, char**argv)
     if(strcmp(inputfile, outputfile) == 0) {
 	error("output would overwrite input");
     }
+
+    /* If -d and -Cyes were both set then -d takes precedence */
+    if(option_deflate_level > 0 && option_compress == 1)
+	option_compress = 0;
 
     if(copy(inputfile, outputfile) != NC_NOERR)
         exit(EXIT_FAILURE);

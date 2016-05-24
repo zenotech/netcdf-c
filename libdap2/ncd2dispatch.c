@@ -94,13 +94,13 @@ static int
 NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                int* ndimsp, int* dimidsp, int* nattsp,
                int *shufflep, char* algorithmp,
-               void* compression_params,
+               size_t* paramsizep, void* compression_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp);
 
 static int
 NCD2_def_var_extra(int ncid, int varid,
-		    const char* algorithm, void* params,
+		    const char* algorithm, size_t paramsize, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness);
@@ -2386,7 +2386,7 @@ static int
 NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                int* ndimsp, int* dimidsp, int* nattsp,
                int *shufflep, char* algorithmp,
-               void* compression_params,
+               size_t* paramsizep, void* compression_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp)
 {
@@ -2396,7 +2396,7 @@ NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
     ret = NCDISPATCH_inq_var_all(getnc3id(drno), varid, name, xtypep,
                ndimsp, dimidsp, nattsp,
                shufflep, algorithmp,
-               compression_params,
+               paramsizep, compression_params,
                fletcher32p, contiguousp, chunksizesp, 
                no_fill, fill_valuep, endiannessp);
     return THROW(ret);
@@ -2404,7 +2404,7 @@ NCD2_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
 
 static int
 NCD2_def_var_extra(int ncid, int varid,
-		    const char* algorithm, void* params,
+		    const char* algorithm, size_t paramsize, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness)
@@ -2413,7 +2413,7 @@ NCD2_def_var_extra(int ncid, int varid,
     int ret;
     if((ret = NC_check_id(ncid, (NC**)&drno)) != NC_NOERR) return THROW(ret);
     ret = NCDISPATCH_def_var_extra(getnc3id(drno), varid,
-		    algorithm, nparams, params,
+		    algorithm, paramsize, params,
 		    contiguous, chunksizes,
                     no_fill, fill_value,
                     shuffle, fletcher32, endianness);

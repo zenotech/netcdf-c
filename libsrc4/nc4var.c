@@ -632,7 +632,7 @@ int
 NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep, 
                int *ndimsp, int *dimidsp, int *nattsp, 
                int *shufflep, char* algorithmp,
-               void* compress_params,
+               size_t* paramsizep, void* compress_params,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp)
 {
@@ -762,14 +762,20 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    if (endiannessp)
       *endiannessp = var->type_info->endianness;
 
-   /* Filter stuff. */
+   /* Compression stuff. */
    if(var->compression.algorithm != NC_NOZIP) {
        if(algorithmp) 
            strncpy(algorithmp,NC_algorithm_name(var->compression.algorithm),NC_COMPRESSION_MAX_NAME);
-	if(compress_params) {
-	    if(NC_compress_cvt_from(&var->compression,compress_params) != NC_NOERR)
+	if(paramsizep) *paramsizep = NC_algorithm_nelems(var->compression.algorithm)*sizeof(unsigned int);
+	if(compress_params && paramsizep) {
+	    if(NC_compress_cvt_from(&var->compression,*paramsizep,compress_params) != NC_NOERR)
 	        return NC_ECOMPRESS;
 	}
+   } else {
+	if(algorithmp) /* no compression */
+	    algorithmp[0] = '\0';
+	if(paramsizep)
+	    *paramsizep = 0;	
    }
    if (shufflep)
       *shufflep = (int)var->shuffle;
@@ -788,7 +794,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
 */
 int
 NC4_def_var_extra(int ncid, int varid,
-		    const char* algorithm, void* params,
+		    const char* algorithm, size_t paramsize, void* params,
 		    int *contiguous, const size_t *chunksizes,
                     int *no_fill, const void *fill_value,
                     int *shuffle, int *fletcher32, int *endianness)
@@ -860,15 +866,9 @@ NC4_def_var_extra(int ncid, int varid,
     hasfilter = (alg?1:0);
     hasshuffle = (shuffle && *shuffle == NC_SHUFFLE?1:0);
     hasfletcher = (fletcher32 && *fletcher32 == NC_FLETCHER32?1:0);
-    varcontig = (var->contiguous_set && var->contiguous?1:0);
+    varcontig = (var->contiguous_set && var->contiguous);
     varchunked = (var->chunks_set && var->contiguous?1:0);
-    if(alg && varcontig)
-	return NC_EINVAL;
-    if(hasshuffle  && varchunked)
-	return NC_EINVAL;
-    if(hasfletcher && varchunked)
-	return NC_EINVAL;
-    if(chunksizes && varcontig)
+    if(varcontig && (alg || chunksizes))
 	return NC_EINVAL;    
 
     /* Can't turn on parallel and filters */
@@ -985,11 +985,11 @@ NC4_def_var_extra(int ncid, int varid,
       var->type_info->endianness = *endianness;
 
    /* Check compression options. */
-   if (alg && params == NULL)
+   if (alg && (params == NULL || paramsize == 0))
       return NC_EINVAL;      
 
    /* set compression */
-   if (alg && params != NULL)
+   if (alg && params != NULL && paramsize > 0)
    {
       /* For scalars, just ignore attempt to deflate. */
       if (!var->ndims)
@@ -997,206 +997,13 @@ NC4_def_var_extra(int ncid, int varid,
 
       /* Well, if we couldn't find any obvious errors, I guess we have to take
        * the users settings. Darn! */
-      if(NC_compress_cvt_to(alg,params,&var->compression) != NC_NOERR)
+      if(NC_compress_cvt_to(alg,paramsize,params,&var->compression) != NC_NOERR)
 	    return NC_ECOMPRESS;
       var->compression.algorithm = alg;
    }
 
    return NC_NOERR;
 }
-
-#if 0
-/* Set the deflate level for a var, lower is faster, higher is
- * better. Must be called after nc_def_var and before nc_enddef or any
- * functions which writes data to the file. */
-int
-NC4_def_var_deflate(int ncid, int varid, int shuffle, int deflate,
-                   int deflate_level)
-{
-   int status = NC_NOERR;
-   status = NC4_def_var_shuffle(ncid,varid,shuffle);
-   if(status == NC_NOERR) {
-       int nparams = NC_NELEMS_ZIP;
-       parms.zip.level = deflate_level;
-       status = nc_def_var_compress(ncid, varid, "zip",
-                           &params,
-			   NULL, NULL, NULL, NULL, NULL, NULL);
-    }
-    return status;
-}
-
-/* Set checksum for a var. This must be called after the nc_def_var
- * but before the nc_enddef. */
-int
-NC4_def_var_fletcher32(int ncid, int varid, int fletcher32)
-{
-   return nc_def_var_extra(ncid, varid,
-                           NULL, NULL,
-                           NULL, NULL,
-			   NULL, NULL,
-                           NULL, &fletcher32, NULL);
-}
-
-/* Define chunking stuff for a var. This must be done after nc_def_var
-   and before nc_enddef.
-
-   Chunking is required in any dataset with one or more unlimited
-   dimensions in HDF5, or any dataset using a filter.
-
-   Where chunksize is a pointer to an array of size ndims, with the
-   chunksize in each dimension.
-*/
-int
-NC4_def_var_chunking(int ncid, int varid, int contiguous, const size_t *chunksizesp)
-{
-   return nc_def_var_extra(ncid, varid,
-                           NULL, NULL,
-                           &contiguous, chunksizesp,
-                           NULL, NULL,
-                           NULL, NULL, NULL);
-}
-
-/* Inquire about chunking stuff for a var. This is a private,
- * undocumented function, used by the f77 API to avoid size_t
- * problems. */
-int
-nc_inq_var_chunking_ints(int ncid, int varid, int *contiguousp, int *chunksizesp)
-{
-   NC *nc;
-   NC_GRP_INFO_T *grp;
-   NC_VAR_INFO_T *var;
-   NC_HDF5_FILE_INFO_T *h5;
-
-   size_t *cs = NULL;
-   int i, retval;
-
-   /* Find this ncid's file info. */
-   if ((retval = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
-      return retval;
-   assert(nc);
-
-   /* Find var cause I need the number of dims. */
-   if ((retval = nc4_find_g_var_nc(nc, ncid, varid, &grp, &var)))
-      return retval;
-
-   /* Allocate space for the size_t copy of the chunksizes array. */
-   if (var->ndims)
-      if (!(cs = malloc(var->ndims * sizeof(size_t))))
-	 return NC_ENOMEM;
-   
-   retval = NC4_inq_var_all(ncid, varid, NULL, NULL, NULL, NULL, NULL, NULL,
-                           NULL, NULL, NULL, NULL, contiguousp, cs, NULL,
-                           NULL, NULL);
-
-   /* Copy from size_t array. */
-   if (*contiguousp == NC_CHUNKED)
-      for (i = 0; i < var->ndims; i++)
-      {
-	 chunksizesp[i] = (int)cs[i];
-	 if (cs[i] > NC_MAX_INT)
-	    retval = NC_ERANGE;
-      }
-
-   if (var->ndims)
-      free(cs);
-   return retval;
-}
-
-/* This function defines the chunking with ints, which works better
- * with F77 portability. It is a secret function, which has been
- * rendered unmappable, and it is impossible to apparate anywhere in
- * this function. */
-int
-nc_def_var_chunking_ints(int ncid, int varid, int contiguous, int *chunksizesp)
-{
-   NC *nc;
-   NC_GRP_INFO_T *grp;
-   NC_VAR_INFO_T *var;
-   NC_HDF5_FILE_INFO_T *h5;
-   size_t *cs = NULL;
-   int i, retval;
-
-   /* Find this ncid's file info. */
-   if ((retval = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
-      return retval;
-   assert(nc);
-
-#ifdef USE_HDF4
-   if(h5->hdf4)
-	return NC_NOERR;
-#endif
-
-   /* Find var cause I need the number of dims. */
-   if ((retval = nc4_find_g_var_nc(nc, ncid, varid, &grp, &var)))
-      return retval;
-
-   /* Allocate space for the size_t copy of the chunksizes array. */
-   if (var->ndims)
-      if (!(cs = malloc(var->ndims * sizeof(size_t))))
-	 return NC_ENOMEM;
-
-   /* Copy to size_t array. */
-   for (i = 0; i < var->ndims; i++)
-      cs[i] = chunksizesp[i];
-
-   retval = nc_def_var_extra(ncid, varid,
-                             NULL, NULL,
-                             &contiguous, cs,
-			     NULL, NULL,
-                             NULL, NULL, NULL);
-
-   if (var->ndims)
-      free(cs);
-   return retval;
-}
-
-/* Define fill value behavior for a variable. This must be done after
-   nc_def_var and before nc_enddef. */
-int
-NC4_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
-{
-   return nc_def_var_extra(ncid, varid,
-                           NULL, NULL,
-                           NULL, NULL,
-                           &no_fill, fill_value,
-                           NULL, NULL, NULL);
-}
-
-/* Define the endianness of a variable. */
-int
-NC4_def_var_endian(int ncid, int varid, int endianness)
-{
-   return nc_def_var_extra(ncid, varid,
-                           NULL, NULL,
-                           NULL, NULL,
-                           NULL, NULL,
-                           NULL, NULL, &endianness);
-}
-
-/* Define the shuffle of a variable. */
-int
-NC4_def_var_shuffle(int ncid, int varid, int shuffle)
-{
-   return nc_def_var_extra(ncid, varid,
-                           NULL, NULL,
-                           NULL, NULL,
-                           NULL, NULL,
-                           &shuffle, NULL, NULL);
-}
-
-/* Set the compression algorithm for a var.
-   Must be called after nc_def_var and before nc_enddef or any
-   functions which writes data to the file. */
-int
-NC4_def_var_compress(int ncid, int varid, const char* algorithm, void* params)
-{
-   return nc_def_var_extra(ncid, varid,
-                           algorithm, params,
-                           NULL, NULL,
-                           NULL, NULL,
-                           NULL, NULL, NULL);
-}
-#endif
 
 /* Get var id from name. */
 int

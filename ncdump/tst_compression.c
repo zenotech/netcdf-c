@@ -11,6 +11,7 @@
 #include <nc_tests.h>
 #include <stdlib.h>
 #include <netcdf.h>
+#include <netcdf_compress.h>
 
 #define FILENAME "tst_inflated.nc"
 #define FILENAME2 "tst_inflated4.nc"

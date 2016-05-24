@@ -8,13 +8,7 @@ Research/Unidata. See COPYRIGHT file for more info.
 #include "config.h"
 #include "netcdf.h"
 #include "ncdispatch.h"
-
-#ifdef USE_NETCDF4
-#ifdef FPZIP_FILTER
-#include "fpzip.h"
-#endif
-#include "nc4compress.h"
-#endif
+#include "netcdf_compress.h"
 
 /** \name Learning about Variables
 
@@ -130,7 +124,7 @@ nc_inq_var(int ncid, int varid, char *name, nc_type *xtypep,
    if(stat != NC_NOERR) return stat;
    TRACE(nc_inq_var);
    return ncp->dispatch->inq_var_all(ncid, varid, name, xtypep, ndimsp, 
-				     dimidsp, nattsp, NULL, NULL, 
+				     dimidsp, nattsp, NULL, NULL, NULL,
 				     NULL, NULL, NULL, NULL, NULL, NULL,
 				     NULL);
 }
@@ -289,6 +283,7 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
    NC* ncp;
    char algorithm[NC_COMPRESSION_MAX_NAME];
    nc_compression_t params;
+   size_t argc;
    int stat = NC_check_id(ncid,&ncp);
    if(stat != NC_NOERR) return stat;
    TRACE(nc_inq_var_deflate);
@@ -301,7 +296,8 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
       NULL, /*nattsp*/
       shufflep, /*shufflep*/
       algorithm, /*compressor*/
-      &params, /*paramsp*/
+      &argc, /*paramsize*/     
+      params.argv, /*paramsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -310,10 +306,14 @@ nc_inq_var_deflate(int ncid, int varid, int *shufflep, int *deflatep,
       NULL /*endianp*/
       );
    if(stat == NC_NOERR) {
-      if(deflatep != NULL)
-	  *deflatep = (strcmp(algorithm,"zip")==0?1:0);
-      if(deflate_levelp != NULL)
-          *deflate_levelp = params.zip.level;
+	int iszip = (strcmp(algorithm,"zip")==0);
+        if(iszip && argc != nc_inq_algorithm_argc("zip"))
+	    stat = NC_ECOMPRESS;
+	else if(deflatep != NULL) {
+	   *deflatep = iszip;
+	    if(deflate_levelp != NULL)
+                *deflate_levelp = (iszip?params.zip.level:0);
+	}
    }
    return stat;
 }
@@ -362,6 +362,7 @@ nc_inq_var_szip(int ncid, int varid, int *options_maskp, int *pixels_per_blockp)
       NULL, /*nattsp*/
       NULL, /*shufflep*/
       NULL, /*compressor*/
+      NULL, /*paramsizep*/
       NULL, /*paramsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
@@ -413,6 +414,7 @@ nc_inq_var_fletcher32(int ncid, int varid, int *fletcher32p)
       NULL, /*nattsp*/
       NULL, /*shufflep*/
       NULL, /*compressor*/
+      NULL, /*paramsizep*/
       NULL, /*paramsp*/
       fletcher32p, /*fletcher32p*/
       NULL, /*contiguousp*/
@@ -453,7 +455,7 @@ nc_inq_var_chunking(int ncid, int varid, int *storagep, size_t *chunksizesp)
    if(stat != NC_NOERR) return stat;
    TRACE(nc_inq_var_chunking);
    return ncp->dispatch->inq_var_all(ncid, varid, NULL, NULL, NULL, NULL, 
-				     NULL, NULL, NULL, NULL, NULL, 
+				     NULL, NULL, NULL, NULL, NULL, NULL,
 				     storagep, chunksizesp, NULL, NULL, NULL);
 }
 
@@ -496,6 +498,7 @@ nc_inq_var_fill(int ncid, int varid, int *no_fill, void *fill_valuep)
       NULL, /*nattsp*/
       NULL, /*shufflep*/
       NULL, /*compressor*/
+      NULL, /*paramsizep*/
       NULL, /*paramsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
@@ -543,6 +546,7 @@ nc_inq_var_endian(int ncid, int varid, int *endianp)
       NULL, /*nattsp*/
       NULL, /*shufflep*/
       NULL, /*algorithmp*/
+      NULL, /*paramsizep*/
       NULL, /*paramsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
@@ -621,6 +625,7 @@ nc_inq_var_shuffle(int ncid, int varid, int *shufflep)
       NULL, /*nattsp*/
       shufflep, /*shufflep*/
       NULL, /*compressor*/
+      NULL, /*paramsizep*/
       NULL, /*paramsp*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
@@ -646,11 +651,13 @@ nc_inq_ncid().
 turned on for this variable, and a 0 otherwise. \ref ignored_if_null.
 
 \param algorithmp If this pointer is non-NULL, the nc_inq_var_compress
-function will write the algorithm id for the compression filter
-turned on for this variable, and a 0 otherwise.
+function will write the algorithm name for the compression filter
+turned on for this variable, otherwise will be set to "";
 \ref ignored_if_null.
 
-\param params If a compression filter is in use for this
+\param argc Return nummber of elements in the argv parameter.
+
+\param argv If a compression filter is in use for this
 variable, the algorithm dependent parameters will be writen here.
 \ref ignored_if_null.
 
@@ -661,7 +668,7 @@ variable, the algorithm dependent parameters will be writen here.
 \returns ::NC_EHDF Invalid/unknown compression algorithm.
 */
 int
-nc_inq_var_compress(int ncid, int varid, char* algorithmp, void* params)
+nc_inq_var_compress(int ncid, int varid, char* algorithmp, size_t* argcp, unsigned int* argv)
 {
    NC* ncp;
    int stat = NC_check_id(ncid,&ncp);
@@ -675,7 +682,8 @@ nc_inq_var_compress(int ncid, int varid, char* algorithmp, void* params)
       NULL, /*nattsp*/
       NULL, /*shufflep*/
       algorithmp, /*algorithmp*/
-      params, /*paramsp*/
+      argcp,
+      argv, /*compression*/
       NULL, /*fletcher32p*/
       NULL, /*contiguousp*/
       NULL, /*chunksizep*/
@@ -700,7 +708,7 @@ int
 NC_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                int *ndimsp, int *dimidsp, int *nattsp, 
                int *shufflep, char* algorithmp,
-               void* compression_params,
+               size_t* argcp, unsigned int* argv,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp, 
                int *no_fill, void *fill_valuep, int *endiannessp)
 {
@@ -711,7 +719,7 @@ NC_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
       ncid, varid, name, xtypep,
       ndimsp, dimidsp, nattsp,
       shufflep, algorithmp,
-      compression_params,
+      argcp, argv,
       fletcher32p, contiguousp, chunksizesp,
       no_fill, fill_valuep,
       endiannessp);

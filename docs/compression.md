@@ -8,19 +8,19 @@ for using and adding compress/decompress filters on netcdf-4 files.
 
 # Introduction
 
-The enhanced compression layer provides a generic mechanism
-for adding compress/decompress filters on netcdf-4 files.
-Since this builds on the HDF5 filter mechanism, compression
-is only available with netcdf-4 files.
+The enhanced compression layer provides a generic mechanism for adding
+new compress/decompress filters for netcdf-4 files. Since this builds on
+the HDF5 filter mechanism, compression is only available with netcdf-4
+files.
 
-Compression modules can be plugged into the netCDF library
-(at compile time) and will allow netCDF
-programs to read and write data using a variety of compression schemes.
-This should be of particular interest to anyone concerned
-about the size of the files being produced.
+Compression modules currently must added at the time that the netcdf-c
+library is built from source. Such modules allow netCDF programs to read
+and write data using a variety of compression schemes.  This should be
+of particular interest to anyone concerned about the size of the files
+being produced.
 
-This document describes both the compression API
-as well as how to add a new compression algorithm.
+This document primarily describes the compression API.  Some information
+is also provided about how to add a new compression algorithm.
 
 # Supported Schemes
 
@@ -31,67 +31,105 @@ Currently, the following schemes are supported.
 - "fpzip" (from LLNL)
 - "zfp" (from LLNL)
 
-The first two, zip and szip, are directly supported by libhdf5 if it 
-is compiled with zlib and (optionally) szip support.
-Support for zlib is on by default.
+Zip (zlib) support is on by default because it is required already for
+the HDF5 libraries.  Szip is also supported if szip support was compiled
+into libhdf5 when it was built.
 
-The last three require that the netcdf library be compiled
-with the library and include directory specified
-in the *LDFLAGS* and *CPPFLAGS* environment variables
--- for autoconf -- or via arguments to cmake.
+The last three require that the netcdf library be compiled with the
+corresponding libraries and include files.  These are specified using
+the *LDFLAGS* and *CPPFLAGS* environment variables -- for autoconf -- or
+via arguments to cmake.
 
-Some of these can present a problem because the library API
-may not entirely standardized.
+The last two (fpzip and zfp) are still under active development,
+so there is some instability in their APIs.
 
 # Extensions to *netcdf.h*
 
 In order to support multiple kinds of compressors, the netcdf
 API has been extended by adding declarations and functions into 
 a new include file called netcdf_compress.h.
-The changes have been defined so as to avoid the need for
-compression specific arguments.
+The changes have been defined so as to allow the addition of
+other compression algorithms.
 
 ## Declarations
 
-First, a number of constants are defined.
+The compression related extensions are located in the file
+*netcdf_compress.h*.
+
+Before presenting the API, it is important to understand how a
+compression algorithm is specified to the library.  Basically there are
+two parts: (1) the algorithm name and (2) the parameters to the
+algorithm (the deflation level for zip, for example).
+Note that in order to be compatible with the underlying HDF5 library,
+the parameters are defined as a vector of unsigned ints (32-bit).
+
+In light of this, a number of constants are defined.
 - NC_COMPRESSION_MAX_NAME -- define the maximum size of the canonical
   name of the compression method: "zip", "bzip2", etc.
-- NC_COMPRESSION_MAX_PARAMS -- define the maximum number of
-  parameters that can be provided to the compression method.
-  This must be the max of the NC_NELEMS_XXX in netcdf_compress.h.
 - NC_COMPRESSION_MAX_DIMS -- define the max number of dimensions
   that all allowed for any of the compression schemes. This
   is currently less than NC_MAX_VAR_DIMS for implementation
   specific reasons.
+- NC_COMPRESSION_MAX_PARAMS -- the maximum number of parameters allowed
+  for any algorithm.
 
-The compression scheme parameters are stored in an array of
-unsigned ints (32 bits). For the current set of algorithms,
-the array conforms to the following nc_compression_t union 
-(see netcdf_compress.h for the definitive declaration).
+For caller convenience, a special union, *nc_compression_t*, is defined in
+*netcdf_compress.h* where the arms of the union define parameters for
+each algorithm. The file *netcdf_compress.h* should be examined to 
+see the definitive declaration of nc_compression_t.
+
+For example, the szip parameters would be defined as
+this structure (one arm of *nc_compression_t*).
+
+~~~~~~~~~~~~~~~~~~~~~~~~~
+    struct SZIP_PARAMS {
+        unsigned int options_mask;
+        unsigned int pixels_per_block;
+    } szip;
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Note that this structure contains an integral number of unsigned ints,
+two in this case.
+
+Note also that one arm of the *nc_compression_t* union (argv) is just an
+array of unsigned ints:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~
+union {
+unsigned int argv[NC_COMPRESSION_MAX_PARAMS];
+...
+} nc_compression_t;
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The process is as follows:
+
+1. assign the parameters to the arm of the union specific to the algorithm.
+2. obtain the number of elements in argv (see *nc_algorithm_argc()*).
+3. invoke e.g. nc_def_var_compression with the algorithm name, argc,
+   and argv as its arguments.
+
+For convenience, and for the currently supported algorithms,
+the following nc_compression_t union is defined
 It is subject to change as new schemes are added.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 typedef union {
-    unsigned int params[NC_COMPRESSION_MAX_PARAMS];/*arbitrary 32 bit values*/
-    struct {unsigned int level;} zip;
-    struct {unsigned int level;} bzip2;
-    struct {
+    unsigned int argv[NC_COMPRESSION_MAX_PARAMS];
+    struct ZIP_PARAMS {unsigned int level;} zip;
+    struct BZIP2_PARAMS {unsigned int level;} bzip2;
+    struct SZIP_PARAMS {
         unsigned int options_mask;
         unsigned int pixels_per_block;
     } szip;
-    struct {
-	int isdouble;
-	int prec; /* number of bits of precision (zero = full) */
-	int rank;
-	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
+    struct FPZIP_PARAMS {
+        int isdouble;
+        int precision; /* number of bits of precision (zero = full) */
     } fpzip;
-    struct {
+    struct ZFP_PARAMS {
         /*zfp_type*/ int type;
         double rate;
         double tolerance;
-	int precision;
-        int rank;
-	size_t chunksizes[NC_COMPRESSION_MAX_DIMS];
+        int precision;
     } zfp; 
 } nc_compression_t;
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -99,6 +137,9 @@ typedef union {
 ### Chunking
 Every time a compressor (or decompressor) is called,
 it is given a block of data comprising one chunk of the variable.
+This implies, of course, that any compressed variable must
+also have chunking set for it.
+
 The chunks are defined using the *nc_def_var_chunking*
 procedure in netcdf.h. So for our variable, v, when compressing,
 the compressor will be called with a pointer to a block of data
@@ -113,15 +154,15 @@ for the variable.
 The *nc_def_var_compress* function is a generalization of
 *nc_def_var_deflate*.  It sets compression settings for a
 variable for any supported compression scheme.  It must be
-called after nc_def_var and before nc_enddef.  The form of
-the parameters is, of course, algorithm dependent.
+called after *nc_def_var* and before *nc_enddef*.  The form of
+the parameters is, of course, algorithm dependent (see above).
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 int nc_def_var_compress(int ncid,
                         int varid,
                         const char* algorithm,
-                        int nparams,
-                        unsigned int* params);
+			size_t argc,
+                        unsigned int* argv);
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The parameter semantics are as follows.
@@ -130,15 +171,14 @@ The parameter semantics are as follows.
 nc_create(), nc_def_grp(), or associated inquiry functions such as 
 nc_inq_ncid().
 
-2. *varid* -- Variable ID
+2. *varid* -- Variable ID as returned by *nc_def_var*.
 
 3. *algorithm* -- This specifies the name of the compression
 algorithm to use (e.g. "zip", "bzip2", etc).
 
-4. *nparams* -- This specifies the number of valid paramters
-in the params vector.
+4. *argc* -- The number of elements in the argv argument.
 
-5. *params* -- This specifies the parameters for the specified
+5. *argv* -- This specifies the parameters for the specified
 compression algorithm.
 
 The possible return codes are as follows.
@@ -157,9 +197,9 @@ If any parameter is null, then no value will be returned.
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 int nc_inq_var_compress(int ncid,
                         int varid,
-                        char**algorithmp,
-                        int* nparamsp,
-                        unsigned int* paramsp);
+                        char* algorithmp,
+			size_t* argcp,
+                        unsigned int* argv);
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The parameter semantics are as follows.
@@ -170,16 +210,17 @@ nc_inq_ncid().
 
 2. *varid* -- Variable ID
 
-3. *deflatep* -- If this pointer is non-NULL, the name of the compression
+3. *algorithm* -- If this pointer is non-NULL, the name of the compression
 algorithm for this variable will be stored into this parameter.
-This is a constant and the caller should not free this value.
 \ref ignored_if_null.
 
-4. *nparamsp* -- The number of valid parameters will be stored here.
+4. *argcp* -- If non-NULL, return the number of unsigned int parameters
+in argv.
 \ref ignored_if_null.
 
-5. *paramsp* -- The parameters for the specified
-compression algorithm will be stored into this vector.
+5. *argv* -- The parameters for the specified
+compression algorithm will be stored into this memory.
+\ref ignored_if_null.
 
 The possible return codes are as follows.
 - *NC_NOERR* -- No error.
@@ -192,7 +233,7 @@ The possible return codes are as follows.
 
 In order to simplify the compression related API,
 the shuffle flag is now handled like e.g. fletcher32,
-as a separate set of procedures.
+namely as a separate set of procedures.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 int nc_def_var_shuffle(int ncid, int varid, int shuffle);
@@ -236,6 +277,39 @@ The possible return codes are as follows.
 - *NC_EBADID* -- Bad ncid.
 - *NC_ENOTVAR* -- Invalid variable ID.
 - *NC_EINVAL* -- Invalid argument
+
+### Misc. API Procedures
+
+#### nc_inq_compressor_names
+
+The *nc_inq_compressor_names* procedure
+returns the names of all known and active
+compression algorithm names.
+
+The term 'active' means that the algorithm
+was sucessfully registered with the HDF5 library
+and so my be used.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~
+const char** nc_inq_algorithm_names(void)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This procedure returns a pointer to a vector of pointers to the active
+compression algorithm. The vector is NULL terminated (like an argv
+vector).  The caller should not attempt to modify or free this return
+argument or any part of it. Any internal error (e.g. *malloc* failure)
+will cause NULL to be returned.
+
+#### nc_inq_algorithm_argc
+
+The *nc_inq_algorithm_argc* procedure
+returns the expected number of elements
+in the argv vector of parameters for
+the specified algorithm.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~
+size_t nc_inq_compressor_(const char* algorithm_name)
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Algorithm Specific Notes
 
@@ -285,8 +359,14 @@ The choice of scheme is determined as follows.
 <!--
 # Adding a New Compression Algorithm
 
+Adding a new compression algorithm is of medium complexity. But it is
+important to understand how HDF5 handles compression filters. Please
+read and understand the following documents:
+- [HDF5 Dynamically Loaded Filters](https://www.hdfgroup.org/HDF5/doc/Advanced/DynamicallyLoadedFilters/HDF5DynamicallyLoadedFilters.pdf)
+- [H5Z: Filter and Compression Interface](https://www.hdfgroup.org/HDF5/doc/RM/RM_H5Z.html)
+
 Suppose we would like to add a new compression algorithm called *xpress*.
-This requires the following basic steps.
+The first steps are as follows.
 
 1. Define a string name for the new algorithm, presumably "xpress"
    in this case.
@@ -294,12 +374,18 @@ This requires the following basic steps.
 2. Define a struct to add to the *nc_compression_t* union.
    For Example, it might be like this.
 ~~~~~~~~~~
-struct {
+struct XPRESS_PARAMS {
  T1 param1;
  T2 param2;
 } xpress;
 ~~~~~~~~~~
    where T1 and T2 are some defined type (e.g. int or float).
+
+3. Define a corresponding struct for 
+
+Note that at some point in the future, and attempt may be made
+to support dynamic (at run-time) addition of compressors.
+In this case, serious internal changes will probably occur.
 -->
 
 # Compression Testing
