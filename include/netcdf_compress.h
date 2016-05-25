@@ -17,19 +17,19 @@
 
 typedef union {
     unsigned int argv[NC_COMPRESSION_MAX_PARAMS];
-    struct ZIP_PARAMS {unsigned int level;} zip;
-    struct BZIP2_PARAMS {unsigned int level;} bzip2;
-    struct SZIP_PARAMS {
+    struct zip_params {unsigned int level;} zip;
+    struct bzip2_params {unsigned int level;} bzip2;
+    struct szip_params {
         unsigned int options_mask;
         unsigned int pixels_per_block;
     } szip;
-    struct FPZIP_PARAMS {
+    struct fpzip_params {
 	int type; /* FPZIP_TYPE_FLOAT | FPZIP_TYPE_DOUBLE */
 	int precision; /* number of bits of precision (zero = full) */
 	/* Reserved for internal use: subject to change */
 	unsigned int reserved[6];
     } fpzip;
-    struct ZFP_PARAMS {
+    struct zfp_params {
         int type; /*zfp_type*/
         double rate;
         double tolerance;

@@ -628,7 +628,7 @@ nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_le
 		&shuffle,NULL,NULL);
     if(stat != NC_NOERR) return stat;
     if(deflate) {
-        struct ZIP_PARAMS zp;
+        struct zip_params zp;
         size_t zpsize = sizeof(zp);
         zp.level = deflate_level;
         stat = ncp->dispatch->def_var_extra(ncid,varid,

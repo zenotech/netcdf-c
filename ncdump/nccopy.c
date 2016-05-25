@@ -582,7 +582,7 @@ copycompression(int igrp, int ivarid, int o_grp, int o_varid)
 	shuffle_out = option_shuffle_vars;
     if((stat=nc_def_var_shuffle(o_grp, o_varid, shuffle_out)) != NC_NOERR)
 	return stat;
-    if((stat=nc_inq_var_compress(igrp,ivarid,algorithm,&paramsize,&compress_params))!=NC_NOERR)
+    if((stat=nc_inq_var_compress(igrp,ivarid,algorithm,&paramsize,compress_params.argv))!=NC_NOERR)
 	return stat;
     if(algorithm[0] == 0 && option_deflate_level == -1)
 	return NC_NOERR; /* do nothing */
@@ -599,7 +599,7 @@ copycompression(int igrp, int ivarid, int o_grp, int o_varid)
 	        compress_params.bzip2.level = option_deflate_level;
 	}
 	/* Try to transfer compression */
-	if((stat=nc_def_var_compress(o_grp,o_varid, algorithm,paramsize,&compress_params))!=NC_NOERR) {
+	if((stat=nc_def_var_compress(o_grp,o_varid, algorithm,paramsize,compress_params.argv))!=NC_NOERR) {
 	    fprintf(stderr,"Compression %s: unsupported",algorithm);
 	    return stat;
 	}

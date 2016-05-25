@@ -766,7 +766,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    if(var->compression.algorithm != NC_NOZIP) {
        if(algorithmp) 
            strncpy(algorithmp,NC_algorithm_name(var->compression.algorithm),NC_COMPRESSION_MAX_NAME);
-	if(paramsizep) *paramsizep = NC_algorithm_nelems(var->compression.algorithm)*sizeof(unsigned int);
+	if(paramsizep) *paramsizep = NC_algorithm_nelems(var->compression.algorithm);
 	if(compress_params && paramsizep) {
 	    if(NC_compress_cvt_from(&var->compression,*paramsizep,compress_params) != NC_NOERR)
 	        return NC_ECOMPRESS;

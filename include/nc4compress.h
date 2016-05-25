@@ -28,7 +28,7 @@ NC_NCOMPRESSORS = (NC_ZFP+1)
 #define NC_NELEMS_BZIP2 1
 #define NC_NELEMS_SZIP 2 /* use only 2 of 4 */
 #define NC_NELEMS_FPZIP 8
-#define NC_NELEMS_ZFP 18
+#define NC_NELEMS_ZFP 16
 
 /* This struct is the internal dual of nc_compression_t.
    It defines the actual parameters given to HDF5.
@@ -68,11 +68,6 @@ EXTERNL int NC_compress_set(NC_compression_info*, hid_t plistid, int rank, size_
 Turn on shuffle for a variable (via plist)
 */
 EXTERNL int NC_compress_shuffle(hid_t plistid, int);
-
-/*
-Validate a set of compression parameters
-*/
-EXTERNL int NC_compress_validate(NC_compression_info* info);
 
 /*
 Convert an NC_algorithm id into a name or null
