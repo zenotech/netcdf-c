@@ -9,6 +9,7 @@
 #include <mpi.h>
 #endif
 
+#include "netcdf_compress.h"
 #include "ncdispatch.h"
 #include "nc4internal.h"
 
@@ -72,6 +73,9 @@ nc_initialize()
 #ifdef ENABLE_FILEINFO
     stat = NC4_fileinfo_init();
 #endif
+
+    /* Register compression algorithms */
+    stat = NC_compress_register_all();
 
 done:
     return stat;

@@ -54,7 +54,8 @@ other compression algorithms.
 ## Declarations
 
 The compression related extensions are located in the file
-*netcdf_compress.h*.
+*netcdf_compress.h*. If you plan to used the compression extensions,
+you must include this file in you program.
 
 Before presenting the API, it is important to understand how a
 compression algorithm is specified to the library.  Basically there are
@@ -82,7 +83,7 @@ For example, the szip parameters would be defined as
 this structure (one arm of *nc_compression_t*).
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-    struct SZIP_PARAMS {
+    struct szip_params {
         unsigned int options_mask;
         unsigned int pixels_per_block;
     } szip;
@@ -107,32 +108,6 @@ The process is as follows:
 2. obtain the number of elements in argv (see *nc_algorithm_argc()*).
 3. invoke e.g. nc_def_var_compression with the algorithm name, argc,
    and argv as its arguments.
-
-For convenience, and for the currently supported algorithms,
-the following nc_compression_t union is defined
-It is subject to change as new schemes are added.
-
-~~~~~~~~~~~~~~~~~~~~~~~~~
-typedef union {
-    unsigned int argv[NC_COMPRESSION_MAX_PARAMS];
-    struct ZIP_PARAMS {unsigned int level;} zip;
-    struct BZIP2_PARAMS {unsigned int level;} bzip2;
-    struct SZIP_PARAMS {
-        unsigned int options_mask;
-        unsigned int pixels_per_block;
-    } szip;
-    struct FPZIP_PARAMS {
-        int isdouble;
-        int precision; /* number of bits of precision (zero = full) */
-    } fpzip;
-    struct ZFP_PARAMS {
-        /*zfp_type*/ int type;
-        double rate;
-        double tolerance;
-        int precision;
-    } zfp; 
-} nc_compression_t;
-~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ### Chunking
 Every time a compressor (or decompressor) is called,
@@ -366,25 +341,86 @@ read and understand the following documents:
 - [H5Z: Filter and Compression Interface](https://www.hdfgroup.org/HDF5/doc/RM/RM_H5Z.html)
 
 Suppose we would like to add a new compression algorithm called *xpress*.
-The first steps are as follows.
+Start by defininf a string name for the new algorithm. We will use "xpress"
+for this tutorial. We assume that the file *xpress.h* defines the api
+for the xpress algorithm.
 
-1. Define a string name for the new algorithm, presumably "xpress"
-   in this case.
-
-2. Define a struct to add to the *nc_compression_t* union.
-   For Example, it might be like this.
+## Modify *netcdf_compression.h*
+Add an arm to the nc_compression_t union to define a struct
+holding the necessary parameters for the algorithm.  For the xpress algorithm,
+it might look like this, where T1 and T2 are some defined type
+(e.g. int or float).
 ~~~~~~~~~~
-struct XPRESS_PARAMS {
+struct xpress_params {
  T1 param1;
  T2 param2;
+ /* Reserved for internal use: subject to change */
+ unsigned int reserved[?];
 } xpress;
 ~~~~~~~~~~
-   where T1 and T2 are some defined type (e.g. int or float).
 
-3. Define a corresponding struct for 
+Note that this is optional because it should always be possible
+to use the arg+argv representation.
 
-Note that at some point in the future, and attempt may be made
-to support dynamic (at run-time) addition of compressors.
+## Modify *nc4compress.h*
+Modify the file *include/nc4compress.h* to parallel one of the other
+existing algorithms. This entails:
+
+1. Adding xpress.h via:
+~~~~~~~~~~
+#ifdef XPRESS_FILTER
+#include "xpress.h"
+#endif
+~~~~~~~~~~
+
+2. Define an internal index for xpress. for example, add:
+~~~~~~~~~~
+#define NC_ZPRESS 6   
+~~~~~~~~~~
+Also be sure to remember to modify NC_COMPRESSORS in that file.
+
+3. Define NC_NELEMS_XPRESS to be the size of *struct xpress* in units
+   of unsigned int.
+
+## Modify *nc4compress.c*
+
+This where the bulk of the work must be done.
+Modify the file *include/nc4compress.h* to parallel one of the other
+existing algorithms. This entails:
+
+1. If *struct xpress* contains a *reserved* section (see below),
+   then optionally define *struct xpress_reserved {...}*.
+   This is optional, but may be convenient.
+
+2. Define a new row for the *compressors* table (at the end of the file).
+   This requires filling in a new instance of the NCC_COMPRESSOR structure.
+   The fields of that structure are as follows.
+
+   1. NC_algorithm nccid -- basically NC_XPRESS.
+
+   2. char* name[NC_COMPRESSION_MAX_NAME+1] -- the assigned name: "xpress"/
+
+   3. size_t nelems -- the size of the compression parameters in units of uint32
+                       (NC_NELEMS_XPRESS).
+
+    4. H5Z_filter_t h5filterid -- the index used for this compressor with respect to HDF5.
+       Note that this number is not arbitrary. If you have a separately
+       registered you algorithm with the HDF group, then you can use that
+       id (307 for bzip2, for example).
+       Otherwise take it from the unreserved numbers in the range 256-
+    H5Z_func_t h5filterfunc;
+    unsigned int flags; /* currently unused */
+    int (*_init)(size_t nelems, unsigned int* params, int rank, size_t* chunksizes);
+
+
+Currently, this code does not make complete use of the dynamic filter
+loading facilities of HDF5.
+The procedures *const void* H5PLget_plugin_info(void)*
+and 
+*H5PL_type_t H5PLget_plugin_type(void)*
+are not used (yet).
+
+This will be rectified at some point in the future.
 In this case, serious internal changes will probably occur.
 -->
 
@@ -434,4 +470,12 @@ algorithms to be used.
 If *-DWITH_COMPRESSION* is not specified, then it defaults to zip only.
 Using -DWITH_COMPRESSION=all will cause a default set of compression
 algorithms to be used.
+
+# Compression Library Repository
+
+As a convenience to users, Unidata maintains a
+[repository](https://github.com/Unidata/compression)
+of src code for compression algorithms supported by
+netcdf-c compression. It supports zip, bzip2, szip, fpzip, and zfp
+compression libraries.
 

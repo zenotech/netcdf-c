@@ -628,11 +628,14 @@ nc_def_var_deflate(int ncid, int varid, int shuffle, int deflate, int deflate_le
 		&shuffle,NULL,NULL);
     if(stat != NC_NOERR) return stat;
     if(deflate) {
-        struct zip_params zp;
-        size_t zpsize = sizeof(zp);
-        zp.level = deflate_level;
+        size_t zpsize = nc_inq_algorithm_argc("zip");
+	union {
+            struct zip_params zp;
+            unsigned int argv[NC_COMPRESSION_MAX_PARAMS];
+        } u;
+        u.zp.level = deflate_level;
         stat = ncp->dispatch->def_var_extra(ncid,varid,
-		"zip",zpsize,&zp,
+		"zip",zpsize,u.argv,
 		NULL,NULL,
 		NULL,NULL,
 		NULL,NULL,NULL);

@@ -763,13 +763,14 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
       *endiannessp = var->type_info->endianness;
 
    /* Compression stuff. */
-   if(var->compression.algorithm != NC_NOZIP) {
+   if(var->compression.algorithm != H5Z_FILTER_NOZIP) {
+       size_t nelems;
        if(algorithmp) 
            strncpy(algorithmp,NC_algorithm_name(var->compression.algorithm),NC_COMPRESSION_MAX_NAME);
-	if(paramsizep) *paramsizep = NC_algorithm_nelems(var->compression.algorithm);
+	nelems = NC_algorithm_nelems(var->compression.algorithm);
+	if(paramsizep) *paramsizep = nelems;
 	if(compress_params && paramsizep) {
-	    if(NC_compress_cvt_from(&var->compression,*paramsizep,compress_params) != NC_NOERR)
-	        return NC_ECOMPRESS;
+	    memcpy(compress_params,var->compression.argv,nelems*sizeof(unsigned int));
 	}
    } else {
 	if(algorithmp) /* no compression */
@@ -809,7 +810,7 @@ NC4_def_var_extra(int ncid, int varid,
    nc_bool_t ishdf4 = NC_FALSE; /* Use this to avoid so many ifdefs */
    int hasfilter, hasshuffle, hasfletcher,
        varcontig, varchunked; /* For conflict testing */
-    NC_algorithm alg;
+   H5Z_filter_t alg;
 
    LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
@@ -847,12 +848,12 @@ NC4_def_var_extra(int ncid, int varid,
 	return NC_EINVAL;
    if(algorithm != NULL) {
         alg = NC_algorithm_id(algorithm);
-        if(alg == NC_NOZIP) {
+        if(alg == H5Z_FILTER_NOZIP) {
   	    LOG((1, "%s: error: unsupported compression: %s",algorithm));
 	    return NC_ECOMPRESS;
 	}
     } else
-	alg = NC_NOZIP;
+	alg = H5Z_FILTER_NOZIP;
     if(var->chunks_set) {
 	int i;
 	if(chunksizes != NULL) {
@@ -991,15 +992,23 @@ NC4_def_var_extra(int ncid, int varid,
    /* set compression */
    if (alg && params != NULL && paramsize > 0)
    {
+      size_t nelems = NC_algorithm_nelems(alg);
       /* For scalars, just ignore attempt to deflate. */
       if (!var->ndims)
             return NC_NOERR;
 
+      /* Validate the paramsize */
+      if(paramsize > nelems) {
+	LOG((1,"%s: too many parameters: %d",algorithm,paramsize));
+	return NC_ECOMPRESS;
+      }
+
       /* Well, if we couldn't find any obvious errors, I guess we have to take
        * the users settings. Darn! */
-      if(NC_compress_cvt_to(alg,paramsize,params,&var->compression) != NC_NOERR)
-	    return NC_ECOMPRESS;
+
+      memcpy(var->compression.argv,params,paramsize*sizeof(unsigned int));     
       var->compression.algorithm = alg;
+      var->compression.argc = paramsize;
    }
 
    return NC_NOERR;

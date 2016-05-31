@@ -193,10 +193,14 @@ typedef struct NC_VAR_INFO
    int sdsid;
    int hdf4_data_type;
 #endif /* USE_HDF4 */
-   /* Stuff below for diskless data files. */
+   /* Stuff for diskless data files. */
    void *diskless_data;
-
-   NC_compression_info compression;
+   /* Compression information */   
+   struct /*NC_compression_info*/ {
+      H5Z_filter_t algorithm;
+      size_t argc; /* Number of unsigned ints per algorithm */
+      unsigned int argv[NC_COMPRESSION_MAX_PARAMS];
+   } compression;
 } NC_VAR_INFO_T;
 
 typedef struct NC_FIELD_INFO

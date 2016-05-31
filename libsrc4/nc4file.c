@@ -1637,7 +1637,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       var->compression.argc = NC_COMPRESSION_MAX_PARAMS; /* allow at most */
       if ((filter = H5Pget_filter2(propid, f, NULL,
                                    &var->compression.argc,
-                                   var->compression.params.argv,
+                                   var->compression.argv,
 				   0, NULL, NULL)) < 0)
             BAIL(NC_EHDFERR);
         switch (filter)
@@ -1649,8 +1649,8 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
               var->fletcher32 = NC_TRUE;
               break;
            default:
-	      var->compression.algorithm = NC_algorithm_for_filter(filter);
-	      if(var->compression.algorithm == NC_NOZIP) {
+	      var->compression.algorithm = filter;
+	      if(var->compression.algorithm == H5Z_FILTER_NOZIP) {
                   LOG((1, "Unknown filter type found on dataset!"));
 		  BAIL(NC_ECOMPRESS);
 	      }

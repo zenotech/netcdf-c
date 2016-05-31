@@ -1541,14 +1541,17 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
       BAIL(NC_EHDFERR);
 
   /* If the user wants to compress/decompress the data, set that up now. */
-  if (var->compression.algorithm != NC_NOZIP) {
+  if (var->compression.algorithm != H5Z_FILTER_NOZIP) {
     if(var->contiguous_set && var->contiguous) {
 	LOG((1, "%s: error: compression requires chunking"));
 	return NC_ECOMPRESS;
     }
-    if(NC_compress_set(&var->compression, plistid, 
-			   var->ndims,
-			   var->chunksizes) != NC_NOERR)
+    if(NC_compress_set(var->compression.algorithm,
+			var->compression.argc,
+			var->compression.argv,
+			plistid, 
+			var->ndims,
+			var->chunksizes) != NC_NOERR)
 	    BAIL(NC_EHDFERR);
   }
 
@@ -1577,7 +1580,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
        * has not specified chunksizes, use contiguous variable for
        * better performance. */
 
-     if(!var->shuffle && var->compression.algorithm == NC_NOZIP && !var->fletcher32
+     if(!var->shuffle && var->compression.algorithm == H5Z_FILTER_NOZIP && !var->fletcher32
         && (var->chunksizes == NULL || !var->chunksizes[0])) {
 #ifdef USE_HDF4
         NC_HDF5_FILE_INFO_T *h5 = grp->nc4_info;

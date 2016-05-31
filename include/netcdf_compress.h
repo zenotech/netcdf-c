@@ -1,6 +1,8 @@
 #ifndef NETCDF_COMPRESS_H
 #define NETCDF_COMPRESS_H 1
 
+#include <netcdf.h>
+
 /* Define the max size of a compression alg name; 16 - 1 for trailing null */
 #define NC_COMPRESSION_MAX_NAME 15
 
@@ -31,11 +33,12 @@ typedef union {
     } fpzip;
     struct zfp_params {
         int type; /*zfp_type*/
-        double rate;
-        double tolerance;
-	int precision;
+        unsigned int minbits;
+        unsigned int maxbits;
+        unsigned int maxprec;
+        int minexp;
 	/* Reserved for internal use: subject to change */
-	unsigned int reserved[8];
+	unsigned int reserved[6];
     } zfp; 
 } nc_compression_t;
 

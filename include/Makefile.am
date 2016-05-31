@@ -28,4 +28,8 @@ if USE_NETCDF4
 noinst_HEADERS += ncaux.h
 endif
 
+if ENABLE_FILTERS
+noinst_HEADERS += nc4compress.h
+endif
+
 EXTRA_DIST = CMakeLists.txt XGetopt.h netcdf_meta.h.in
