@@ -106,11 +106,13 @@ FLAGS="$FLAGS -DCMAKE_INSTALL_PREFIX=$USR/local"
 #FLAGS="$FLAGS -DCMAKE_PREFIX_PATH=$PPATH"
 FLAGS="$FLAGS -DENABLE_DAP_REMOTE_TESTS=true"
 #FLAGS="$FLAGS -DENABLE_DAP_AUTH_TESTS=true"
+FLAGS="$FLAGS -DBUILD_SHARED_LIBS=false"
 
 rm -fr build
 mkdir build
 cd build
 
-cmake $FLAGS ${ZLIB} ${HDF5} ${CURL} ..
+#cmake $FLAGS ${ZLIB} ${HDF5} ${CURL} ..
+cmake $FLAGS ..
 cmake --build .
 CTEST_OUTPUT_ON_FAILURE=1 cmake --build . --target test
