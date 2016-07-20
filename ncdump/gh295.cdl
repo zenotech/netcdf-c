@@ -1,0 +1,15 @@
+netcdf afile {
+dimensions:
+     elapsed_time = UNLIMITED ; // (1 currently)
+     aName = 4 ;
+variables:
+     double aName(elapsed_time, aName) ;
+
+// global attributes:
+data:
+
+
+  aName =
+   1, 2, 3, 4 ;
+
+}
