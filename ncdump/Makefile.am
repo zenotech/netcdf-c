@@ -3,7 +3,7 @@
 # This file builds and runs the ncdump program.
 
 # $Id: Makefile.am,v 1.147 2010/05/29 00:50:39 dmh Exp $
-
+ou
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 LDADD = ${top_builddir}/liblib/libnetcdf.la
@@ -30,7 +30,8 @@ if BUILD_TESTSETS
 # These tests are run for both netCDF-4 and non-netCDF-4 builds.
 check_PROGRAMS = rewrite-scalar ctest ctest64 ncdump tst_utf8 bom tst_dimsizes
 
-TESTS = tst_inttags.sh run_tests.sh tst_64bit.sh ctest ctest64 tst_output.sh	\
+TESTS = tst_inttags.sh run_tests.sh tst_64bit.sh ctest ctest64 \
+tst_gh295.sh tst_output.sh \
 tst_lengths.sh tst_calendars.sh tst_utf8 run_utf8_tests.sh      \
 tst_nccopy3.sh tst_charfill.sh tst_iter.sh tst_formatx3.sh tst_bom.sh \
 tst_dimsizes.sh

@@ -1,6 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
+
+if test "x$srcdir" = x; then
+    srcdir=`pwd`
+fi
 
 echo "Generating nc file."
 
