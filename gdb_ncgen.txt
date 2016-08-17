@@ -1,0 +1,10 @@
+set breakpoint pending yes
+
+break main
+break define_netcdf
+break gen_netcdf
+break genbin.c:94
+break NC4_def_var if name = "aName"
+break nc_def_var_nc4
+
+run -4 -o gdb_gh295.nc gh295.cdl

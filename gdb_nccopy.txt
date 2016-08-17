@@ -2,6 +2,6 @@ set breakpoint pending yes
 
 break nc4hdf.c:622
 break nc4hdf.c:816
-
+break nc4hdf.c:593
 
 run -4 gh295.nc gh2952.nc

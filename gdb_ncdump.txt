@@ -1,0 +1,5 @@
+set breakpoint pending yes
+
+break main
+
+run ./gh295.nc
