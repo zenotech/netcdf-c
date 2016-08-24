@@ -1,5 +1,11 @@
 set breakpoint pending yes
 
-break main
+break ncdump.c:1799 if id == 1
+commands
+break NC4_inq_dim
+break vardata.c:462
+break nc4_get_vara_tc
+break nc4_get_vara
+end
 
 run ./gh295.nc
