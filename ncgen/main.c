@@ -310,8 +310,14 @@ main(
 	    }
 	}; break;
 	case 'L':
+#ifdef LOGGING
+      {
 	    ncloglevel = atoi(optarg);
-	    break;
+        if(ncloglevel >= 0)
+          nc_set_log_level(ncloglevel);
+      }
+#endif
+        break;
 	case 'n':		/* old version of -b, uses ".cdf" extension */
 	  if(l_flag != 0) {
 	    fprintf(stderr,"Please specify only one language\n");
