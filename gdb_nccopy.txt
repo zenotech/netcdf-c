@@ -1,7 +1,10 @@
 set breakpoint pending yes
 
+break nc4_put_vara_tc
 break nc4hdf.c:622
 break nc4hdf.c:816
 break nc4hdf.c:593
+break nc4hdf.c:1700
+break var_create_dataset
 
 run -4 gh295.nc gh2952.nc
