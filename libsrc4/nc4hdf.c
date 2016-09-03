@@ -596,7 +596,11 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
     name_to_use = var->hdf5_name;
   else
     name_to_use = var->name;
+
+
+
   if (!var->hdf_datasetid)
+    LOG((3, "%s: var->name %s !var->hdf_datasetid ",__func__,var->name));
     if ((var->hdf_datasetid = H5Dopen2(grp->hdf_grpid, name_to_use, H5P_DEFAULT)) < 0)
       return NC_ENOTVAR;
 
@@ -616,6 +620,9 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
 #ifdef LOGGING
   log_dim_info(var, fdims, fmaxdims, start, count);
 #endif
+
+  LOG((3, "%s var->name %s\n\tvar->hdf_datasetid %ud\n\tgrp->hdf_grpid %ud\n\tfile_spaceid %ud",
+       __func__,var->name,var->hdf_datasetid,grp->hdf_grpid,file_spaceid));
 
   /* Check dimension bounds. Remember that unlimited dimensions can
    * put data beyond their current length. */
@@ -4144,5 +4151,3 @@ NC4_walk(hid_t gid, int* countp)
     }
     return ncstat;
 }
-
-
