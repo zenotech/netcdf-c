@@ -617,7 +617,7 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   log_dim_info(var, fdims, fmaxdims, start, count);
 #endif
 
-  /* Check dimension bounds. Remember that unlimited dimnsions can
+  /* Check dimension bounds. Remember that unlimited dimensions can
    * put data beyond their current length. */
   for (d2 = 0; d2 < var->ndims; d2++)
     {
@@ -625,7 +625,8 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
       assert(dim && dim->dimid == var->dimids[d2]);
       if (!dim->unlimited)
         {
-          if (start[d2] >= (hssize_t)fdims[d2])
+          if (start[d2] > (hssize_t)fdims[d2] ||
+              (start[d2] == (hssize_t)fdims[d2] && count[d2] > 0))
             BAIL_QUIET(NC_EINVALCOORDS);
           if (start[d2] + count[d2] > fdims[d2])
             BAIL_QUIET(NC_EEDGE);
@@ -956,7 +957,8 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
 	  BAIL(retval);
 
         /* Check for out of bound requests. */
-        if (start[d2] >= (hssize_t)ulen && count[d2])
+        if (start[d2] > (hssize_t)ulen ||
+            (start[d2] == (hssize_t)ulen && count[d2] > 0))
           BAIL_QUIET(NC_EINVALCOORDS);
         if (start[d2] + count[d2] > ulen)
           BAIL_QUIET(NC_EEDGE);
@@ -979,7 +981,8 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
     else
       {
         /* Check for out of bound requests. */
-        if (start[d2] >= (hssize_t)fdims[d2])
+        if (start[d2] > (hssize_t)fdims[d2] ||
+            (start[d2] == (hssize_t)fdims[d2] && count[d2] > 0))
           BAIL_QUIET(NC_EINVALCOORDS);
         if (start[d2] + count[d2] > fdims[d2])
           BAIL_QUIET(NC_EEDGE);
@@ -4000,7 +4003,6 @@ reportopenobjects(int log, hid_t fid)
 }
 
 
-#ifdef ENABLE_FILEINFO
 int
 NC4_hdf5get_libversion(unsigned* major,unsigned* minor,unsigned* release)
 {
@@ -4073,7 +4075,6 @@ NC4_get_strict_att(NC_HDF5_FILE_INFO_T* h5)
 {
     int ncstat = NC_NOERR;
     size_t size;
-    char text[NCPROPS_LENGTH+1];
     hid_t grp = -1;
     hid_t attid = -1;
     herr_t herr = 0;
@@ -4144,4 +4145,4 @@ NC4_walk(hid_t gid, int* countp)
     return ncstat;
 }
 
-#endif
+
