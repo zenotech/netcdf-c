@@ -14,6 +14,28 @@ Vagrant.configure(2) do |config|
   # boxes at https://atlas.hashicorp.com/search.
   config.vm.box = "boxcutter/ubuntu1604-desktop"
 
+
+
+  config.ssh.forward_x11 = "true"
+
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 512
+    v.cpus = 1
+  end
+
+  config.vm.define "default", primary: true do |v|
+    v.vm.provision :shell, :path => "vagrant-scripts/bootstrap.sh"
+    v.vm.box = "boxcutter/ubuntu1604-desktop"
+
+    v.vm.provider "virtualbox" do |vb|
+      vb.customize [
+        "modifyvm", :id,
+        "--memory", "2048",
+        "--cpus", "4"
+      ]
+    end
+  end
+
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
