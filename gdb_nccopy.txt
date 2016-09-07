@@ -1,6 +1,6 @@
 set breakpoint pending yes
 
-break nc4_put_vara_tc
+break write_var
 break nc4hdf.c:622
 break nc4hdf.c:816
 break nc4hdf.c:593
