@@ -549,14 +549,16 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   NC_HDF5_FILE_INFO_T *h5;
   NC_VAR_INFO_T *var;
   NC_DIM_INFO_T *dim;
+  int rank = 0;
   hid_t file_spaceid = 0, mem_spaceid = 0, xfer_plistid = 0;
   long long unsigned xtend_size[NC_MAX_VAR_DIMS];
-  hsize_t fdims[NC_MAX_VAR_DIMS], fmaxdims[NC_MAX_VAR_DIMS];
+  hsize_t fdims[NC_MAX_VAR_DIMS] = {-1}, fmaxdims[NC_MAX_VAR_DIMS] = {-1};
   hsize_t start[NC_MAX_VAR_DIMS], count[NC_MAX_VAR_DIMS];
   char *name_to_use;
   int need_to_extend = 0;
   int retval = NC_NOERR, range_error = 0, i, d2;
   void *bufr = NULL;
+  int loop_ind;
 #ifndef HDF5_CONVERT
   int need_to_convert = 0;
   size_t len = 1;
@@ -610,8 +612,12 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   /* Check to ensure the user selection is
    * valid. H5Sget_simple_extent_dims gets the sizes of all the dims
    * and put them in fdims. */
+  rank = H5Sget_simple_extent_ndims(file_spaceid);
   if (H5Sget_simple_extent_dims(file_spaceid, fdims, fmaxdims) < 0)
     BAIL(NC_EHDFERR);
+
+  printf("nc4_put_vara\nhdf_datasetid %lu\nfile_spaceid %lu\nrank: %d\nDimensions: %lu x %lu\n",var->hdf_datasetid,file_spaceid, rank,
+         (unsigned long)(fdims[0]), (unsigned long)(fdims[1]));
 
 #ifdef LOGGING
   log_dim_info(var, fdims, fmaxdims, start, count);
@@ -619,17 +625,18 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
 
   /* Check dimension bounds. Remember that unlimited dimensions can
    * put data beyond their current length. */
-  for (d2 = 0; d2 < var->ndims; d2++)
+  for (d2 = 0, loop_ind=0; d2 < var->ndims; d2++)
     {
       dim = var->dim[d2];
       assert(dim && dim->dimid == var->dimids[d2]);
       if (!dim->unlimited)
         {
-          if (start[d2] > (hssize_t)fdims[d2] ||
-              (start[d2] == (hssize_t)fdims[d2] && count[d2] > 0))
+          if (start[d2] > (hssize_t)fdims[loop_ind] ||
+              (start[d2] == (hssize_t)fdims[loop_ind] && count[d2] > 0))
             BAIL_QUIET(NC_EINVALCOORDS);
-          if (start[d2] + count[d2] > fdims[d2])
+          if (start[d2] + count[d2] > fdims[loop_ind])
             BAIL_QUIET(NC_EEDGE);
+          loop_ind++;
         }
     }
 
@@ -883,6 +890,8 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
   int fill_value_size[NC_MAX_VAR_DIMS];
   int scalar = 0, retval = NC_NOERR, range_error = 0, i, d2;
   void *bufr = NULL;
+
+  int rank = 0;
 #ifdef HDF5_CONVERT
   hid_t mem_typeid = 0;
 #endif
@@ -933,10 +942,15 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
 #endif
 
   /* Check to ensure the user selection is
-   * valid. H5Sget_simple_extent_dims gets the sizes of all the dims
+   * valid. H5Sget_simple_extent_dims gets the sizes of all the  dims
    * and put them in fdims. */
+  printf("nc4_get_vara");
+  rank = H5Sget_simple_extent_ndims(file_spaceid);
+  printf("\nhdf_datasetid %lu\nfile_spaceid %lu",var->hdf_datasetid,file_spaceid);
   if (H5Sget_simple_extent_dims(file_spaceid, fdims, fmaxdims) < 0)
     BAIL(NC_EHDFERR);
+  printf("\nrank: %d\nDimensions: %lu x %lu\n", rank,
+         (unsigned long)(fdims[0]), (unsigned long)(fdims[1]));
 
 #ifdef LOGGING
   log_dim_info(var, fdims, fmaxdims, start, count);
