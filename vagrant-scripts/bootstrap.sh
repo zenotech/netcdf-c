@@ -26,13 +26,13 @@ cp /vagrant/vagrant-scripts/install_hdf5tune*.sh /home/vagrant/Desktop
 cd /home/vagrant/Desktop
 
 su -c '/home/vagrant/Desktop/install_hdf5tune_deps.sh' -s /bin/sh vagrant
-su -c '/home/vagrant/Desktop/install_hdftune.sh' -s /bin/sh vagrant
+su -c '/home/vagrant/Desktop/install_hdf5tune.sh' -s /bin/sh vagrant
 
 git clone http://github.com/Unidata/netcdf-c /home/vagrant/Desktop/netcdf-c
 
 cd /home/vagrant/Desktop/netcdf-c
 git checkout h5tuner
-cp AUTOTUNER_README.md ~/vagrant/Desktop
+cp AUTOTUNER_README.md /home/vagrant/Desktop
 
 
 chown -R vagrant:vagrant /home/vagrant
