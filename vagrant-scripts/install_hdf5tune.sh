@@ -10,8 +10,8 @@ echo "==================="
 
 rm -rf H5Tuner
 
-git clone git://github.com/HDFGroup/H5Tuner.git
-cd H5Tuner
+git clone https://bitbucket.hdfgroup.org/scm/engility/h5tuner.git
+cd h5tuner
 
 autoreconf -if
 
