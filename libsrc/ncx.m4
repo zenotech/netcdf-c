@@ -3575,26 +3575,42 @@ NCX_PUTN(uint64, uint)
 
 /* text */
 
+#ifdef __arm__
+int APIPrefix`x_getn_text'(const void **xpp, IntType nelems, signed char *tp)
+#else
 int
 APIPrefix`x_getn_text'(const void **xpp, IntType nelems, char *tp)
+#endif
 {
 NCX_GETN_Byte_Body
 }
 
+#ifdef __arm__
+int APIPrefix`x_pad_getn_text'(const void **xpp, IntType nelems, signed char *tp)
+#else
 int
 APIPrefix`x_pad_getn_text'(const void **xpp, IntType nelems, char *tp)
+#endif
 {
 NCX_PAD_GETN_Byte_Body
 }
 
+#ifdef __arm__
+int APIPrefix`x_putn_text'(void **xpp, IntType nelems, const signed char *tp)
+#else
 int
 APIPrefix`x_putn_text'(void **xpp, IntType nelems, const char *tp)
+#endif
 {
 NCX_PUTN_Byte_Body
 }
 
+#ifdef __arm
+int APIPrefix`x_pad_putn_text'(void **xpp, IntType nelems, const signed char *tp)
+#else
 int
 APIPrefix`x_pad_putn_text'(void **xpp, IntType nelems, const char *tp)
+#endif
 {
 NCX_PAD_PUTN_Byte_Body
 }
