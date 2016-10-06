@@ -2,6 +2,13 @@
 
 Instructions and notes when using `libautotuner.so`.
 
+## Vagrant
+
+The terminal app doesn't work out of the box in the vagrant environment.
+See https://bbs.archlinux.org/viewtopic.php?id=180103 for a fix.
+
+The VM should be restarted after initial creation.
+
 ## Links
 
 * https://github.com/HDFGroup/H5Tuner

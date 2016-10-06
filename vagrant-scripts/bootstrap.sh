@@ -17,6 +17,7 @@ apt-get -y install emacs ubuntu-dev-tools mpich libmpich-dev libcurl4-openssl-de
 /usr/sbin/locale-gen
 echo 'LANG="en_US"' > /etc/default/locale
 echo 'LANGUAGE="en_US:"' >> /etc/default/locale
+/usr/bin/localectl set-locale LANG="en_US.UTF-8"
 
 ###
 # Run dependency, h5tuner installation scripts.
