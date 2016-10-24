@@ -20,7 +20,7 @@ cd netcdf-c
 rm -rf build
 mkdir build
 cd build
-cmake .. -DCMAKE_C_COMPILER=which mpicc
+cmake .. -DCMAKE_C_COMPILER=$(which mpicc)
 make -j 4
 
 LD_PRELOAD=$HOME/libautotuner.so H5TUNER_VERBOSE=4 H5TUNER_CONFIG_FILE=$HOME/config.xml make test ARGS="-V"
