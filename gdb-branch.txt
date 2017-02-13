@@ -1,2 +1,9 @@
 set breakpoint pending yes
-break test_get.c:1109
+break test_nc_get_var_uchar
+break test_get.c:1084 if i == 31 && j == 3
+break test_get.c:1110
+break util.c:832 if i == 31 && j == 3
+commands
+break NCP_put_vara
+break ncmpii_x_putn_NC_BYTE
+end
