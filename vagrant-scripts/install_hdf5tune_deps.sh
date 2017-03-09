@@ -10,9 +10,9 @@ echo "Installing a few things via package manager, just to be sure."
 sudo apt-get install -y libmxml-dev
 
 echo "Installing zlib"
-wget http://zlib.net/zlib-1.2.8.tar.gz
-tar xvzf zlib-1.2.8.tar.gz
-pushd zlib-1.2.8
+wget http://zlib.net/zlib-1.2.11.tar.gz
+tar xvzf zlib-1.2.11.tar.gz
+pushd zlib-1.2.11
 ./configure --prefix=/usr
 make -j 4 && sudo make install
 popd
