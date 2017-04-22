@@ -175,6 +175,7 @@ NCD2_def_var_fletcher32,
 NCD2_def_var_chunking,
 NCD2_def_var_fill,
 NCD2_def_var_endian,
+NCD2_def_var_filter,
 NCD2_set_var_chunk_cache,
 NCD2_get_var_chunk_cache,
 
@@ -2773,6 +2774,16 @@ NCD2_def_var_endian(int ncid, int p2, int p3)
     int ret;
     if((ret = NC_check_id(ncid, (NC**)&drno)) != NC_NOERR) return THROW(ret);
     ret = nc_def_var_endian(getnc3id(drno), p2, p3);
+    return THROW(ret);
+}
+
+int
+NCD2_def_var_filter(int ncid, int varid, unsigned int id, size_t n, const unsigned int* params);
+{
+    NC* drno;
+    int ret;
+    if((ret = NC_check_id(ncid, (NC**)&drno)) != NC_NOERR) return THROW(ret);
+    ret = nc_def_var_filter(getnc3id(drno), varid, id, n, params);
     return THROW(ret);
 }
 

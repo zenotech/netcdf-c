@@ -74,6 +74,8 @@ static int NC3_def_var_fletcher32(int,int,int);
 static int NC3_def_var_chunking(int,int,int,const size_t*);
 static int NC3_def_var_fill(int,int,int,const void*);
 static int NC3_def_var_endian(int,int,int);
+static int NC3_def_var_filter(int, int, unsigned int, size_t, const unsigned int*);
+
 static int NC3_set_var_chunk_cache(int,int,size_t,size_t,float);
 static int NC3_get_var_chunk_cache(int,int,size_t*,size_t*,float*);
 #endif /*USE_NETCDF4*/
@@ -163,6 +165,7 @@ NC3_def_var_fletcher32,
 NC3_def_var_chunking,
 NC3_def_var_fill,
 NC3_def_var_endian,
+NC3_def_var_filter,
 NC3_set_var_chunk_cache,
 NC3_get_var_chunk_cache,
 
@@ -507,6 +510,12 @@ NC3_def_var_fill(int ncid, int varid, int no_fill, const void *fill_value)
 
 static int
 NC3_def_var_endian(int ncid, int varid, int endianness)
+{
+    return NC_ENOTNC4;
+}
+
+static int
+NC3_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const unsigned int* parms)
 {
     return NC_ENOTNC4;
 }

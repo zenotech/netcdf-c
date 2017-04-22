@@ -66,7 +66,7 @@ void usage( void );
 int main( int argc, char** argv );
 
 /* Define tables vs modes for legal -k values*/
-struct Kvalues legalkinds[NKVALUES] = {
+struct Kvalues legalkinds[] = {
     /* NetCDF-3 classic format (32-bit offsets) */
     {"classic", NC_FORMAT_CLASSIC}, /* canonical format name */
     {"nc3", NC_FORMAT_CLASSIC},	    /* short format name */
@@ -143,6 +143,15 @@ struct Languages legallanguages[] = {
 {NULL,L_UNDEFINED}
 };
 #endif
+
+struct FilterID legalfilters[] = {
+{"zip",ZIP_ID},
+{"szip",SZIP_ID},
+{"bzip2",BZIP2_ID},
+{"zfp",ZFP_ID},
+{"fpzip",FPZIP_ID},
+{NULL,0}
+};
 
 #if 0 /*not used*/
 /* BOM Sequences */

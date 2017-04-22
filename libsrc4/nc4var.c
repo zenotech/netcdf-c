@@ -1151,6 +1151,52 @@ NC4_def_var_endian(int ncid, int varid, int endianness)
                            NULL, NULL, NULL, &endianness);
 }
 
+int
+NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const unsigned int* parms)
+{
+   int retval = NC_NOERR;
+   NC *nc;
+   NC_GRP_INFO_T *grp;
+   NC_HDF5_FILE_INFO_T *h5;
+   NC_VAR_INFO_T *var;
+   NC_DIM_INFO_T *dim;
+
+   LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
+
+   /* Find info for this file and group, and set pointer to each. */
+   if ((retval = nc4_find_nc_grp_h5(ncid, &nc, &grp, &h5)))
+      return retval;
+
+   assert(nc && grp && h5);
+
+    /* Find the var. */
+    if (varid < 0 || varid >= grp->vars.nelems)
+        return NC_ENOTVAR;
+    var = grp->vars.value[varid];
+    if (!var) return NC_ENOTVAR;
+    assert(var->varid == varid);
+
+   /* Can't turn on parallel and filters */
+   if (nc->mode & (NC_MPIIO | NC_MPIPOSIX)) {
+	 return NC_EINVAL;
+   }
+
+    /* If the HDF5 dataset has already been created, then it is too
+    * late to set all the extra stuff. */
+    if (var->created)
+      return NC_ELATEDEF;
+
+    var->filterid = id;
+    var->nparams = nparams;
+    var->params = NULL;
+    if(parms != NULL) {
+	var->params = (unsigned int*)calloc(nparams,sizeof(unsigned int));
+	if(var->params == NULL) return NC_ENOMEM;
+	memcpy(var->params,parms,sizeof(unsigned int)*var->nparams);
+    }
+    return NC_NOERR;
+}
+
 /* Get var id from name. */
 int
 NC4_inq_varid(int ncid, const char *name, int *varidp)

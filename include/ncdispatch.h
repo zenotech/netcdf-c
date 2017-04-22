@@ -302,6 +302,7 @@ int (*def_var_fletcher32)(int, int, int);
 int (*def_var_chunking)(int, int, int, const size_t*);
 int (*def_var_fill)(int, int, int, const void*);
 int (*def_var_endian)(int, int, int);
+int (*def_var_filter)(int, int, unsigned int, size_t, const unsigned int*);
 int (*set_var_chunk_cache)(int, int, size_t, size_t, float);
 int (*get_var_chunk_cache)(int ncid, int varid, size_t *sizep, size_t *nelemsp, float *preemptionp);
 #endif /*USE_NETCDF4*/

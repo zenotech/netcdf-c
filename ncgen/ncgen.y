@@ -71,7 +71,10 @@ char* primtypenames[PRIMNO] = {
 "string"
 };
 
-static int GLOBAL_SPECIAL = _NCPROPS_FLAG | _ISNETCDF4_FLAG | _SUPERBLOCK_FLAG | _FORMAT_FLAG ;
+static int GLOBAL_SPECIAL = _NCPROPS_FLAG
+                            | _ISNETCDF4_FLAG
+                            | _SUPERBLOCK_FLAG
+                            | _FORMAT_FLAG ;
 
 /*Defined in ncgen.l*/
 extern int lineno;              /* line number for error messages */
@@ -193,6 +196,8 @@ NCConstant       constant;
 	_NCPROPS
 	_ISNETCDF4
 	_SUPERBLOCK
+	_FILTERID
+	_FILTERPARMS
 	DATASETID
 
 %type <sym> ident typename primtype dimd varspec
@@ -742,6 +747,10 @@ attrdecl:
 	    {$$ = makespecial(_ENDIAN_FLAG,$1,NULL,(void*)&$5,1);}
 	| type_var_ref ':' _NOFILL '=' constbool
 	    {$$ = makespecial(_NOFILL_FLAG,$1,NULL,(void*)&$5,1);}
+	| type_var_ref ':' _FILTERID '=' conststring
+	    {$$ = makespecial(_FILTERID_FLAG,$1,NULL,(void*)&$5,1);}
+	| type_var_ref ':' _FILTERPARMS '=' intlist
+	    {$$ = makespecial(_FILTERPARMS_FLAG,$1,NULL,(void*)&$5,1);}
 	| ':' _FORMAT '=' conststring
 	    {$$ = makespecial(_FORMAT_FLAG,NULL,NULL,(void*)&$4,1);}
 	;
@@ -1149,6 +1158,7 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
     int tf = 0;
     char* sdata = NULL;
     int idata =  -1;
+    unsigned int udata =  0;
 
     if((GLOBAL_SPECIAL & tag) != 0) {
         if(vsym != NULL) {
@@ -1205,8 +1215,23 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
 	break;
     case _CHUNKSIZES_FLAG:
     case _FILLVALUE_FLAG:
+    case _FILTERPARMS_FLAG:
 	/* Handle below */
 	break;
+    case _FILTERID_FLAG:
+	if(con->nctype != NC_STRING) {
+	    derror("%s: Illegal filter id",specialname(tag));
+	    break;
+	}
+	/* Convert names to corresponding numeric id */
+	iconst.nctype = NC_UINT;
+	iconst.lineno = con->lineno;
+	iconst.value.uint32v = convertFilterID(con->value.stringv.stringv);
+	if(iconst.value.uint32v == 0)
+	    derror("%s: illegal filter id",specialname(tag));
+	udata = iconst.value.uint32v;
+	break;
+
     default: PANIC1("unexpected special tag: %d",tag);
     }
 
@@ -1315,6 +1340,26 @@ makespecial(int tag, Symbol* vsym, Symbol* tsym, void* data, int isconst)
                 /* Chunksizes => storage == chunked */
                 special->flags |= _STORAGE_FLAG;
                 special->_Storage = NC_CHUNKED;
+                } break;
+          case _FILTERID_FLAG:
+                special->_FilterID = udata;
+                special->flags |= _FILTERID_FLAG;
+                break;
+          case _FILTERPARMS_FLAG: {
+                int i;
+                special->nparms = list->length;
+                special->_FilterParms = (size_t*)emalloc(sizeof(size_t)*special->nparms);
+                for(i=0;i<special->nparms;i++) {
+                    iconst.nctype = NC_UINT;
+                    convert1(&list->data[i],&iconst);
+                    if(iconst.nctype == NC_UINT) {
+                        special->_FilterParms[i] = iconst.value.uint32v;
+                    } else {
+                        efree(special->_FilterParms);
+                        derror("%s: illegal filter parameter value",specialname(tag));
+                    }
+                }
+                special->flags |= _FILTERPARMS_FLAG;
                 } break;
             default: PANIC1("makespecial: illegal token: %d",tag);
          }

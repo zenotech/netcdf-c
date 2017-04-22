@@ -1611,6 +1611,10 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
   if (var->deflate)
     if (H5Pset_deflate(plistid, var->deflate_level) < 0)
       BAIL(NC_EHDFERR);
+  else if(var->filterid) {
+    if(H5Pset_filter(plistid, var->filterid, H5Z_FLAG_MANDATORY, var->nparams, var->params) < 0)
+      BAIL(NC_EFILTER);
+  }
 
   /* Szip? NO! We don't want anyone to produce szipped netCDF files! */
   /* #ifdef USE_SZIP */

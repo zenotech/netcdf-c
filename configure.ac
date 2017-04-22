@@ -784,6 +784,14 @@ AC_ARG_ENABLE([diskless],
 test "x$enable_diskless" = xno || enable_diskless=yes
 AC_MSG_RESULT($enable_diskless)
 
+# Does the user want to use filters
+AC_MSG_CHECKING([whether filters are enabled])
+AC_ARG_ENABLE([filters],
+              [AS_HELP_STRING([--disable-filters],
+                              [disable support for filters])])
+test "x$enable_filters" = xno || enable_filters=yes
+AC_MSG_RESULT($enable_filters)
+
 # Check for enable DAP
 if test "x$enable_dap" = "xyes" -a "xenable_diskless" = xno  ; then
 AC_MSG_NOTICE([--enable-dap requires --enable-diskless])
@@ -1143,6 +1151,7 @@ AM_CONDITIONAL(USE_PNETCDF, [test x$enable_pnetcdf = xyes])
 AM_CONDITIONAL(USE_DISPATCH, [test x$enable_dispatch = xyes])
 AM_CONDITIONAL(BUILD_DISKLESS, [test x$enable_diskless = xyes])
 AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
+AM_CONDITIONAL(ENABLE_FILTERS, [test x$enable_filters = xyes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
 

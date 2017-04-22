@@ -642,3 +642,22 @@ convertstringtochars(NCConstant* str)
     }
     return dl;
 }
+
+unsigned int
+convertFilterID(const char* id)
+{
+    unsigned int nid = 0;
+    int ok = 0;
+    struct FilterID* f;
+
+    /* Scan for matching name */
+    for(f=legalfilters;f->name;f++) {
+	if(strcasecmp(id,f->name)==0) return f->id;
+    }
+    /* Must be an integer */
+    ok = sscanf(id,"%u",&nid);
+    if(ok == 1)
+	return nid;
+    return 0; /* No a recognizable id */
+}
+
