@@ -59,6 +59,7 @@ gen_ncc(const char *filename)
     codeline("#include <stdio.h>");
     codeline("#include <stdlib.h>");
     codeline("#include <netcdf.h>");
+    codeline("#include <netcdf_filter.h>");
     codeline("");
     codeflush();
 
@@ -509,14 +510,14 @@ genc_definespecialattributes(Symbol* vsym)
         codedump(stmt);
         codelined(1,"check_err(stat,__LINE__,__FILE__);");
     }
-    if(special->flags & (_FILTERID_FLAG) {
+    if(special->flags & _FILTERID_FLAG) {
 	/* Special check for alternate way to specify _Deflate */
 	if(special->_FilterID == ZIP_ID) {
 	    unsigned int level;
-	    if(special->nparms == 0 || special->FilterParms == NULL)
+	    if(special->nparams == 0 || special->_FilterParams == NULL)
 		level = 9; /* default */
 	    else
-		level = special->FilterParms[0];
+		level = special->_FilterParams[0];
 	    if(level < 0 || level > 9)
 		derror("Illegal deflate level");		
 	    else {
@@ -531,14 +532,14 @@ genc_definespecialattributes(Symbol* vsym)
 	    }
 	} else {
 	        bbprintf0(stmt,
-	                "    stat = NC_def_var_filter(%s, %s, %u, %lu, ",
+	                "    stat = nc_def_var_filter(%s, %s, %u, %lu, ",
 	                groupncid(vsym->container),
 	                varncid(vsym),
 			special->_FilterID,
-			special->nparms,
+			special->nparams
 			);
 	        codedump(stmt);
-	        if(special->nparms == 0 || special->_FilterParms == NULL)
+	        if(special->nparams == 0 || special->_FilterParams == NULL)
 	            codepartial("NULL");
         	else {
 	            bbprintf0(stmt,"%s_filterparams",cname(vsym));

@@ -57,6 +57,7 @@
 #define NEGNC_INFINITEF (-NC_INFINITEF)
 #define NEGNC_INFINITE (-NC_INFINITEF)
 #endif
+
 /* nc_class is one of:
         NC_GRP NC_DIM NC_VAR NC_ATT NC_TYPE
 */
@@ -143,8 +144,8 @@ typedef struct Specialdata {
     int           _Endianness;   /* 1 =>little, 2 => big*/
     int           _Fill ;        /* 0 => false, 1 => true WATCHOUT: this is inverse of NOFILL*/
     unsigned int  _FilterID;
-    unsigned int*       _FilterParms;     /* NULL => defaults*/
-        size_t nparms;                    /*  |_FilterParms| ; 0 => not specified*/
+    unsigned int* _FilterParams; /* NULL => defaults*/
+        size_t nparams;          /*  |_FilterParms| ; 0 => not specified*/
 } Specialdata;
 
 typedef struct GlobalSpecialdata {

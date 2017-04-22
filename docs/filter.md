@@ -27,38 +27,26 @@ process for reading of compressed data.
 were compressed using some algorithm. How the dataset was compressed
 will be discussed subsequently.
 
-2. shared libraries or DLLs
- setenv HDF5_PLUGIN_PATH <plugin-dir>/plugins 
-/usr/local/hdf5/lib/plugin”
-on Unix and
-“%ALLUSERSPROFILE%\hdf5\lib\plugin”
+2. Shared libraries or DLLs exist that implement the compress/decompress
+algorithm. These libraries have a specific API so that the HDF5 library
+can locate, load, and utilize the compressor/.
 
+These libraries are expected to installed in a specific
+directory. The default directory is
+* "/usr/local/hdf5/lib/plugin” for Linux systems, or
+* “%ALLUSERSPROFILE%\hdf5\lib\plugin” for Windows systems.
 
-Compression Filter Parameters
+The default can be overridden by setting the environment
+variable __HDF5_PLUGIN_PATH__.
+
+Enablinmg A Compression Filter
 =============================
 
-In order to compress a variable, it must be
-annotated with sufficient information to locate
-the compression filter code (as a shared
-library) and with a vector of parameters for
+In order to compress a variable, the netcdf-c library
+must be given two pieces of information:
+(1) some unique identifier for the filter to be uses
+and (2) a vector of parameters for
 controlling the action of the compression filter.
-This information is provided by defining two special
-attributes for any variable for which some form of
-compression filter is to be applied. Since these
-attributes are special, the wil normally be invisible
-when using __ncdump__ unless the -s flag is specified.
-
-The two reserved attributes are defined as follows.
-
-1. ''_Filter_ID'' -- a string specifying the filter to apply.
-This string is either the numeric id (as a string) assigned by the HDF
-group to the filter [3] or the name associated with that filter.
-See the appendix for a currently defined list of names and associated
-identifiers.  For example, the id string "bzip2" (case insensitive)
-is the same as "307".
-
-2. ''_Filter_Parameters'' -- a vector of unsigned integers representing the
-parameters for controlling the operation of the specified filter.
 
 The meaning of the parameters is, of course,
 completely filter dependent and the filter
@@ -70,8 +58,41 @@ equivalently, provide no ''_Filter_Parameters'' attribute
 at all. Defaults are not provided, so this assumes that
 the filter can operate with zero parameters.
 
+The two pieces of  information can be provided in either of two ways:
+using __ncgen__ and via an API call.
+
+Use __ncgen__
+-------------
+
+In a CDL file, the variable can be annotated with the
+following two attributes.
+
+1. ''_Filter_ID'' -- a string specifying the filter to apply.
+This string is either the numeric id (as a string) assigned by the HDF
+group to the filter [3] or the name associated with that filter.
+See the appendix for a currently defined list of names and associated
+identifiers.  For example, the id string "bzip2" (case insensitive)
+is the same as "307".
+2. ''_Filter_Parameters'' -- a vector of unsigned integers representing the
+parameters for controlling the operation of the specified filter.
+
+These are "special" attributes, which means that
+they will normally be invisible
+when using __ncdump__ unless the -s flag is specified.
+
+Use The API
+-------------
+The include file, __netcdf_filter.h__ defines
+an API method for setting the filter to be used
+when writing a variable. The relevant signature is
+as follows.
+````
+int nc_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const unsigned int* parms);
+````
+
 References
 ==========
+
 1. https://support.hdfgroup.org/HDF5/doc/Advanced/DynamicallyLoadedFilters/HDF5DynamicallyLoadedFilters.pdf
 2. https://support.hdfgroup.org/HDF5/doc/TechNotes/TechNote-HDF5-CompressionTroubleshooting.pdf
 3. https://support.hdfgroup.org/services/filters.html
@@ -84,12 +105,11 @@ backward copatibility is guaranteed.
 <table>
 <tr><th>Filter Number<th>Filter Name(s)
 <tr><td>N.A.<td>ZIP
-<tr><td>N.A.<td>SZIP
 <tr><td>307<td>BZIP2
 <tr><td>32013<td>ZFP
 <tr><td>32014<td>FPZIP
 </table>
-Note that ZIP and SZIP have no assigned numbers. For ZIP, this can
+Note that ZIP has no assigned number. For ZIP, this can
 also be specified using the "_DeflateLevel" attribute.
 
 If you would like to add to this list, send a message to
