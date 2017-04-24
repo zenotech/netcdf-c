@@ -4,7 +4,7 @@
 # This automake file generates the Makefile to build the include
 # directory.
 
-include_HEADERS = netcdf.h netcdf_meta.h
+include_HEADERS = netcdf.h netcdf_meta.h netcdf_filter.h
 
 if BUILD_PARALLEL
 include_HEADERS += netcdf_par.h
@@ -12,10 +12,6 @@ endif
 
 if BUILD_DISKLESS
 include_HEADERS += netcdf_mem.h
-endif
-
-if ENABLE_FILTERS
-include_HEADERS += netcdf_filter.h
 endif
 
 noinst_HEADERS = nc_logging.h nc_tests.h fbits.h nc.h	\

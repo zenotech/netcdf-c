@@ -1603,15 +1603,16 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     }
 
   /* If the user wants to shuffle the data, set that up now. */
-  if (var->shuffle)
+  if (var->shuffle) {
     if (H5Pset_shuffle(plistid) < 0)
       BAIL(NC_EHDFERR);
+  }
 
   /* If the user wants to deflate the data, set that up now. */
-  if (var->deflate)
+  if (var->deflate) {
     if (H5Pset_deflate(plistid, var->deflate_level) < 0)
       BAIL(NC_EHDFERR);
-  else if(var->filterid) {
+  } else if(var->filterid) {
     if(H5Pset_filter(plistid, var->filterid, H5Z_FLAG_MANDATORY, var->nparams, var->params) < 0)
       BAIL(NC_EFILTER);
   }

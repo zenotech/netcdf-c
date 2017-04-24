@@ -54,7 +54,7 @@ MALLOC_CHECK=""
 CPPFLAGS=""
 LDFLAGS=""
 
-#CFLAGS="-g -O0 $CFLAGS"
+CFLAGS="-g -O0 $CFLAGS"
 CFLAGS="-g $CFLAGS"
 
 MAKE=make
@@ -119,11 +119,11 @@ if test "x$PAR4" != x1 ; then
 FLAGS="$FLAGS --disable-parallel4"
 fi
 
-#if test "x${DB}" = x1 ; then
-#FLAGS="$FLAGS --disable-shared --enable-static"
-#else
+if test "x${DB}" = x1 ; then
+FLAGS="$FLAGS --disable-shared --enable-static"
+else
 FLAGS="$FLAGS --enable-shared"
-#fi
+fi
 
 #TMP=
 #rm -f ./test_mpi.tmp

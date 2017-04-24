@@ -124,7 +124,7 @@ TESTS += run_par_test.sh
 endif
 
 # Need to add subdirs
-SUBDIRS = filter_test
+#SUBDIRS = filter_test
 
 EXTRA_DIST = run_par_test.sh run_bm.sh run_bm_test1.sh run_bm_test2.sh	\
 run_bm_radar_2D.sh run_bm_radar_2D_compression1.sh run_par_bm_test.sh	\

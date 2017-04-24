@@ -247,7 +247,7 @@ NCD4_def_var_endian(int ncid, int p2, int p3)
 }
 
 static int
-NCD4_def_var_filter(int ncid, int varid, unsigned int id, size_t n, unsigned int* parms)
+NCD4_def_var_filter(int ncid, int varid, unsigned int id, size_t n, const unsigned int* parms)
 {
     return (NC_EPERM);
 }
@@ -427,7 +427,9 @@ NCD4_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                int* shufflep, int* deflatep, int* deflate_levelp,
                int* fletcher32p, int* contiguousp, size_t* chunksizesp,
                int* no_fill, void* fill_valuep, int* endiannessp,
-	       int* options_maskp, int* pixels_per_blockp)
+	       int* options_maskp, int* pixels_per_blockp,
+	       unsigned int* idp, size_t* nparamsp, unsigned int* params
+               )
 {
     NC* ncp;
     int ret;
@@ -439,7 +441,8 @@ NCD4_inq_var_all(int ncid, int varid, char *name, nc_type* xtypep,
                shufflep, deflatep, deflate_levelp,
                fletcher32p, contiguousp, chunksizesp,
                no_fill, fill_valuep, endiannessp,
-	       options_maskp, pixels_per_blockp);
+	       options_maskp, pixels_per_blockp,
+               idp, nparamsp, params);
     return (ret);
 }
 

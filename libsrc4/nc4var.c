@@ -672,7 +672,9 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
                int *shufflep, int *deflatep, int *deflate_levelp,
                int *fletcher32p, int *contiguousp, size_t *chunksizesp,
                int *no_fill, void *fill_valuep, int *endiannessp,
-	       int *options_maskp, int *pixels_per_blockp)
+	       int *options_maskp, int *pixels_per_blockp,
+	       unsigned int* idp, size_t* nparamsp, unsigned int* params
+               )
 {
    NC *nc;
    NC_GRP_INFO_T *grp;
@@ -757,6 +759,13 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
       *options_maskp = var->options_mask;
    if (pixels_per_blockp)
       *pixels_per_blockp = var->pixels_per_block;
+
+   if (idp)
+      *idp = var->filterid;
+   if (nparamsp)
+      *nparamsp = (var->params == NULL ? 0 : var->nparams);
+   if (params && var->params != NULL)
+	memcpy(params,var->params,var->nparams*sizeof(unsigned int));
 
    /* Fill value stuff. */
    if (no_fill)
@@ -1072,7 +1081,7 @@ nc_inq_var_chunking_ints(int ncid, int varid, int *contiguousp, int *chunksizesp
 
    retval = NC4_inq_var_all(ncid, varid, NULL, NULL, NULL, NULL, NULL,
                            NULL, NULL, NULL, NULL, contiguousp, cs, NULL,
-                           NULL, NULL, NULL, NULL);
+                           NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
    /* Copy from size_t array. */
    if (*contiguousp == NC_CHUNKED)

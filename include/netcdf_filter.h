@@ -20,6 +20,7 @@ extern "C" {
 
 EXTERNL int nc_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const unsigned int* parms);
 
+EXTERNL int nc_inq_var_filter(int ncid, int varid, unsigned int* idp, size_t* nparams, unsigned int* params);
 
 #if defined(__cplusplus)
 }
