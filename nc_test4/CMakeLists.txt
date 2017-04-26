@@ -86,6 +86,7 @@ IF(USE_HDF4_FILE_TESTS AND NOT MSVC)
     add_sh_test(nc_test4 tst_hdf4_read_var)
 ENDIF()
 
+ADD_SUBDIRECTORY(filter_test)
 
 IF(TEST_PARALLEL4)
   build_bin_test(tst_mpi_parallel)

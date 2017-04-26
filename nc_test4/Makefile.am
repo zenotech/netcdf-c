@@ -5,6 +5,8 @@
 # This entire directory will be skipped if netCDF-4 is not enabled.
 #
 
+SUBDIRS=filter_test
+
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 
@@ -122,9 +124,6 @@ check_PROGRAMS += tst_mpi_parallel tst_parallel tst_parallel3	\
 tst_parallel4 tst_nc4perf tst_mode tst_simplerw_coll_r
 TESTS += run_par_test.sh
 endif
-
-# Need to add subdirs
-#SUBDIRS = filter_test
 
 EXTRA_DIST = run_par_test.sh run_bm.sh run_bm_test1.sh run_bm_test2.sh	\
 run_bm_radar_2D.sh run_bm_radar_2D_compression1.sh run_par_bm_test.sh	\

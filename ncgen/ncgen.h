@@ -129,8 +129,6 @@ unsigned int id;
 #define ZFP_ID 32013U
 #define FPZIP_ID 32014U
 
-extern struct FilterID legalfilters[];
-
 /* Note: some non-var specials (i.e. _Format) are not included in this struct*/
 typedef struct Specialdata {
     int flags;

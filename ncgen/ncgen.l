@@ -276,6 +276,8 @@ ulong|uint|uinteger	{return lexdebug(UINT_K);}
 int64			{return lexdebug(INT64_K);}
 uint64			{return lexdebug(UINT64_K);}
 double			{return lexdebug(DOUBLE_K);}
+string                  {return lexdebug(STRING_K);}
+
 unlimited|UNLIMITED	{int32_val = -1;
 			 return lexdebug(NC_UNLIMITED_K);}
 

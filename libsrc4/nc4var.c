@@ -1195,6 +1195,15 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const u
     if (var->created)
       return NC_ELATEDEF;
 
+    if(0) {
+	unsigned int fcfg = 0;
+	herr_t herr = H5Zget_filter_info(id,&fcfg);
+	if(herr < 0)
+	    return NC_EFILTER;
+	if((H5Z_FILTER_CONFIG_ENCODE_ENABLED & fcfg) == 0
+	   || (H5Z_FILTER_CONFIG_DECODE_ENABLED & fcfg) == 0)
+	    return NC_EFILTER;
+    }
     var->filterid = id;
     var->nparams = nparams;
     var->params = NULL;

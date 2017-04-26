@@ -688,7 +688,10 @@ Used in libdap2 and libdap4.
 @param[out] endiannessp       Pointer to memory to store endianness value. One of ::NC_ENDIAN_BIG ::NC_ENDIAN_LITTLE ::NC_ENDIAN_NATIVE
 @param[out] options_maskp     Pointer to memory to store mask options information.
 @param[out] pixels_per_blockp Pointer to memory to store pixels-per-block information for chunked data.
-
+@param[out] idp Pointer to memory to store filter id.
+@param[out] nparamsp Pointer to memory to store filter parameter count.
+@param[out] params Pointer to vector of unsigned integers into which
+to store filter parameters.
 \note Expose access to nc_inq_var_all().
 
 \internal

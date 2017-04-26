@@ -145,15 +145,6 @@ struct Languages legallanguages[] = {
 };
 #endif
 
-struct FilterID legalfilters[] = {
-{"zip",ZIP_ID},
-{"szip",SZIP_ID},
-{"bzip2",BZIP2_ID},
-{"zfp",ZFP_ID},
-{"fpzip",FPZIP_ID},
-{NULL,0}
-};
-
 #if 0 /*not used*/
 /* BOM Sequences */
 static char* U8   = "\xEF\xBB\xBF";    /* UTF-8 */

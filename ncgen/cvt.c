@@ -650,14 +650,10 @@ convertFilterID(const char* id)
     int ok = 0;
     struct FilterID* f;
 
-    /* Scan for matching name */
-    for(f=legalfilters;f->name;f++) {
-	if(strcasecmp(id,f->name)==0) return f->id;
-    }
-    /* Must be an integer */
+    /* for now, must be an integer */
     ok = sscanf(id,"%u",&nid);
     if(ok == 1)
 	return nid;
-    return 0; /* No a recognizable id */
+    return 0; /* Not a recognizable id */
 }
 
