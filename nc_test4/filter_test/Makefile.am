@@ -43,7 +43,7 @@ EXTRA_DIST=${PLUGINSRC} ${BZIP2SRC} ${PLUGINHDRS} ${BZIP2HDRS} \
 CLEANFILES = ${LIBNAME} *.nc *.dump
 
 all-local:
-	gcc -g -O0 -shared \
+	gcc -fPIC -g -O0 -shared \
 	-o ${LIBNAME} ${PLUGINSRC} ${BZIP2OBJ} \
 	-L/usr/local/lib -lhdf5_hl -lhdf5 -lz
 
