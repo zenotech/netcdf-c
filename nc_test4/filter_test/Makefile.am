@@ -26,10 +26,6 @@ fake_SOURCES = fake.c H5Zbzip2.c ${BZIP2SRC}
 test_filter_LDFLAGS = ${top_builddir}/liblib/libnetcdf.la
 test_filter_SOURCE = test_filter.c
 
-check_PROGRAMS = test_filter
-
-TESTS = tst_filter.sh
-
 BZIP2OBJ=${BZIP2SRC:%.o=%.c}
 
 if ISCYGWIN
@@ -42,9 +38,15 @@ EXTRA_DIST=${PLUGINSRC} ${BZIP2SRC} ${PLUGINHDRS} ${BZIP2HDRS} \
 	tst_filter.sh bzip2.cdl CMakeLists.txt
 CLEANFILES = ${LIBNAME} *.nc *.dump
 
+if ENABLE_FILTER_TEST
+
+check_PROGRAMS = test_filter
+TESTS = tst_filter.sh
+
 all-local:
 	gcc -fPIC -g -O0 -shared \
 	-o ${LIBNAME} ${PLUGINSRC} ${BZIP2OBJ} \
 	-L/usr/local/lib -lhdf5_hl -lhdf5 -lz
+endif
 
 

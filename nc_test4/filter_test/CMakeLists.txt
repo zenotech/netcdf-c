@@ -1,7 +1,7 @@
 
 # Cannot yet use cmake to test
 
-if(FILTERCMAKE)
+if(ENABLE_FILTER_TEST)
 SET(BZIP2SRC blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c)
 ADD_EXECUTABLE(fake fake.c H5Zbzip2.c ${BZIP2SRC})
 
@@ -23,7 +23,8 @@ build_bin_test(test_filter)
 IF(BUILD_UTILITIES)
   ADD_SH_TEST(nc_test4 tst_filter)
 ENDIF(BUILD_UTILITIES)
-ENDIF()
+
+ENDIF(ENABLE_FILTER_TEST)
 
 FILE(GLOB COPY_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*)
 FILE(COPY ${COPY_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/ FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)

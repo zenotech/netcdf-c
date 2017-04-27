@@ -1181,10 +1181,6 @@ AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
 
-# Define a Generic AM_CONDITIONAL to allow disabling
-# of arbitrary parts of Makefile.am files
-AM_CONDITIONAL(MAKEFILE_IGNORE, [test xno = xyes])
-
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
 if test "x$enable_netcdf_4" = xyes; then
@@ -1270,6 +1266,17 @@ AC_MSG_RESULT($enable_jna)
 if test "x$enable_jna" = xyes ; then
 AC_DEFINE([JNA], [1], [if true, include JNA bug fix])
 fi
+
+# Control filter test(s)
+AC_MSG_CHECKING([If filter_test should be enabled (default is no)])
+AC_ARG_ENABLE([filter-test],
+              [AS_HELP_STRING([--enable-filter-test],
+                              [enable filter test])])
+test "x$enable_filter_test" = xyes || enable_filter_test=no
+AC_MSG_RESULT($enable_filter_test)
+# Define a Generic AM_CONDITIONAL to allow disabling
+# of arbitrary parts of Makefile.am files
+AM_CONDITIONAL(ENABLE_FILTER_TEST, [test x$enable_filter_test = xyes])
 
 AC_SUBST(NC_LIBS,[$NC_LIBS])
 AC_SUBST(HAS_DAP,[$enable_dap])
