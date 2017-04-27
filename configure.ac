@@ -1181,6 +1181,10 @@ AM_CONDITIONAL(BUILD_MMAP, [test x$enable_mmap = xyes])
 AM_CONDITIONAL(BUILD_DOCS, [test x$enable_doxygen = xyes])
 AM_CONDITIONAL(SHOW_DOXYGEN_TAG_LIST, [test x$enable_doxygen_tasks = xyes])
 
+# Define a Generic AM_CONDITIONAL to allow disabling
+# of arbitrary parts of Makefile.am files
+AM_CONDITIONAL(MAKEFILE_IGNORE, [test xno = xyes])
+
 # If the machine doesn't have a long long, and we want netCDF-4, then
 # we've got problems!
 if test "x$enable_netcdf_4" = xyes; then
