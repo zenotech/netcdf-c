@@ -5,8 +5,6 @@
 # This entire directory will be skipped if netCDF-4 is not enabled.
 #
 
-SUBDIRS=filter_test
-
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
 
