@@ -190,7 +190,7 @@ createfile() {/* create foo.nc */
     return 0;
 }
 
-
+void
 checkdiskless() {
     int stat;
     int ncid;
@@ -207,7 +207,8 @@ checkdiskless() {
     stat = nc_get_vara_int(ncid, rh_id, start, value_count, (int*)rh_vals);
     check_err(stat,__LINE__,__FILE__);
 
-    for(i = 100; i < HRAPY; i++) {
+    for(i = 0; i < HRAPY; i++) {
+      printf("Row %d:\t",i);
       for(j = 0; j < HRAPX; j++) {
         printf("%d ",rh_vals[i][j]);
       }
