@@ -33,7 +33,7 @@ be read by pnetcdf and vice-versa.
 #define NX    5
 #define FILENAME "tst_pnetcdf.nc"
 
-static void 
+static void
 report(int stat, char* file, int line)
 {
     fflush(stdout); /* Make sure our stdout is synced with stderr.*/
@@ -75,10 +75,6 @@ write(int ncid, int parallel)
         }
     }
     if (stat=nc_enddef(ncid)) Error(stat);;
-<<<<<<< HEAD
-=======
-
->>>>>>> 896fe992ff193edcd1a7f2ad592d144a91de3de5
     for (i=0; i<NVARS; i++) {
 	if(parallel) {
             /* Note NC_INDEPENDENT is the default */
@@ -130,10 +126,6 @@ read(int ncid)
     char str[32];
     size_t start[2], count[2];
     int stat = NC_NOERR;
-<<<<<<< HEAD
-=======
-
->>>>>>> 896fe992ff193edcd1a7f2ad592d144a91de3de5
     /* read variables and check their contents */
     for (i=0; i<NVARS; i++) {
         for (j=0; j<NX; j++) buf[j] = -1;
@@ -185,7 +177,7 @@ int main(int argc, char* argv[])
 
     /* pnetcdf->cdf5 */
     printf("\nWrite using PNETCDF; Read using CDF5\n");
-    
+
     cmode = NC_PNETCDF | NC_CLOBBER;
     if (stat=nc_create_par(FILENAME, cmode, comm, info, &ncid)) Error(stat);
     if (stat=write(ncid,1)) Error(stat);
