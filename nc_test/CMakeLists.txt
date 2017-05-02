@@ -59,7 +59,7 @@ IF(LARGE_FILE_TESTS)
 ENDIF()
 
 IF(BUILD_DISKLESS)
-  SET(TESTFILES ${TESTFILES} tst_diskless tst_diskless3 tst_diskless4)
+  SET(TESTFILES ${TESTFILES} tst_diskless tst_diskless3 tst_diskless4 tst_diskless_mem)
   IF(USE_NETCDF4)
     SET(TESTFILES ${TESTFILES} tst_diskless2)
   ENDIF()
