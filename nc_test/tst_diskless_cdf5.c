@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <netcdf.h>
 
-#define FILENAME "tst_diskless_mem.nc"
+#define FILENAME "tst_diskless_cdf5.nc"
 #define    HRAPY  200
 #define    HRAPX  333
 
@@ -62,7 +62,7 @@ createfile() {/* create foo.nc */
     int amountofprecip_dims[RANK_amountofprecip];
 
     /* enter define mode */
-    stat = nc_create(FILENAME, NC_CLOBBER, &ncid);
+    stat = nc_create(FILENAME, NC_CDF5|NC_CLOBBER, &ncid);
     check_err(stat,__LINE__,__FILE__);
 
     /* define dimensions */

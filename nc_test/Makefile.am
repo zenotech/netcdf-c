@@ -59,7 +59,7 @@ check_PROGRAMS += $(TESTPROGRAMS)
 
 # Build Diskless test helpers
 if BUILD_DISKLESS
-check_PROGRAMS += tst_diskless tst_diskless3 tst_diskless4 tst_diskless_mem
+check_PROGRAMS += tst_diskless tst_diskless3 tst_diskless4 tst_diskless_cdf5
 if USE_NETCDF4
 check_PROGRAMS += tst_diskless2
 endif
