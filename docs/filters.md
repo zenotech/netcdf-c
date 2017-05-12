@@ -37,10 +37,11 @@ Enabling A Compression Filter {#Enable}
 =============================
 
 In order to compress a variable, the netcdf-c library
-must be given two pieces of information:
-(1) some unique identifier for the filter to be used
-and (2) a vector of parameters for
-controlling the action of the compression filter.
+must be given three pieces of information:
+(1) some unique identifier for the filter to be used,
+(2) a vector of parameters for
+controlling the action of the compression filter, and
+(3) a shared library implementation of the filter.
 
 The meaning of the parameters is, of course,
 completely filter dependent and the filter
@@ -52,9 +53,9 @@ equivalently, provide no ''_Filter_Parameters'' attribute
 at all. Defaults are not provided, so this assumes that
 the filter can operate with zero parameters.
 
-The two pieces of  information can be provided in either of two ways:
-using __ncgen__ and via an API call.
-In either case, remember that filtering also requires setting chunking, so the
+The first two pieces of  information can be provided in one of three ways:
+using __ncgen__, via an API call, or via command line parameters to __nccopy__.
+In any case, remember that filtering also requires setting chunking, so the
 variable must also be marked with chunking information.
 
 Using ncgen {#NCGEN}
@@ -111,6 +112,23 @@ the number of parameters in __nparamsp__ and the actual parameters in
 __params__.  As is usual with the netcdf API, one is expected to call
 this function twice. The first time to get __nparams__ and the
 second to get the parameters in client-allocated memory.
+
+Using nccopy {#NCCOPY}
+-------------
+When copying a netcdf file using __nccopy__ it is possible
+to specify filter information for any output variable by
+using the "-F" option on the command line; for example:
+````
+nccopy -F "var,307,9" unfiltered.nc filtered.nc
+````
+Assume that __unfiltered.nc__ has a chunked but not bzip2 compressed
+variable named "var". This command will create that variable in
+the __filtered.nc__ output file but using filter with id 307
+(i.e. bzip2) and with parameter(s) 9 indicating the compression level.
+
+The "-F" option can be used repeatedly as long as the variable name
+part is different. A different filter id and parameters can be
+specified for each such variable.
 
 Dynamic Loading Process {#Process}
 ==========

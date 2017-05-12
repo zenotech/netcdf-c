@@ -10,11 +10,9 @@ variables:
 		var:_ChunkSizes = 4, 4, 4, 4 ;
 		var:_Filter_ID = 307 ;
 		var:_Filter_Parameters = 9 ;
+ 		var:_NoFill = "true" ;
 
 // global attributes:
-		:_NCProperties = "version=1|netcdflibversion=4.4.2-development|hdf5libversion=1.8.17" ;
-		:_SuperblockVersion = 0 ;
-		:_IsNetcdf4 = 1 ;
 		:_Format = "netCDF-4" ;
 data:
 
