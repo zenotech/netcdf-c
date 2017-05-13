@@ -16,8 +16,10 @@
 #include <unistd.h>
 #endif
 #include <string.h>
-#include <netcdf.h>
-#include <netcdf_filter.h>
+#include "netcdf.h"
+#ifdef USE_NETCDF4
+#include "netcdf_filter.h"
+#endif
 #include "nciter.h"
 #include "utils.h"
 #include "chunkspec.h"
@@ -46,6 +48,8 @@ int optind;
 #define ESCAPESD "0123456789"
 #define ESCAPES " !\"#$%&'()*,:;<=>?[]\\^`{|}~"
 
+#ifdef USE_NETCDF4
+
 /* The unique id for a variable requires also the enclosing group id */
 typedef struct VarID {
     int grpid;
@@ -53,7 +57,6 @@ typedef struct VarID {
 } VarID;
 
 #define MAX_FILTER_SPECS 64
-
 #define MAX_FILTER_PARAMS 256
 
 struct FilterSpec {
@@ -62,6 +65,11 @@ struct FilterSpec {
     size_t nparams;
     unsigned int* params;
 };
+
+static int nfilterspecs = 0; /* Number of defined filter specs */
+static struct FilterSpec filterspecs[MAX_FILTER_SPECS];
+
+#endif
 
 /* Global variables for command-line requests */
 char *progname;	       /* for error messages */
@@ -90,9 +98,6 @@ static char** option_lvars = 0;         /* list of variable names specified with
 static bool_t option_varstruct = false;   /* if -v set, copy structure for non-selected vars */
 static int option_compute_chunkcaches = 0; /* default, don't try still flaky estimate of
 					    * chunk cache for each variable */
-
-static int nfilterspecs = 0; /* Number of defined filter specs */
-static struct FilterSpec filterspecs[MAX_FILTER_SPECS];
 
 /* get group id in output corresponding to group igrp in input,
  * given parent group id (or root group id) parid in output. */
@@ -223,6 +228,7 @@ done:
     return stat;
 }    
 #endif
+
 
 static int
 parsefilterspec(const char* optarg0, struct FilterSpec* spec)
@@ -737,6 +743,7 @@ static int
 copy_var_filter(int igrp, int varid, int ogrp, int o_varid)
 {
     int stat = NC_NOERR;
+#ifdef USE_NETCDF4
     VarID vid = {igrp,varid};
     VarID ovid = {ogrp,o_varid};
     /* handle filter parameters, copying from input, overriding with command-line options */
@@ -787,6 +794,7 @@ done:
     /* Cleanup */
     if(spec.filterid > 0 && spec.nparams > 0 && spec.params != NULL)
 	free(spec.params);
+#endif /*USE_NETCDF4*/
     return stat;
 }
 
@@ -1780,7 +1788,9 @@ main(int argc, char**argv)
     char* inputfile = NULL;
     char* outputfile = NULL;
     int c;
+#ifdef USE_NETCDF4
     struct FilterSpec filterspec;
+#endif
 
 /* table of formats for legal -k values */
     struct Kvalues {
@@ -1951,6 +1961,7 @@ main(int argc, char**argv)
 	    option_varstruct = false;
 	    break;
 	case 'F': /* optional filter spec for a specified variable */
+#ifdef USE_NETCDF4
 	    if(!parsefilterspec(optarg,&filterspec)) usage();
 	    if(nfilterspecs >= (MAX_FILTER_SPECS-1))
 		error("too many -F filterspecs\n");
@@ -1958,6 +1969,9 @@ main(int argc, char**argv)
 	    nfilterspecs++;		
 	    // Force output to be netcdf-4
 	    option_kind = NC_FORMAT_NETCDF4;
+#else
+	    error("-F requires netcdf-4");
+#endif
 	    break;
 	default: 
 	    usage();
