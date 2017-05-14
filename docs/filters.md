@@ -48,9 +48,8 @@ completely filter dependent and the filter
 description [3] needs to be consulted. For
 bzip2, for example, a single parameter is provided
 representing the compression level.
-It is legal to provide a zero-length set of parameters or,
-equivalently, provide no ''_Filter_Parameters'' attribute
-at all. Defaults are not provided, so this assumes that
+It is legal to provide a zero-length set of parameters.
+Defaults are not provided, so this assumes that
 the filter can operate with zero parameters.
 
 The first two pieces of  information can be provided in one of three ways:
@@ -62,15 +61,16 @@ Using ncgen {#NCGEN}
 -------------
 
 In a CDL file, compression of a variable can be specified
-by annotating it with the following two attributes.
+by annotating it with the following attribute:
 
-1. ''_Filter_ID'' -- an unsigned integer specifying the filter to apply.
-2. ''_Filter_Parameters'' -- a vector of unsigned integers representing the
+1. ''_Filter'' -- a string containing a comma separated list of
+unsigned integers specifying (1) the filter id to apply, and (2)
+a vector of unsigned integers representing the
 parameters for controlling the operation of the specified filter.
 
-These are "special" attributes, which means that
-they will normally be invisible
-when using __ncdump__ unless the -s flag is specified.
+This is a "special" attribute, which means that
+it will normally be invisible when using
+__ncdump__ unless the -s flag is specified.
 
 Example CDL File (Data elided)
 ------------------------------
@@ -80,8 +80,7 @@ dimensions:
   dim0 = 4 ; dim1 = 4 ; dim2 = 4 ; dim3 = 4 ;
 variables:
   float var(dim0, dim1, dim2, dim3) ;
-    var:_Filter_ID = 307 ;
-    var:_Filter_Parameters = 9 ;
+    var:_Filter = "307,9" ;
     var:_Storage = "chunked" ;
     var:_ChunkSizes = 4, 4, 4, 4 ;
 data:
@@ -128,7 +127,7 @@ the __filtered.nc__ output file but using filter with id 307
 
 The "-F" option can be used repeatedly as long as the variable name
 part is different. A different filter id and parameters can be
-specified for each such variable.
+specified for each occurrence.
 
 Dynamic Loading Process {#Process}
 ==========
@@ -184,7 +183,23 @@ specified for the variable in __nc_def_var_filter__ in order to be used.
 If plugin verification fails, then that plugin is ignored and
 the search continues for another, matching plugin.
 
-Example {#Example}
+Debugging {#Debug}
+-------
+Debugging plugins can be very difficult. You will probably
+need to use the old printf approach for debugging the filter itself.
+
+One case worth mentioning is when you have a dataset that is
+using an unkown filter. For this situation, you need to
+identify what filter(s) are used in the dataset. This can
+be accomplished using this command.
+````
+ncdump -s -h <dataset filename>
+````
+Since ncdump is not being asked to access the data (the -h flag), it
+can obtain the filter information without failures. Then it can print
+out the filter id and the parameters (the -s flag).
+
+Test Case {#TestCase}
 -------
 Within the netcdf-c source tree, the directory __netcdf-c/nc_test4/filter_test__ contains
 a test case for testing dynamic filter writing and reading

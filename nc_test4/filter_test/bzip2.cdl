@@ -8,8 +8,7 @@ variables:
 	float var(dim0, dim1, dim2, dim3) ;
 		var:_Storage = "chunked" ;
 		var:_ChunkSizes = 4, 4, 4, 4 ;
-		var:_Filter_ID = 307 ;
-		var:_Filter_Parameters = 9 ;
+		var:_Filter = "307,9" ;
  		var:_NoFill = "true" ;
 
 // global attributes:
