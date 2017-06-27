@@ -25,7 +25,7 @@ static OCerror rc_search(const char* prefix, const char* rcfile, char** pathp);
 
 static int rcreadline(FILE* f, char* more, int morelen);
 static void rctrim(char* text);
-static char* combinecredentials(const char* user, const char* pwd);
+static int combinecredentials(const char* user, const char* pwd, char**);
 
 static void storedump(char* msg, struct OCTriple*, int ntriples);
 
@@ -57,35 +57,41 @@ ocextract_credentials(const char *url, char **userpwd, char **result_url)
 	ncurifree(parsed);
 	return OCTHROW(OC_EBADURL);
     }
-    if(userpwd) *userpwd = combinecredentials(parsed->user,parsed->password);
+    if(userpwd) {
+	int stat = combinecredentials(parsed->user,parsed->password,userpwd);
+	if(stat) return stat;
+    }
     ncurifree(parsed);
     return OC_NOERR;
 }
 
-char*
-occombinehostport(const NCURI* uri)
+int
+occombinehostport(const NCURI* uri, char** hostportp)
 {
     char* hp;
     int len = 0;
 
-    if(uri->host == NULL)
-	return NULL;
-    else
-	len += strlen(uri->host);
+    if(uri->host == NULL) {
+	/* Assume a protocol like file that has no host */
+	if(hostportp) *hostportp = NULL;
+	return NC_NOERR;
+    }
+    len += strlen(uri->host);
     if(uri->port != NULL)
 	len += strlen(uri->port);
     hp = (char*)malloc(len+1);
     if(hp == NULL)
-	return NULL;
+	return OC_ENOMEM;
     if(uri->port == NULL)
         occopycat(hp,len+1,1,uri->host);
     else
         occopycat(hp,len+1,3,uri->host,":",uri->port);
-    return hp;
+    if(hostportp) *hostportp = hp;
+    return OC_NOERR;
 }
 
-static char*
-combinecredentials(const char* user, const char* pwd)
+static int
+combinecredentials(const char* user, const char* pwd, char** credsp)
 {
     int userPassSize;
     char *userPassword;
@@ -96,11 +102,11 @@ combinecredentials(const char* user, const char* pwd)
     userPassSize = strlen(user) + strlen(pwd) + 2;
     userPassword = malloc(sizeof(char) * userPassSize);
     if (!userPassword) {
-        nclog(NCLOGERR,"Out of Memory\n");
-	return NULL;
+	return OC_ENOMEM;
     }
     occopycat(userPassword,userPassSize-1,3,user,":",pwd);
-    return userPassword;
+    if(credsp) *credsp = userPassword;
+    return OC_NOERR;
 }
 
 static int
@@ -427,10 +433,10 @@ ocrc_process(OCstate* state)
        to getinfo e.g. user:pwd from url
     */
 
-    url_userpwd = combinecredentials(uri->user,uri->password);
-    url_hostport = occombinehostport(uri);
-    if(url_hostport == NULL)
-	return OC_ENOMEM;
+    stat = combinecredentials(uri->user,uri->password,&url_userpwd);
+    if(stat) return stat;
+    stat = occombinehostport(uri,&url_hostport);
+    if(stat) return stat;
 
     value = ocrc_lookup("HTTP.DEFLATE",url_hostport);
     if(value != NULL) {
@@ -555,7 +561,8 @@ ocrc_process(OCstate* state)
 	    userpwd = ocrc_lookup("HTTP.CREDENTIALS.USERPASSWORD",url_hostport);
 	}
 	if(userpwd == NULL && user != NULL && pwd != NULL) {
-	    userpwd = combinecredentials(user,pwd);
+	    stat = combinecredentials(user,pwd,&userpwd);
+	    if(stat) goto done;
 	    state->creds.userpwd = userpwd;
 	} else if(userpwd != NULL)
 	    state->creds.userpwd = strdup(userpwd);

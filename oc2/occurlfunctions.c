@@ -246,7 +246,8 @@ oc_set_curl_options(OCstate* state)
     char* hostport = NULL;
     struct OCCURLFLAG* ocflag = NULL;
 
-    hostport = occombinehostport(state->uri);
+    stat = occombinehostport(state->uri,&hostport);
+    if(stat) goto done;
     if(hostport == NULL) {
       hostport = (char*)malloc(sizeof(char)*1);
       *hostport = '\0';

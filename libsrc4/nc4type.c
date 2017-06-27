@@ -15,7 +15,7 @@ $Id: nc4type.c,v 1.73 2010/05/25 17:54:24 dmh Exp $
 #include "nc4internal.h"
 #include "nc4dispatch.h"
 
-#define NUM_ATOMIC_TYPES 13
+#define NUM_ATOMIC_TYPES ((NC_MAX_ATOMIC_TYPE)+1)
 char atomic_name[NUM_ATOMIC_TYPES][NC_MAX_NAME + 1] = {"none", "byte", "char", 
 						       "short", "int", "float", 
 						       "double", "ubyte",
@@ -256,8 +256,7 @@ add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
 #define NC_DOUBLE_LEN 8
 #define NC_INT64_LEN 8
 
-/* Get the name and size of a type. For strings, 1 is returned. For
- * VLEN the base type len is returned. */
+/* Get the name and size of a type. For VLEN the sizeof(nc_vlen_t) is returned. */
 int
 NC4_inq_type(int ncid, nc_type typeid1, char *name, size_t *size)
 {
@@ -297,12 +296,9 @@ NC4_inq_type(int ncid, nc_type typeid1, char *name, size_t *size)
    {
       if (type->nc_type_class == NC_VLEN)
 	 *size = sizeof(nc_vlen_t);
-      else if (type->nc_type_class == NC_STRING)
-	 *size = 1;
       else
 	 *size = type->size;
    }
-   
    return NC_NOERR;
 }
 
@@ -738,9 +734,19 @@ int
 NC4_get_vlen_element(int ncid, int typeid1, const void *vlen_element, 
 		    size_t *len, void *data)
 {
+   int stat = NC_NOERR;
    const nc_vlen_t *tmp = (nc_vlen_t*)vlen_element;
-   int type_size = 4;
+   size_t type_size = 0;
+   nc_type basetype = 0;
 
+   /* Get the base type of the vlen */
+   stat = NC4_inq_user_type(ncid,typeid1,NULL,NULL,&basetype,NULL,NULL);
+   if(stat != NC_NOERR)
+	return stat;
+   /* Get the size of the base type of the vlen */
+   stat = NC4_inq_type(ncid,basetype,NULL,&type_size);
+   if(stat != NC_NOERR)
+	return stat;
    *len = tmp->len;
    memcpy(data, tmp->p, tmp->len * type_size);
    return NC_NOERR;
