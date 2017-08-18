@@ -6,8 +6,20 @@ Parallel IO Automatic Optimization {#pario_auto_optimization}
 Overview {#h5tuner_overview}
 =============
 
-In cooperation with Engility and the HDF group, you are now able to optimize parallel I/O parameters for a given dataset using a library and python script provided by the HDF group. The tool which provides this functionality has two components; the injection library `libautotuner.so` and the python script which tunes the parameters, `h5evolve`.  `h5evolve` uses **Genetic Programming** to determine the appropriate parameters for file I/O in a parallel/HPC environment.
+In cooperation with Engility<sup>1</sup> and the HDF group<sup>2</sup>, you are now able to optimize parallel I/O parameters for a given dataset using a library and python script provided by the HDF group. The tool which provides this functionality has two components; the injection library `libautotuner.so` and the python script which tunes the parameters, `h5evolve`.  `h5evolve` uses **Genetic Programming** to determine the appropriate parameters for file I/O in a parallel/HPC environment.
 
+Genetic Programming {#h5tuner_genetic_programming}
+-------------------
+
+*Genetic Programming* (GP) describes a specific type of machine learning.  A GP system uses a *genetic algorithm* (GA) to "evolve" the parameters in a system from a set of base (initial) values towards a more optimal set of parameters.  A GA typically uses some combination of previous parameters (in addition to random 'mutations') at each step, looking for an optimal combination. This is analogous to the way genes behave during biologic reproduction, hence the moniker 'Genetic'.  
+
+The `h5evolve` script uses `libautotuner` to inject new parameters into the `libhdf5` I/O routines, looking for a set of optimal parameters which increase the I/O efficiency and speed for a given dataset.  This can be beneficial when writing very large datasets which are bound by I/O.  
+
+For more information on genetic programming/algorithms, see the following resources:
+
+* [http://geneticprogramming.com/](http://geneticprogramming.com/)
+* [https://en.wikipedia.org/wiki/Genetic_programming](https://en.wikipedia.org/wiki/Genetic_programming)
+* [https://www.britannica.com/technology/genetic-algorithm](https://www.britannica.com/technology/genetic-algorithm)
 
 Installation and Reference Documentation {#h5tuner_links}
 ---------------------------------------------
@@ -67,3 +79,10 @@ $ make check
 h5evolve.py will be generated from h5evolve.py.in by configure. Currently, there is no automatic installation for h5evolve.py. h5evolve can be run by just executing:
 ```
 $ python h5evolve.py [options]
+
+
+References
+-----------
+
+1: [http://www.engilitycorp.com/](http://www.engilitycorp.com/)
+2: [http://www.hdfgroup.org](http://www.hdfgroup.org)
