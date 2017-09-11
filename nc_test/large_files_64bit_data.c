@@ -83,7 +83,8 @@ int main(int argc, char *argv[])
     free(buf2);
     /* Cleanup. */
     (void) remove(FILE_NAME_CDF5);
-  } /* End CDF5 File Test */
+    } /* End CDF5 File Test */
+  }
 
 #ifdef USE_NETCDF4
   /* Test nc4 Format.*/
