@@ -12,7 +12,7 @@ AM_CPPFLAGS += -DTOPBINDIR=${abs_top_bindir}
 
 # These files are created by the tests.
 CLEANFILES = nc_test_classic.nc nc_test_64bit.nc nc_test_netcdf4.nc	\
-tst_*.nc t_nc.nc large_files.nc quick_large_files.nc \
+tst_*.nc t_nc.nc large_files_64offset.nc quick_large_files.nc \
 tst_diskless.nc tst_diskless2.nc \
 tst_diskless3.nc tst_diskless3_file.cdl tst_diskless3_memory.cdl \
 tst_diskless4.cdl tst_diskless4.nc tst_formatx.nc nc_test_cdf5.nc \
@@ -46,7 +46,8 @@ AM_CPPFLAGS += -I$(top_builddir)/liblib -I$(top_builddir)/include -I$(top_srcdir
 # If the user asked for large file tests, then add them.
 if LARGE_FILE_TESTS
 TESTPROGRAMS += quick_large_files tst_big_var6 tst_big_var2	\
-tst_big_rvar tst_big_var tst_large large_files tst_large_cdf5
+tst_big_rvar tst_big_var tst_large large_files_64bit_offset \
+tst_large_cdf5
 endif # LARGE_FILE_TESTS
 
 if BUILD_BENCHMARKS
