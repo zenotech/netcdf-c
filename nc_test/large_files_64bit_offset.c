@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <netcdf.h>
 
-#define FILE_NAME "large_files.nc"
+#define FILE_NAME "large_files_64offset.nc"
 
 static void
 check_err(const int stat, const int line, const char *file) {
@@ -47,13 +47,13 @@ main(int argc, char **argv) {
    int n_dim;
 
 #define NUMRECS 2
-#define I_LEN 4106
-   //#define I_LEN 5
+   //#define I_LEN 4106
+#define I_LEN 5
    //#if 0
-   //#define J_LEN 214700000
+#define J_LEN 214700000
    //#endif
    //#define J_LEN   500000000
-#define J_LEN 1023
+   //#define J_LEN 1023
 #define K_LEN 1023
 #define N_LEN 2
 
@@ -198,7 +198,7 @@ main(int argc, char **argv) {
    printf("*** Tests successful!\n");
 
    /* Delete the file. */
-   (void) remove(file_name);
+   //(void) remove(file_name);
 
    return 0;
 }
