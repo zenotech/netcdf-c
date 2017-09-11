@@ -198,7 +198,7 @@ main(int argc, char **argv) {
    printf("*** Tests successful!\n");
 
    /* Delete the file. */
-   //(void) remove(file_name);
+   (void) remove(file_name);
 
    return 0;
 }
