@@ -62,7 +62,7 @@ typedef enum {
  */
 typedef struct {
 	/* all xdr'd */
-	NC_string *name;
+	NC_string *name; /* must be first so (NC_string*)dim is legal for nc_hashmap */
 	size_t size;
 } NC_dim;
 
@@ -160,7 +160,7 @@ elem_NC_attrarray(const NC_attrarray *ncap, size_t elem);
  */
 typedef struct NC_var {
 	/* begin xdr */
-	NC_string *name;
+	NC_string *name; /* must be first so (NC_string*)dim is legal for nc_hashmap */
 	/* next two: formerly NC_iarray *assoc */ /* user definition */
 	size_t ndims;	/* assoc->count */
 	int *dimids;	/* assoc->value */

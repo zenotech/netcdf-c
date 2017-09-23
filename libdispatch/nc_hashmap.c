@@ -51,14 +51,20 @@ rehash(NC_hashmap* hm)
     hm->count = 0;
 
     while(size > 0) {
+	NC_hentry* oldentry;
 	--size;
+	oldentry = &oldtable[size];
         if(oldtable[size].flags == ACTIVE) {
+	    NC_hobject* key;
             size_t index = oldtable[size].data;
-	    NC_hobject* object = hm->objects[index];
-            NC_hashmapadd(hm, index, *object);
+	    key = hm->objects[index];
+if(index == 14) {
+int x = 0;
+}
+            NC_hashmapadd(hm, index, *key);
 #ifdef VERIFY
 	    { size_t data;
-            ASSERT(NC_hashmapget(hm, *object, &data) == 1);
+            ASSERT(NC_hashmapget(hm, *key, &data) == 1);
 	    ASSERT(data == index);
 	    }
 #endif
@@ -71,15 +77,17 @@ rehash(NC_hashmap* hm)
 /* Locate where given object is or should be placed in indexp.
    if fail to find spot return 0 else 1.
    If deletok then a deleted slot is ok to return;
+   If hashkeyp is non-null, then return hashkey
  */
 static int
-locate(NC_hashmap* hash, NC_hobject target, size_t* indexp, int deletedok)
+locate(NC_hashmap* hash, NC_hobject target, size_t* indexp, size_t* hashkeyp, int deletedok)
 {
     size_t i;
     size_t key = hash_fast(target.cp, target.nchars);
     size_t index = key % hash->size;
     size_t step = 1; /* simple linear probe */
 
+    if(hashkeyp) *hashkeyp = key;
     /* Search table using linear probing */
     for (i = 0; i < hash->size; i++) {
         NC_hentry entry = hash->table[index];
@@ -125,28 +133,26 @@ NC_hashmapcreate(size_t startsize, NC_hobject** objects)
 }
 
 void
-NC_hashmapadd(NC_hashmap* hash, size_t data, const NC_hobject object)
+NC_hashmapadd(NC_hashmap* hash, size_t data, const NC_hobject key)
 {
-    size_t key = hash_fast(object.cp, object.nchars);
-
     if(hash->size*3/4 <= hash->count)
 	rehash(hash);
 
     for(;;) {
-	size_t index;
-	if(!locate(hash,object,&index,1)) {
+	size_t index, hashkey;
+	if(!locate(hash,key,&index,&hashkey,1)) {
 	    rehash(hash);
 	    continue; /* try on larger table */
 	}
-        NC_hentry entry = hash->table[index];
-	if(entry.flags & ACTIVE) {
-	    /* object already exists in table => overwrite */
-	    hash->table[index].data = data;
+        NC_hentry* entry = &hash->table[index];
+	if(entry->flags & ACTIVE) {
+	    /* key already exists in table => overwrite */
+	    entry->data = data;
 	    return;
         } else { /* !ACTIVE || DELETED */
-	    hash->table[index].flags = ACTIVE;
-	    hash->table[index].data = data;
-	    hash->table[index].hashkey = key;
+	    entry->flags = ACTIVE;
+	    entry->data = data;
+	    entry->hashkey = hashkey;
 	    ++hash->count;
 	    return;
 	}
@@ -154,12 +160,11 @@ NC_hashmapadd(NC_hashmap* hash, size_t data, const NC_hobject object)
 }
 
 int
-NC_hashmapremove(NC_hashmap* hash, const NC_hobject object, size_t* datap)
+NC_hashmapremove(NC_hashmap* hash, const NC_hobject key, size_t* datap)
 {
-    size_t key = hash_fast(object.cp, object.nchars);
     size_t index;
     NC_hentry entry;
-    if(!locate(hash,object,&index,0))
+    if(!locate(hash,key,&index,NULL,0))
 	return 0; /* not present */
     entry = hash->table[index];
     if(entry.flags & ACTIVE) { /* matching entry found */
@@ -172,12 +177,12 @@ NC_hashmapremove(NC_hashmap* hash, const NC_hobject object, size_t* datap)
 }
 
 int
-NC_hashmapget(NC_hashmap* hash, const NC_hobject object, size_t* datap)
+NC_hashmapget(NC_hashmap* hash, const NC_hobject key, size_t* datap)
 {
     if(hash->count) {
         size_t index;
         NC_hentry entry;
-        if(!locate(hash,object,&index,0))
+        if(!locate(hash,key,&index,NULL,0))
 	    return 0; /* not present */
 	entry = hash->table[index];
 	if(entry.flags & ACTIVE) {
