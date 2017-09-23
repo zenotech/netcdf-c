@@ -134,6 +134,7 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
    int dimid;
    NC_dim ** loc;
    char *name;
+   NC_hobject object;
 
    assert(ncap != NULL);
 
@@ -149,7 +150,10 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
       stat = nc_utf8_normalize((const unsigned char *)uname,(unsigned char **)&name);
 	if(stat != NC_NOERR)
 	 return stat;
-      dimid = (int)NC_hashmapGetDim(ncap, name);
+      object.cp = name;
+      object.nchars = strlen(name);
+      if(NC_hashmapget(ncap->hashmap, object, &dimid) == 0)
+	return -1;
       free(name);
       if (dimid >= 0) {
 	if (dimpp != NULL)
@@ -204,7 +208,7 @@ free_NC_dimarrayV(NC_dimarray *ncap)
 	if(ncap->nalloc == 0)
 		return;
 
-	NC_hashmapDelete(ncap->hashmap);
+	NC_hashmapfree(ncap->hashmap);
 	ncap->hashmap = NULL;
 
 	assert(ncap->value != NULL);
@@ -283,7 +287,7 @@ incr_NC_dimarray(NC_dimarray *ncap, NC_dim *newelemp)
 			return NC_ENOMEM;
 		ncap->value = vp;
 		ncap->nalloc = NC_ARRAY_GROWBY;
-		ncap->hashmap = NC_hashmapCreate(0);
+		ncap->hashmap = NC_hashmapcreate(0,(NC_hobject**)ncap->value);
 	}
 	else if(ncap->nelems +1 > ncap->nalloc)
 	{
@@ -297,7 +301,7 @@ incr_NC_dimarray(NC_dimarray *ncap, NC_dim *newelemp)
 
 	if(newelemp != NULL)
 	{
-		NC_hashmapAddDim(ncap, (long)ncap->nelems, newelemp->name->cp);
+		NC_hashmapadd(ncap->hashmap, (size_t)ncap->nelems, *newelemp->name);
 		ncap->value[ncap->nelems] = newelemp;
 		ncap->nelems++;
 	}
@@ -486,11 +490,11 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 			return NC_ENOMEM;
 
 		/* Remove old name from hashmap; add new... */
-		NC_hashmapRemoveDim(&ncp->dims, old->cp);
+		NC_hashmapremove(ncp->dims.hashmap, *old, NULL);
 
 		dimp->name = newStr;
 
-		NC_hashmapAddDim(&ncp->dims, dimid, newStr->cp);
+		NC_hashmapadd(ncp->dims.hashmap, dimid, *newStr);
 		free_NC_string(old);
 
 		return NC_NOERR;
@@ -500,14 +504,14 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 
 
 	/* Remove old name from hashmap; add new... */
-	NC_hashmapRemoveDim(&ncp->dims, old->cp);
+	NC_hashmapremove(ncp->dims.hashmap, *old, NULL);
 
 	status = set_NC_string(dimp->name, newname);
 	free(newname);
 	if(status != NC_NOERR)
 		return status;
 
-	NC_hashmapAddDim(&ncp->dims, dimid, dimp->name->cp);
+	NC_hashmapadd(ncp->dims.hashmap, dimid, *dimp->name);
 
 	set_NC_hdirty(ncp);
 
