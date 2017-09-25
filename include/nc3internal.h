@@ -62,7 +62,7 @@ typedef enum {
  */
 typedef struct {
 	/* all xdr'd */
-	NC_string *name; /* must be first so (NC_string*)dim is legal for nc_hashmap */
+	NC_string* name;
 	size_t size;
 } NC_dim;
 
@@ -159,8 +159,11 @@ elem_NC_attrarray(const NC_attrarray *ncap, size_t elem);
  * NC variable: description and data
  */
 typedef struct NC_var {
+	size_t xsz;		/* xszof 1 element */
+	size_t *shape; /* compiled info: dim->size of each dim */
+	off_t *dsizes; /* compiled info: the right to left product of shape */
 	/* begin xdr */
-	NC_string *name; /* must be first so (NC_string*)dim is legal for nc_hashmap */
+	NC_string* name;
 	/* next two: formerly NC_iarray *assoc */ /* user definition */
 	size_t ndims;	/* assoc->count */
 	int *dimids;	/* assoc->value */
@@ -169,9 +172,6 @@ typedef struct NC_var {
 	size_t len;		/* the total length originally allocated */
 	off_t begin;
 	/* end xdr */
-	size_t xsz;		/* xszof 1 element */
-	size_t *shape; /* compiled info: dim->size of each dim */
-	off_t *dsizes; /* compiled info: the right to left product of shape */
 } NC_var;
 typedef struct NC_vararray {
 	size_t nalloc;		/* number allocated >= nelems */

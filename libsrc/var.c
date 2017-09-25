@@ -309,7 +309,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 		ncap->value = vp;
 		ncap->nalloc = NC_ARRAY_GROWBY;
 
-		ncap->hashmap = NC_hashmapcreate(0,(NC_hobject**)ncap->value);
+		ncap->hashmap = NC_hashmapcreate(0);
 	}
 	else if(ncap->nelems +1 > ncap->nalloc)
 	{
@@ -323,7 +323,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 
 	if(newelemp != NULL)
 	{
-		NC_hashmapadd(ncap->hashmap, (size_t)ncap->nelems, *newelemp->name);
+		NC_hashmapadd(ncap->hashmap, (size_t)ncap->nelems, newelemp->name->cp);
 		ncap->value[ncap->nelems] = newelemp;
 		ncap->nelems++;
 	}
@@ -358,10 +358,9 @@ NC_hvarid
 int
 NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
 {
-	int hash_var_id,i;
+	int hash_var_id;
 	char *name;
 	int stat;
-	NC_hobject object;
 
 	assert(ncap != NULL);
 
@@ -374,8 +373,7 @@ NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
         if(stat != NC_NOERR)
 	    return stat;
 
-	object.cp = name; object.nchars = strlen(name);
-	if(NC_hashmapget(ncap->hashmap, object, &hash_var_id) == 0)
+	if(NC_hashmapget(ncap->hashmap, name, &hash_var_id) == 0)
 	    return -1;
 	free(name);
 	if (hash_var_id >= 0) {
@@ -762,37 +760,35 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 		return status;
 	}
 
-
 	old = varp->name;
         status = nc_utf8_normalize((const unsigned char *)unewname,(unsigned char **)&newname);
         if(status != NC_NOERR)
 	    return status;
 	if(NC_indef(ncp))
 	{
-		size_t hashid = 0;
 		/* Remove old name from hashmap; add new... */
-		NC_hashmapremove(ncp->vars.hashmap, *old, &hashid);
+		NC_hashmapremove(ncp->vars.hashmap, old->cp, NULL);
 
 		newStr = new_NC_string(strlen(newname),newname);
 		free(newname);
 		if(newStr == NULL)
 			return(-1);
 		varp->name = newStr;
-		NC_hashmapadd(ncp->vars.hashmap, varid, *newStr);
+		NC_hashmapadd(ncp->vars.hashmap, varid, newStr->cp);
 		free_NC_string(old);
 		return NC_NOERR;
 	}
 
 	/* else, not in define mode */
 	/* Remove old name from hashmap; add new... */
-	NC_hashmapremove(ncp->vars.hashmap, *old, NULL);
+	NC_hashmapremove(ncp->vars.hashmap, old->cp, NULL);
 
 	status = set_NC_string(varp->name, newname);
 	free(newname);
 	if(status != NC_NOERR)
 		return status;
 
-	NC_hashmapadd(ncp->vars.hashmap, varid, *varp->name);
+	NC_hashmapadd(ncp->vars.hashmap, varid, varp->name->cp);
 
 	set_NC_hdirty(ncp);
 

@@ -55,23 +55,21 @@ rehash(NC_hashmap* hm)
 	--size;
 	oldentry = &oldtable[size];
         if(oldtable[size].flags == ACTIVE) {
-	    NC_hobject* key;
             size_t index = oldtable[size].data;
-	    key = hm->objects[index];
-if(index == 14) {
-int x = 0;
-}
-            NC_hashmapadd(hm, index, *key);
+	    char* key = oldtable[size].key;
+            NC_hashmapadd(hm, index, key);
 #ifdef VERIFY
 	    { size_t data;
-            ASSERT(NC_hashmapget(hm, *key, &data) == 1);
+            ASSERT(NC_hashmapget(hm, key, &data) == 1);
 	    ASSERT(data == index);
 	    }
 #endif
         }
     }
     free(oldtable);
-    ASSERT(count == hm->count);
+//    ASSERT(count == hm->count);
+    if(count != hm->count)
+	abort();
 }
 
 /* Locate where given object is or should be placed in indexp.
@@ -80,23 +78,22 @@ int x = 0;
    If hashkeyp is non-null, then return hashkey
  */
 static int
-locate(NC_hashmap* hash, NC_hobject target, size_t* indexp, size_t* hashkeyp, int deletedok)
+locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int deletedok)
 {
     size_t i;
-    size_t key = hash_fast(target.cp, target.nchars);
-    size_t index = key % hash->size;
+    size_t keylen = strlen(key);
+    size_t hashkey = hash_fast(key, keylen);
+    size_t index = hashkey % hash->size;
     size_t step = 1; /* simple linear probe */
 
-    if(hashkeyp) *hashkeyp = key;
+    if(hashkeyp) *hashkeyp = hashkey;
     /* Search table using linear probing */
     for (i = 0; i < hash->size; i++) {
         NC_hentry entry = hash->table[index];
         size_t pos = entry.data;
         if(entry.flags & ACTIVE) {
-            if(entry.hashkey == key
-               && strncmp(target.cp,
-				hash->objects[pos]->cp,
-		           	target.nchars) == 0) {
+            if(entry.hashkey == hashkey
+               && strncmp(key,entry.key,keylen)==0) {
 		if(indexp) *indexp = index;
 		return 1;
             }
@@ -114,7 +111,7 @@ locate(NC_hashmap* hash, NC_hobject target, size_t* indexp, size_t* hashkeyp, in
 }
 
 NC_hashmap*
-NC_hashmapcreate(size_t startsize, NC_hobject** objects)
+NC_hashmapcreate(size_t startsize)
 {
     NC_hashmap* hm = (NC_hashmap*)malloc(sizeof(NC_hashmap));
 
@@ -128,12 +125,11 @@ NC_hashmapcreate(size_t startsize, NC_hobject** objects)
     hm->table = (NC_hentry*)calloc(sizeof(NC_hentry), (size_t)startsize);
     hm->size = startsize;
     hm->count = 0;
-    hm->objects = objects;
     return hm;
 }
 
 void
-NC_hashmapadd(NC_hashmap* hash, size_t data, const NC_hobject key)
+NC_hashmapadd(NC_hashmap* hash, size_t data, const char* key)
 {
     if(hash->size*3/4 <= hash->count)
 	rehash(hash);
@@ -153,6 +149,7 @@ NC_hashmapadd(NC_hashmap* hash, size_t data, const NC_hobject key)
 	    entry->flags = ACTIVE;
 	    entry->data = data;
 	    entry->hashkey = hashkey;
+	    entry->key = (char*)key;
 	    ++hash->count;
 	    return;
 	}
@@ -160,7 +157,7 @@ NC_hashmapadd(NC_hashmap* hash, size_t data, const NC_hobject key)
 }
 
 int
-NC_hashmapremove(NC_hashmap* hash, const NC_hobject key, size_t* datap)
+NC_hashmapremove(NC_hashmap* hash, const char* key, size_t* datap)
 {
     size_t index;
     NC_hentry entry;
@@ -169,6 +166,7 @@ NC_hashmapremove(NC_hashmap* hash, const NC_hobject key, size_t* datap)
     entry = hash->table[index];
     if(entry.flags & ACTIVE) { /* matching entry found */
 	hash->table[index].flags = DELETED; /* also turn off ACTIVE */
+	hash->table[index].key = NULL;
 	--hash->count;
 	if(datap) *datap = hash->table[index].data;
 	return 1;
@@ -177,7 +175,7 @@ NC_hashmapremove(NC_hashmap* hash, const NC_hobject key, size_t* datap)
 }
 
 int
-NC_hashmapget(NC_hashmap* hash, const NC_hobject key, size_t* datap)
+NC_hashmapget(NC_hashmap* hash, const char* key, size_t* datap)
 {
     if(hash->count) {
         size_t index;
@@ -1894,3 +1892,54 @@ static unsigned int NC_primes[] = {
 };
 
 static unsigned int NC_nprimes = (sizeof(NC_primes) / sizeof(unsigned int));
+
+/**************************************************/
+/* Debug support */
+void
+printhstring(NC_string* s)
+{
+    size_t n;
+    char ss[256];
+
+    n = (s == NULL?0:s->nchars);
+    strcpy(ss,"NULL");
+    if(s != NULL)
+	strncpy(ss,s->cp,sizeof(ss)-1);
+    ss[255] = '\0';
+    if(n == 0 || n > 256)
+	strcpy(ss,"<undefined>");
+    fprintf(stderr,"%lx %ld |%s|\n",s,n,ss);
+    fflush(stderr);
+}
+
+void
+printhashmap(NC_hashmap* hm)
+{
+    size_t i;
+    if(hm == NULL) {fprintf(stderr,"NULL"); fflush(stderr); return;}
+    fprintf(stderr,"{size=%d count=%d table=0x%x}\n",hm->size,hm->count,(void*)hm->table);
+    if(hm->size > 4000) {
+	fprintf(stderr,"MALFORMED\n");
+	return;
+    }
+    for(i=0;i<hm->size;i++) {
+	NC_hentry e = hm->table[i];
+	if(e.flags == ACTIVE && e.key == NULL) {
+	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%d data=%d key=NULL\n",e.hashkey,e.data);
+	} else if(e.flags == ACTIVE && e.key != NULL) {
+	    char nm[64];
+	    int elided = 0;
+	    size_t len = strlen(e.key);
+	    if(len > 63) {elided = 1; len = 63;}
+	    memcpy(nm,e.key,len);
+	    nm[63] = '\0';
+	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%d data=%d key=0x%x |%s|%s\n",
+			e.hashkey,e.data,nm,e.key,(elided?"...":""));
+	} else if(e.flags == DELETED) {
+	    fprintf(stderr,"[%d] flags=DELETED hashkey=%d\n",i,e.hashkey);
+	} else {/*empty*/
+	    fprintf(stderr,"[%d] flags=EMPTY\n",i);
+	}
+    }
+    fflush(stderr);
+}
