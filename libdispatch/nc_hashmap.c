@@ -27,10 +27,13 @@ extern unsigned int hash_fast(const void* key, size_t length);
 /* this should be prime */
 #define TABLE_STARTSIZE 1021
 
+/* Flags must be powers of 2 */
 /* Slot has data */
 #define ACTIVE 1
 /* Slot had its value deleted */
-#define DELETED 1
+#define DELETED 2
+/* Slot is unused */
+#define EMPTY 0
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
@@ -67,9 +70,7 @@ rehash(NC_hashmap* hm)
         }
     }
     free(oldtable);
-//    ASSERT(count == hm->count);
-    if(count != hm->count)
-	abort();
+    ASSERT(count == hm->count);
 }
 
 /* Locate where given object is or should be placed in indexp.
@@ -164,6 +165,7 @@ NC_hashmapremove(NC_hashmap* hash, const char* key, size_t* datap)
     if(!locate(hash,key,&index,NULL,0))
 	return 0; /* not present */
     entry = hash->table[index];
+
     if(entry.flags & ACTIVE) { /* matching entry found */
 	hash->table[index].flags = DELETED; /* also turn off ACTIVE */
 	hash->table[index].key = NULL;
@@ -1917,7 +1919,7 @@ printhashmap(NC_hashmap* hm)
 {
     size_t i;
     if(hm == NULL) {fprintf(stderr,"NULL"); fflush(stderr); return;}
-    fprintf(stderr,"{size=%d count=%d table=0x%x}\n",hm->size,hm->count,(void*)hm->table);
+    fprintf(stderr,"{size=%ld count=%ld table=0x%lx}\n",hm->size,hm->count,(void*)hm->table);
     if(hm->size > 4000) {
 	fprintf(stderr,"MALFORMED\n");
 	return;
@@ -1925,7 +1927,7 @@ printhashmap(NC_hashmap* hm)
     for(i=0;i<hm->size;i++) {
 	NC_hentry e = hm->table[i];
 	if(e.flags == ACTIVE && e.key == NULL) {
-	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%d data=%d key=NULL\n",e.hashkey,e.data);
+	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%ld key=NULL\n",i,e.hashkey,e.data);
 	} else if(e.flags == ACTIVE && e.key != NULL) {
 	    char nm[64];
 	    int elided = 0;
@@ -1933,10 +1935,10 @@ printhashmap(NC_hashmap* hm)
 	    if(len > 63) {elided = 1; len = 63;}
 	    memcpy(nm,e.key,len);
 	    nm[63] = '\0';
-	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%d data=%d key=0x%x |%s|%s\n",
-			e.hashkey,e.data,nm,e.key,(elided?"...":""));
+	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%ld key=0x%lx |%s|%s\n",
+			i, e.hashkey,e.data,nm,e.key,(elided?"...":""));
 	} else if(e.flags == DELETED) {
-	    fprintf(stderr,"[%d] flags=DELETED hashkey=%d\n",i,e.hashkey);
+	    fprintf(stderr,"[%d] flags=DELETED hashkey=%ld\n",i,e.hashkey);
 	} else {/*empty*/
 	    fprintf(stderr,"[%d] flags=EMPTY\n",i);
 	}
