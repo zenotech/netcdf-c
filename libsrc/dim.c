@@ -499,6 +499,12 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 
 	/* else, not in define mode */
 
+	/* If new name is longer than old, then complain,
+           but otherwise, no change (test is same as set_NC_string)*/
+	if(dimp->name->nchars < strlen(newname)) {
+	    free(newname);
+	    return NC_ENOTINDEFINE;
+	}
 
 	/* Remove old name from hashmap; add new... */
 	NC_hashmapremove(ncp->dims.hashmap, old->cp, NULL);

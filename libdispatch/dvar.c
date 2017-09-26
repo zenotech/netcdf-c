@@ -250,6 +250,7 @@ nc_inq_ncid().
 \returns ::NC_EMAXNAME Name is too long.
 \returns ::NC_ENAMEINUSE Name in use.
 \returns ::NC_ENOMEM Out of memory.
+\returns ::NC_ENOTINDEFINE Not in define mode and new name is longer than old name
 
 \section nc_rename_var_example Example
 

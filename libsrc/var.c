@@ -780,13 +780,21 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 	}
 
 	/* else, not in define mode */
-	/* Remove old name from hashmap; add new... */
+	/* If new name is longer than old, then complain,
+           but otherwise, no change (test is same as set_NC_string)*/
+	if(varp->name->nchars < strlen(newname)) {
+	    free(newname);
+	    return NC_ENOTINDEFINE;
+	}
+
+        /* Remove old name from hashmap; add new... */
 	NC_hashmapremove(ncp->vars.hashmap, old->cp, NULL);
 
 	status = set_NC_string(varp->name, newname);
 	free(newname);
+
 	if(status != NC_NOERR)
-		return status;
+ 	    return status;
 
 	NC_hashmapadd(ncp->vars.hashmap, varid, varp->name->cp);
 
