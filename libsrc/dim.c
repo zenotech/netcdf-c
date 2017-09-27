@@ -134,6 +134,7 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
    int dimid;
    NC_dim ** loc;
    char *name;
+   uintptr_t data;
 
    assert(ncap != NULL);
 
@@ -149,9 +150,10 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
       stat = nc_utf8_normalize((const unsigned char *)uname,(unsigned char **)&name);
 	if(stat != NC_NOERR)
 	 return stat;
-      if(NC_hashmapget(ncap->hashmap, name, &dimid) == 0)
+      if(NC_hashmapget(ncap->hashmap, name, &data) == 0)
 	return -1;
       free(name);
+      dimid = (int)data;
       if (dimid >= 0) {
 	if (dimpp != NULL)
 	  *dimpp = ncap->value[dimid];
@@ -298,7 +300,7 @@ incr_NC_dimarray(NC_dimarray *ncap, NC_dim *newelemp)
 
 	if(newelemp != NULL)
 	{
-		NC_hashmapadd(ncap->hashmap, (size_t)ncap->nelems, newelemp->name->cp);
+		NC_hashmapadd(ncap->hashmap, (uintptr_t)ncap->nelems, newelemp->name->cp);
 		ncap->value[ncap->nelems] = newelemp;
 		ncap->nelems++;
 	}
@@ -491,7 +493,7 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 
 		dimp->name = newStr;
 
-		NC_hashmapadd(ncp->dims.hashmap, dimid, newStr->cp);
+		NC_hashmapadd(ncp->dims.hashmap, (uintptr_t)dimid, newStr->cp);
 		free_NC_string(old);
 
 		return NC_NOERR;
@@ -514,7 +516,7 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 	if(status != NC_NOERR)
 		return status;
 
-	NC_hashmapadd(ncp->dims.hashmap, dimid, dimp->name->cp);
+	NC_hashmapadd(ncp->dims.hashmap, (uintptr_t)dimid, dimp->name->cp);
 
 	set_NC_hdirty(ncp);
 

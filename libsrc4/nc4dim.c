@@ -38,17 +38,17 @@ NC4_inq_unlimdim(int ncid, int *unlimdimidp)
    *unlimdimidp = -1;
    for (g = grp; g && !found; g = g->parent)
    {
-      for (dim = g->dim; dim; dim = dim->l.next)
-      {
-	 if (dim->unlimited)
-	 {
+      int k;
+      size_t count = NC_listmap_size(&g->dim);
+      for(k=0;k<count;k++) {
+	dim = NC_listmap_iget(&g->dim,k);
+         if (dim->unlimited) {
 	    *unlimdimidp = dim->dimid;
 	    found++;
 	    break;
 	 }
       }
    }
-
    return NC_NOERR;
 }
 
@@ -82,12 +82,16 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
    if (h5->cmode & NC_CLASSIC_MODEL)
    {
       /* Only one limited dimenson for strict nc3. */
-      if (len == NC_UNLIMITED)
-	 for (dim = grp->dim; dim; dim = dim->l.next)
+      if (len == NC_UNLIMITED) {
+	int k;
+	size_t count = NC_listmap_size(&grp->dim);
+	for(k=0;k<count;k++) {
+	    dim = NC_listmap_iget(&grp->dim,k);
 	    if (dim->unlimited)
 	       return NC_EUNLIMIT;
-
-      /* Must be in define mode for stict nc3. */
+        }
+      }
+      /* Must be in define mode for strict nc3. */
       if (!(h5->flags & NC_INDEF))
 	 return NC_ENOTINDEFINE;
    }   
@@ -110,9 +114,9 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
    nn_hash = hash_fast(norm_name, strlen(norm_name));
 
    /* Make sure the name is not already in use. */
-   for (dim = grp->dim; dim; dim = dim->l.next)
-      if (nn_hash == dim->hash && !strncmp(dim->name, norm_name, NC_MAX_NAME))
-	 return NC_ENAMEINUSE;
+   dim = NC_listmap_get(&grp->dim,norm_name);
+   if(dim != NULL)
+       return NC_ENAMEINUSE;
 
    /* Add a dimension to the list. The ID must come from the file
     * information, since dimids are visible in more than one group. */
@@ -126,8 +130,6 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
    if (len == NC_UNLIMITED)
       dim->unlimited = NC_TRUE;
 
-   dim->hash = nn_hash;
-   
    /* Pass back the dimid. */
    if (idp)
       *idp = dim->dimid;
@@ -161,18 +163,15 @@ NC4_inq_dimid(int ncid, const char *name, int *idp)
    if ((retval = nc4_normalize_name(name, norm_name)))
       return retval;
 
-   shash = hash_fast(norm_name, strlen(norm_name));
-
    /* Go through each dim and check for a name match. */
-   for (g = grp; g && !finished; g = g->parent)
-      for (dim = g->dim; dim; dim = dim->l.next)
-	 if (dim->hash == shash && !strncmp(dim->name, norm_name, NC_MAX_NAME))
-	 {
+   for (g = grp; g && !finished; g = g->parent) {
+      dim = NC_listmap_get(&g->dim,norm_name);
+      if(dim != NULL) {
 	    if (idp)
 	       *idp = dim->dimid;
 	    return NC_NOERR;
-	 }
-
+      }
+   }
    return NC_EBADDIM;
 }
 
@@ -268,13 +267,11 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
 
    /* Check if name is in use, and retain a pointer to the correct dim */
    tmp_dim = NULL;
-   for (dim = grp->dim; dim; dim = dim->l.next)
-   {
-      if (!strncmp(dim->name, norm_name, NC_MAX_NAME))
-	 return NC_ENAMEINUSE;
-      if (dim->dimid == dimid)
-	 tmp_dim = dim;
-   }
+   dim = NC_listmap_get(&grp->dim, norm_name);
+   if(dim != NULL)
+     return NC_ENAMEINUSE;
+   if(dim->dimid == dimid)
+     tmp_dim = dim;
    if (!tmp_dim)
       return NC_EBADDIM;
    dim = tmp_dim;
@@ -303,8 +300,6 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
       return NC_ENOMEM;
    strcpy(dim->name, norm_name);
 
-   dim->hash = hash_fast(norm_name, strlen(norm_name));
-   
    /* Check if dimension was a coordinate variable, but names are different now */
    if (dim->coord_var && strcmp(dim->name, dim->coord_var->name))
    {
@@ -325,7 +320,7 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
 
       /* Check if we found a variable and the variable has the dimension in
        * index 0. */
-      if (var && var->dim[0] == dim)
+      if (var && NC_listmap_iget(&var->dim,0) == dim)
       {
           /* Sanity check */
           assert(var->dimids[0] == dim->dimid);
@@ -362,8 +357,10 @@ NC4_inq_unlimdims(int ncid, int *nunlimdimsp, int *unlimdimidsp)
    /* Get our dim info. */
    assert(h5);
    {
-      for (dim=grp->dim; dim; dim=dim->l.next)
-      {
+      int k;
+      int count = NC_listmap_size(&grp->dim);
+      for(k=0;k<count;k++) {
+         dim = NC_listmap_iget(&grp->dim,k);
 	 if (dim->unlimited)
 	 {
 	    if (unlimdimidsp)

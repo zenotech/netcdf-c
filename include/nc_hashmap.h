@@ -16,7 +16,7 @@ The key is some hash of some null terminated string.
 */
 typedef struct NC_hentry {
     int flags;
-    size_t data;
+    uintptr_t data;
     size_t hashkey; /* Hash id */
     char* key; /* actual key; do not free */
 } NC_hentry;
@@ -38,17 +38,17 @@ extern NC_hashmap* NC_hashmapcreate(size_t startsize);
 
 /** Inserts a new element into the hashmap. */
 /* Note we pass the NC_hobjecty struct by value */
-extern void NC_hashmapadd(NC_hashmap*, size_t data, const char* name);
+extern void NC_hashmapadd(NC_hashmap*, uintptr_t data, const char* name);
 
 /** Removes the storage for the element of the key.
     Return 1 if found, 0 otherwise; returns the data in datap if !null
 */
-extern int NC_hashmapremove(NC_hashmap*, const char* name, size_t* datap);
+extern int NC_hashmapremove(NC_hashmap*, const char* name, uintptr_t* datap);
 
 /** Returns the data for the key.
     Return 1 if found, 0 otherwise; returns the data in datap if !null
 */
-extern int NC_hashmapget(NC_hashmap*, const char*, size_t* datap);
+extern int NC_hashmapget(NC_hashmap*, const char*, uintptr_t* datap);
 
 /** Returns the number of saved elements. */
 extern size_t NC_hashmapCount(NC_hashmap*);

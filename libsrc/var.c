@@ -323,7 +323,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 
 	if(newelemp != NULL)
 	{
-		NC_hashmapadd(ncap->hashmap, (size_t)ncap->nelems, newelemp->name->cp);
+		NC_hashmapadd(ncap->hashmap, (uintptr_t)ncap->nelems, newelemp->name->cp);
 		ncap->value[ncap->nelems] = newelemp;
 		ncap->nelems++;
 	}
@@ -361,6 +361,7 @@ NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
 	int hash_var_id;
 	char *name;
 	int stat;
+	uintptr_t data;
 
 	assert(ncap != NULL);
 
@@ -373,9 +374,10 @@ NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
         if(stat != NC_NOERR)
 	    return stat;
 
-	if(NC_hashmapget(ncap->hashmap, name, &hash_var_id) == 0)
+	if(NC_hashmapget(ncap->hashmap, name, &data) == 0)
 	    return -1;
 	free(name);
+	hash_var_id = (int)data;
 	if (hash_var_id >= 0) {
 	  if (varpp != NULL)
 	    *varpp = ncap->value[hash_var_id];
@@ -774,7 +776,7 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 		if(newStr == NULL)
 			return(-1);
 		varp->name = newStr;
-		NC_hashmapadd(ncp->vars.hashmap, varid, newStr->cp);
+		NC_hashmapadd(ncp->vars.hashmap, (uintptr_t)varid, newStr->cp);
 		free_NC_string(old);
 		return NC_NOERR;
 	}
@@ -796,7 +798,7 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 	if(status != NC_NOERR)
  	    return status;
 
-	NC_hashmapadd(ncp->vars.hashmap, varid, varp->name->cp);
+	NC_hashmapadd(ncp->vars.hashmap, (uintptr_t)varid, varp->name->cp);
 
 	set_NC_hdirty(ncp);
 

@@ -53,7 +53,7 @@ Free a list and its contents
 int
 nclistfreeall(NClist* l)
 {
-  unsigned long i;
+  size_t i;
   if(l == NULL) return TRUE;
   for(i=0;i<l->length;i++) {
       void* value = l->content[i];
@@ -63,7 +63,7 @@ nclistfreeall(NClist* l)
 }
 
 int
-nclistsetalloc(NClist* l, unsigned long sz)
+nclistsetalloc(NClist* l, size_t sz)
 {
   void** newcontent = NULL;
   if(l == NULL) return FALSE;
@@ -80,7 +80,7 @@ nclistsetalloc(NClist* l, unsigned long sz)
 }
 
 int
-nclistsetlength(NClist* l, unsigned long sz)
+nclistsetlength(NClist* l, size_t sz)
 {
   if(l == NULL) return FALSE;
   if(sz > l->alloc && !nclistsetalloc(l,sz)) return FALSE;
@@ -89,7 +89,7 @@ nclistsetlength(NClist* l, unsigned long sz)
 }
 
 void*
-nclistget(NClist* l, unsigned long index)
+nclistget(NClist* l, size_t index)
 {
   if(l == NULL || l->length == 0) return NULL;
   if(index >= l->length) return NULL;
@@ -98,7 +98,7 @@ nclistget(NClist* l, unsigned long index)
 
 /* Insert at position i of l; will overwrite previous value */
 int
-nclistset(NClist* l, unsigned long index, void* elem)
+nclistset(NClist* l, size_t index, void* elem)
 {
   if(l == NULL) return FALSE;
   if(index >= l->length) return FALSE;
@@ -108,7 +108,7 @@ nclistset(NClist* l, unsigned long index, void* elem)
 
 /* Insert at position i of l; will push up elements i..|seq|. */
 int
-nclistinsert(NClist* l, unsigned long index, void* elem)
+nclistinsert(NClist* l, size_t index, void* elem)
 {
   long i; /* do not make unsigned */
   if(l == NULL) return FALSE;
@@ -146,9 +146,9 @@ nclisttop(NClist* l)
 }
 
 void*
-nclistremove(NClist* l, unsigned long i)
+nclistremove(NClist* l, size_t i)
 {
-  unsigned long len;
+  size_t len;
   void* elem;
   if(l == NULL || (len=l->length) == 0) return NULL;
   if(i >= len) return NULL;
@@ -171,7 +171,7 @@ nclistdup(NClist* l)
 int
 nclistcontains(NClist* l, void* elem)
 {
-    unsigned long i;
+    size_t i;
     for(i=0;i<nclistlength(l);i++) {
 	if(elem == nclistget(l,i)) return 1;
     }
@@ -182,8 +182,8 @@ nclistcontains(NClist* l, void* elem)
 int
 nclistelemremove(NClist* l, void* elem)
 {
-  unsigned long len;
-  unsigned long i;
+  size_t len;
+  size_t i;
   int found = 0;
   if(l == NULL || (len=l->length) == 0) return 0;
   for(i=0;i<nclistlength(l);i++) {
@@ -207,7 +207,7 @@ nclistelemremove(NClist* l, void* elem)
 int
 nclistunique(NClist* l)
 {
-    unsigned long i,j,k,len;
+    size_t i,j,k,len;
     void** content;
     if(l == NULL || l->length == 0) return 1;
     len = l->length;

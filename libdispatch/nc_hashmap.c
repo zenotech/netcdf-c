@@ -58,11 +58,11 @@ rehash(NC_hashmap* hm)
 	--size;
 	oldentry = &oldtable[size];
         if(oldtable[size].flags == ACTIVE) {
-            size_t index = oldtable[size].data;
+            uintptr_t index = oldtable[size].data;
 	    char* key = oldtable[size].key;
             NC_hashmapadd(hm, index, key);
 #ifdef VERIFY
-	    { size_t data;
+	    { uintptr_t data;
             ASSERT(NC_hashmapget(hm, key, &data) == 1);
 	    ASSERT(data == index);
 	    }
@@ -91,7 +91,7 @@ locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int 
     /* Search table using linear probing */
     for (i = 0; i < hash->size; i++) {
         NC_hentry entry = hash->table[index];
-        size_t pos = entry.data;
+        uintptr_t pos = entry.data;
         if(entry.flags & ACTIVE) {
             if(entry.hashkey == hashkey
                && strncmp(key,entry.key,keylen)==0) {
@@ -130,7 +130,7 @@ NC_hashmapcreate(size_t startsize)
 }
 
 void
-NC_hashmapadd(NC_hashmap* hash, size_t data, const char* key)
+NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key)
 {
     if(hash->size*3/4 <= hash->count)
 	rehash(hash);
@@ -158,7 +158,7 @@ NC_hashmapadd(NC_hashmap* hash, size_t data, const char* key)
 }
 
 int
-NC_hashmapremove(NC_hashmap* hash, const char* key, size_t* datap)
+NC_hashmapremove(NC_hashmap* hash, const char* key, uintptr_t* datap)
 {
     size_t index;
     NC_hentry entry;
@@ -177,7 +177,7 @@ NC_hashmapremove(NC_hashmap* hash, const char* key, size_t* datap)
 }
 
 int
-NC_hashmapget(NC_hashmap* hash, const char* key, size_t* datap)
+NC_hashmapget(NC_hashmap* hash, const char* key, uintptr_t* datap)
 {
     if(hash->count) {
         size_t index;
@@ -1927,7 +1927,7 @@ printhashmap(NC_hashmap* hm)
     for(i=0;i<hm->size;i++) {
 	NC_hentry e = hm->table[i];
 	if(e.flags == ACTIVE && e.key == NULL) {
-	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%ld key=NULL\n",i,e.hashkey,e.data);
+	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%p key=NULL\n",i,e.hashkey,e.data);
 	} else if(e.flags == ACTIVE && e.key != NULL) {
 	    char nm[64];
 	    int elided = 0;
@@ -1935,7 +1935,7 @@ printhashmap(NC_hashmap* hm)
 	    if(len > 63) {elided = 1; len = 63;}
 	    memcpy(nm,e.key,len);
 	    nm[63] = '\0';
-	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%ld key=0x%lx |%s|%s\n",
+	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%p key=0x%lx |%s|%s\n",
 			i, e.hashkey,e.data,nm,e.key,(elided?"...":""));
 	} else if(e.flags == DELETED) {
 	    fprintf(stderr,"[%d] flags=DELETED hashkey=%ld\n",i,e.hashkey);

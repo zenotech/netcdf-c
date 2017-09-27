@@ -61,14 +61,12 @@ att_read_var_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
   NC_ATT_INFO_T *att;
   att_iter_info *att_info = (att_iter_info *)att_data;
   const char** reserved;
-
+  const NC_reservedatt* ra = NULL;
 
   /* Should we ignore this attribute? */
-  for(reserved=NC_RESERVED_VARATT_LIST;*reserved;reserved++) {
-    if (strcmp(att_name, *reserved)==0) break;
-  }
+  ra = NC_findreserved(att->name);
 
-  if(*reserved == NULL) {
+  if(ra == NULL || (ra->flags & DIMSCALEFLAG) == 0) {
       /* Open the att by name. */
       if ((attid = H5Aopen(loc_id, att_name, H5P_DEFAULT)) < 0)
 	BAIL(NC_EATTMETA);
@@ -152,7 +150,8 @@ static int close_netcdf4_file(NC_HDF5_FILE_INFO_T *h5, int abort);
  * attached to variables.
  * They cannot be modified thru the netcdf-4 API.
  */
-const char* NC_RESERVED_VARATT_LIST[] = {
+#if 0
+static const char* NC_RESERVED_VARATT_LIST[] = {
 NC_ATT_REFERENCE_LIST,
 NC_ATT_CLASS,
 NC_ATT_DIMENSION_LIST,
@@ -166,7 +165,7 @@ NULL
  * because they are "hidden" global attributes.
  * They can be read, but not modified thru the netcdf-4 API.
  */
-const char* NC_RESERVED_ATT_LIST[] = {
+static const char* NC_RESERVED_ATT_LIST[] = {
 NC_ATT_FORMAT,
 NC3_STRICT_ATT_NAME,
 NCPROPS,
@@ -176,12 +175,53 @@ NULL
 };
 
 /* Define the subset of the reserved list that is readable by name only */
-const char* NC_RESERVED_SPECIAL_LIST[] = {
+static const char* NC_RESERVED_SPECIAL_LIST[] = {
 ISNETCDF4ATT,
 SUPERBLOCKATT,
 NCPROPS,
 NULL
 };
+#endif /*0*/
+
+/* Define the table of names and properties of attributes that are reserved. */
+
+#define NRESERVED 11 /*|NC_reservedatt|*/
+
+/* Must be in sorted order for binary search */
+static const NC_reservedatt NC_reserved[NRESERVED] = {
+{NC_ATT_CLASS, DIMSCALEFLAG},		 /*CLASS*/
+{NC_ATT_DIMENSION_LIST, DIMSCALEFLAG},	 /*DIMENSION_LIST*/
+{NC_ATT_NAME, DIMSCALEFLAG},		 /*NAME*/
+{NC_ATT_REFERENCE_LIST, DIMSCALEFLAG},	 /*REFERENCE_LIST*/
+{NC_ATT_FORMAT, READONLYFLAG},		 /*_Format*/
+{ISNETCDF4ATT, READONLYFLAG|NAMEONLYFLAG}, /*_IsNetcdf4*/
+{NCPROPS, READONLYFLAG|NAMEONLYFLAG},	 /*_NCProperties*/
+{NC_ATT_COORDINATES, DIMSCALEFLAG},	 /*_Netcdf4Coordinates*/
+{NC_DIMID_ATT_NAME, DIMSCALEFLAG},	 /*_Netcdf4Dimid*/
+{SUPERBLOCKATT, READONLYFLAG|NAMEONLYFLAG},/*_SuperblockVersion*/
+{NC3_STRICT_ATT_NAME, READONLYFLAG},	 /*_nc3_strict*/
+};
+
+/* Define a binary searcher for reserved attributes */
+const NC_reservedatt*
+NC_findreserved(const char* name)
+{
+    int n = NRESERVED;
+    int L = 0;
+    int R = (n - 1);
+    for(;;) {
+	if(L > R) break;
+        int m = (L + R) / 2;
+	const NC_reservedatt* p = &NC_reserved[m];
+	int cmp = strcmp(p->name,name);
+	if(cmp == 0) return p;
+	if(cmp < 0)
+	    L = (m + 1);
+	else /*cmp > 0*/
+	    R = (m - 1);
+    }
+    return NULL;
+}
 
 /* These are the default chunk cache sizes for HDF5 files created or
  * opened with netCDF-4. */
@@ -696,7 +736,6 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    new_dim->hdf5_objid.fileno[1] = statbuf->fileno[1];
    new_dim->hdf5_objid.objno[0] = statbuf->objno[0];
    new_dim->hdf5_objid.objno[1] = statbuf->objno[1];
-   new_dim->hash = hash_fast(obj_name, strlen(obj_name));
 
    /* If the dimscale has an unlimited dimension, then this dimension
     * is unlimited. */
@@ -781,7 +820,7 @@ read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
    /* Update var->dim field based on the var->dimids */
    for (d = 0; d < var->ndims; d++) {
      /* Ok if does not find a dim at this time, but if found set it */
-     nc4_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
+     nc4_find_dim(grp, var->dimids[d], NC_listmap_iget(&var->dim,d), NULL);
    }
 
    /* Set my HDF5 IDs free! */
@@ -1286,7 +1325,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
    LOG((5, "type_size %d", type_size));
 
    /* Add to the list for this new type, and get a local pointer to it. */
-   if ((retval = nc4_type_list_add(grp, type_size, type_name, &type)))
+   if ((retval = nc4_type_list_add(&grp->type, type_size, type_name, &type)))
       return retval;
 
    /* Remember common info about this type. */
@@ -1594,8 +1633,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
     * var. */
    if (var->ndims)
    {
-      if (!(var->dim = calloc(var->ndims, sizeof(NC_DIM_INFO_T *))))
-	 BAIL(NC_ENOMEM);
+      NC_listmap_init(&var->dim,var->ndims);
       if (!(var->dimids = calloc(var->ndims, sizeof(int))))
 	 BAIL(NC_ENOMEM);
    }
@@ -1640,7 +1678,6 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       strcpy(var->name, obj_name);
    }
 
-   var->hash = hash_fast(var->name, strlen(var->name));
    /* Find out what filters are applied to this HDF5 dataset,
     * fletcher32, deflate, and/or shuffle. All other filters are
     * ignored. */
@@ -1765,7 +1802,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
          assert(0 == strcmp(var->name, dim->name));
 
          var->dimids[0] = dim->dimid;
-	 var->dim[0] = dim;
+	 NC_listmap_add(&var->dim,dim);
       }
       dim->coord_var = var;
    }
@@ -1853,7 +1890,7 @@ read_grp_atts(NC_GRP_INFO_T *grp)
    char obj_name[NC_MAX_HDF5_NAME + 1];
    int max_len;
    int retval = NC_NOERR;
-   int hidden = 0;
+   int readonly = 0;
 
    num_obj = H5Aget_num_attrs(grp->hdf_grpid);
    for (i = 0; i < num_obj; i++)
@@ -1864,25 +1901,20 @@ read_grp_atts(NC_GRP_INFO_T *grp)
          BAIL(NC_EATTMETA);
       LOG((3, "reading attribute of _netCDF group, named %s", obj_name));
 
-      /* See if this a hidden, global attribute */
+      /* See if this a readonly global attribute */
       if(grp->nc4_info->root_grp == grp) {
-	const char** reserved = NC_RESERVED_ATT_LIST;
-	hidden = 0;
-	for(;*reserved;reserved++) {
-	    if(strcmp(*reserved,obj_name)==0) {
-		hidden = 1;
-		break;
-	    }
-	}
+        NC_reservedatt* ra = NC_findreserved(obj_name);
+	readonly = ((ra != NULL && ((ra->flags & READONLYFLAG) == READONLYFLAG)));
       }
 
       /* This may be an attribute telling us that strict netcdf-3
        * rules are in effect. If so, we will make note of the fact,
        * but not add this attribute to the metadata. It's not a user
        * attribute, but an internal netcdf-4 one. */
+  
       if(strcmp(obj_name, NC3_STRICT_ATT_NAME)==0)
              grp->nc4_info->cmode |= NC_CLASSIC_MODEL;
-      else if(!hidden) {
+      else if(!readonly) {
          /* Add an att struct at the end of the list, and then go to it. */
          if ((retval = nc4_att_list_add(&grp->att, &att)))
             BAIL(retval);

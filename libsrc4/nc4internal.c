@@ -17,6 +17,7 @@ conditions.
 #include "nc.h" /* from libsrc */
 #include "ncdispatch.h" /* from libdispatch */
 #include "ncutf8.h"
+#include "nclistmap.h"
 #include "H5DSpublic.h"
 
 #define MEGABYTE 1048576
@@ -639,40 +640,6 @@ nc4_find_nc_file(int ext_ncid, NC_HDF5_FILE_INFO_T** h5p)
    return nc;
 }
 
-/* Add object to the end of a list. */
-static void
-obj_list_add(NC_LIST_NODE_T **list, NC_LIST_NODE_T *obj)
-{
-   /* Go to the end of the list and set the last one to point at object,
-    * or, if the list is empty, our new object becomes the list. */
-   if(*list)
-   {
-      NC_LIST_NODE_T *o;
-
-      for (o = *list; o; o = o->next)
-	 if (!o->next)
-	    break;
-      o->next = obj;
-      obj->prev = o;
-   }
-   else
-      *list = obj;
-}
-
-/* Remove object from a list. */
-static void
-obj_list_del(NC_LIST_NODE_T **list, NC_LIST_NODE_T *obj)
-{
-   /* Remove the var from the linked list. */
-   if(*list == obj)
-      *list = obj->next;
-   else
-      ((NC_LIST_NODE_T *)obj->prev)->next = obj->next;
-
-   if(obj->next)
-      ((NC_LIST_NODE_T *)obj->next)->prev = obj->prev;
-}
-
 /* Return a pointer to the new var. */
 int
 nc4_var_add(NC_VAR_INFO_T **var)
@@ -697,17 +664,19 @@ nc4_var_add(NC_VAR_INFO_T **var)
    return NC_NOERR;
 }
 
-/* Add to the beginning of a dim list. */
+/* Create and add to the beginning of a dim list. */
 int
-nc4_dim_list_add(NC_DIM_INFO_T **list, NC_DIM_INFO_T **dim)
+nc4_dim_list_add(NC_LISTMAP* listmap, const char* name, NC_DIM_INFO_T **dim)
 {
    NC_DIM_INFO_T *new_dim;
 
    if (!(new_dim = calloc(1, sizeof(NC_DIM_INFO_T))))
       return NC_ENOMEM;
 
+   new_dim->name = nulldup(name);
+
    /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)new_dim);
+   NC_listmap_add(listmap, new_dim);
 
    /* Set the dim pointer, if one was given */
    if (dim)
@@ -718,15 +687,21 @@ nc4_dim_list_add(NC_DIM_INFO_T **list, NC_DIM_INFO_T **dim)
 
 /* Add to the end of an att list. */
 int
-nc4_att_list_add(NC_ATT_INFO_T **list, NC_ATT_INFO_T **att)
+nc4_att_list_add(NC_LISTMAP* list, const char* name, NC_ATT_INFO_T **att)
 {
    NC_ATT_INFO_T *new_att;
 
    if (!(new_att = calloc(1, sizeof(NC_ATT_INFO_T))))
       return NC_ENOMEM;
 
+   if (!(new_att->name = strdup(name)))
+   {
+      free(new_att);
+      return NC_ENOMEM;
+   }
+
    /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)new_att);
+   NC_listmap_add(list, new_att);
 
    /* Set the attribute pointer, if one was given */
    if (att)
@@ -738,7 +713,7 @@ nc4_att_list_add(NC_ATT_INFO_T **list, NC_ATT_INFO_T **att)
 /* Add to the end of a group list. Can't use 0 as a new_nc_grpid -
  * it's reserverd for the root group. */
 int
-nc4_grp_list_add(NC_GRP_INFO_T **list, int new_nc_grpid,
+nc4_grp_list_add(NC_LISTMAP* list, int new_nc_grpid,
 		 NC_GRP_INFO_T *parent_grp, NC *nc,
 		 char *name, NC_GRP_INFO_T **grp)
 {
@@ -761,7 +736,7 @@ nc4_grp_list_add(NC_GRP_INFO_T **list, int new_nc_grpid,
    new_grp->nc4_info = NC4_DATA(nc);
 
    /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)new_grp);
+   NC_listmap_add(list, new_grp);
 
    /* Set the group pointer, if one was given */
    if (grp)
@@ -807,7 +782,7 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
 
 /* Add to the end of a type list. */
 int
-nc4_type_list_add(NC_GRP_INFO_T *grp, size_t size, const char *name,
+nc4_type_list_add(NC_LISTMAP list, size_t size, const char *name,
                   NC_TYPE_INFO_T **type)
 {
    NC_TYPE_INFO_T *new_type;
@@ -816,14 +791,14 @@ nc4_type_list_add(NC_GRP_INFO_T *grp, size_t size, const char *name,
    if (!(new_type = calloc(1, sizeof(NC_TYPE_INFO_T))))
       return NC_ENOMEM;
 
-   /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)(&grp->type), (NC_LIST_NODE_T *)new_type);
-
    /* Remember info about this type. */
    new_type->nc_typeid = grp->nc4_info->next_typeid++;
    new_type->size = size;
    if (!(new_type->name = strdup(name)))
       return NC_ENOMEM;
+
+   /* Add object to list */
+   NC_listmap_add(list, new_type);
 
    /* Increment the ref. count on the type */
    new_type->rc++;
@@ -837,7 +812,7 @@ nc4_type_list_add(NC_GRP_INFO_T *grp, size_t size, const char *name,
 
 /* Add to the end of a compound field list. */
 int
-nc4_field_list_add(NC_FIELD_INFO_T **list, int fieldid, const char *name,
+nc4_field_list_add(NC_LISTMAP* list, int fieldid, const char *name,
 		   size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
 		   nc_type xtype, int ndims, const int *dim_sizesp)
 {
@@ -878,14 +853,14 @@ nc4_field_list_add(NC_FIELD_INFO_T **list, int fieldid, const char *name,
    }
 
    /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)field);
+   NC_listmap_add(list, field);
 
    return NC_NOERR;
 }
 
 /* Add a member to an enum type. */
 int
-nc4_enum_member_add(NC_ENUM_MEMBER_INFO_T **list, size_t size,
+nc4_enum_member_add(NC_LISTMAP* list, size_t size,
 		    const char *name, const void *value)
 {
    NC_ENUM_MEMBER_INFO_T *member;
@@ -911,17 +886,17 @@ nc4_enum_member_add(NC_ENUM_MEMBER_INFO_T **list, size_t size,
    memcpy(member->value, value, size);
 
    /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)member);
+   NC_listmap_add(list, member);
 
    return NC_NOERR;
 }
 
 /* Delete a field from a field list, and nc_free the memory. */
 static void
-field_list_del(NC_FIELD_INFO_T **list, NC_FIELD_INFO_T *field)
+field_list_del(NC_LISTMAP* list, NC_FIELD_INFO_T *field)
 {
    /* Take this field out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)field);
+   NC_listmap_del(list, field);
 
    /* Free some stuff. */
    if (field->name)
@@ -1090,10 +1065,10 @@ nc4_var_del(NC_VAR_INFO_T *var)
 
 /* Delete a type from a type list, and nc_free the memory. */
 static int
-type_list_del(NC_TYPE_INFO_T **list, NC_TYPE_INFO_T *type)
+type_list_del(NC_LISTMAP* list, NC_TYPE_INFO_T *type)
 {
    /* Take this type out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)type);
+   NC_listmap_del(list, type);
 
    /* Free the type, and its components */
    return nc4_type_free(type);
@@ -1101,10 +1076,10 @@ type_list_del(NC_TYPE_INFO_T **list, NC_TYPE_INFO_T *type)
 
 /* Delete a del from a var list, and nc_free the memory. */
 int
-nc4_dim_list_del(NC_DIM_INFO_T **list, NC_DIM_INFO_T *dim)
+nc4_dim_list_del(NC_LISTMAP* list, NC_DIM_INFO_T *dim)
 {
    /* Take this dimension out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)dim);
+   NC_listmap_del(list, dim);
 
    /* Free memory allocated for names. */
    if (dim->name)
@@ -1117,10 +1092,10 @@ nc4_dim_list_del(NC_DIM_INFO_T **list, NC_DIM_INFO_T *dim)
 /* Remove a NC_GRP_INFO_T from the linked list. This will nc_free the
    memory too. */
 static void
-grp_list_del(NC_GRP_INFO_T **list, NC_GRP_INFO_T *grp)
+grp_list_del(NC_LISTMAP* list, NC_GRP_INFO_T *grp)
 {
    /* Take this group out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)grp);
+   NC_listmap_del(list, grp);
 
    free(grp);
 }
@@ -1234,12 +1209,12 @@ nc4_rec_grp_del(NC_GRP_INFO_T **list, NC_GRP_INFO_T *grp)
    memory too.
 */
 int
-nc4_att_list_del(NC_ATT_INFO_T **list, NC_ATT_INFO_T *att)
+nc4_att_list_del(NC_LISTMAP* list, NC_ATT_INFO_T *att)
 {
    int i;
 
    /* Take this att out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)att);
+   NC_listmap_del(list, att);
 
    /* Free memory that was malloced to hold data for this
     * attribute. */
