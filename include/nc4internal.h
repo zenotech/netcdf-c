@@ -112,15 +112,80 @@ typedef enum {NC_FALSE = 0, NC_TRUE = 1} nc_bool_t;
 struct NCFILEINFO;
 
 /*
+Indexed Access to Meta-data objects:
+
+The goal of this change set is to remove the need for linear
+searches of the current linked list structure used to represent
+relationships between meta-data object.  One example would be
+the group-subgroup relationship.  or the group-type relationship.
+
+There are as a rule, two searches that are used to locate
+meta-data object: (1) search by name and (2) search by
+externally visible id (e.g. dimid or varid).  Additionally, we
+should need a vector representing e.g. the subgroups of a group.
+Ideally, the index of an object in that vector should be
+the same as the object's externally visible id. This however
+is not normally the case because for types, groups, and dimensions,
+the id is globally unique (see e.g. NC_HDF5_FILE_INFO.next_dimid).
+
+Also relevant is the fact that, once created, no meta-data
+object -- except attributes -- can be deleted. They can
+be renamed, but that does not change the associated id.
+Deletion only occurs when an error occurs in creating one
+or on close.
+
+Attributes represent a special situation because their "id"
+can be represented by a simple vector.
+
+Also note that variable id's are not globally unique (IMO a bad
+design decision) but are only unique within the containing group.
+
+Note also that names are unique only within a group and with respect
+to some kind of metadata. That is a group cannot have e.g. two
+dimensions with the same name.
+
+So, the chosen approach is as follows:
+1. The file object -- NC_HDF5_FILE_INFO -- contains a vector
+   for all types, all dimensions, and all groups.
+   The index into these vectors is intentionally the same as the
+   id of the corresponding meta-data object.
+
+2. Groups contain what we call a listmap datastructure (see
+   nclistmap.h).  The listmap contains an indexable vector and a
+   corresponding hash table.  There is one such listmap for
+   types, groups, dimensions, and variables.  The vector index
+   is the same as the object id only for variables.  The
+   hashtable maps a name to the corresponding meta-data object
+   in the associated vector.
+
+3. A note about typeids. Since user defined types have id starting
+   at NC_FIRSTUSERTYPEID, we leave vector entries 0..NC_FIRSTUSERTYPEID-1
+   empty.
+
+4. References between meta-data objects (e.g. group parent or
+   containing group) are stored directly and not using any kind
+   of vector or hashtable.
+
+5. Enum constants are stored only as a vector and linear search is
+   used for them. This implicitly assumes it does not occur a
+   significant number of times to warrant more complex
+   structures.
+
+6. Compound fields are stored only as a vector and linear search is
+   used for them. This implicitly assumes it does not occur a
+   significant number of times to warrant more complex
+   structures.
+
+7. Attributes are kept in a listmap because large numbers of
+   attributes can (and do) occur in real files. Hence hash'd by
+   name is useful. Also, the listmap vector can be used
+   to define the attribute index. This includes the fact that
+   if an attribute is deleted, all "subsequent" attributes are
+   renumbered.
+
 WARNING: ALL OBJECTS THAT CAN BE INSERTED INTO AN NC_LISTMAP
 MUST HAVE THEIR NAME AS THE FIRST FIELD SO IT CAN BE CAST
 TO CHAR** FOR USE WITH THE HASHTABLE.
-*/
-
-/*
-Note: Since various dim,type,grpids are assigned
-independently of the list in which they stored,
-NC_LISTMAP might be simplifiable.
 */
 
 /* This is a struct to handle the dim metadata. */
@@ -145,7 +210,7 @@ typedef struct NC_ATT_INFO
    nc_bool_t created;           /* True if attribute already created */
    nc_type nc_typeid;           /* netCDF type of attribute's data */
    hid_t native_hdf_typeid;     /* Native HDF5 datatype for attribute's data */
-   int attnum;
+   int attnum; /* Need to be kept up-to-date over attribute deletes */
    void *data;
    nc_vlen_t *vldata; /* only used for vlen */
    char **stdata; /* only for string type. */
@@ -158,9 +223,11 @@ typedef struct NC_VAR_INFO
    char *hdf5_name; /* used if different from name */
    int ndims;
    int *dimids;
-   NC_LISTMAP dim; /* NC_LISTMAP<NC_DIM_INFO_T*> */
+   NC_DIM_INFO_T **dim;
    int varid;
+#if 0
    int natts;
+#endif
    nc_bool_t is_new_var;        /* True if variable is newly created */
    nc_bool_t was_coord_var;     /* True if variable was a coordinate var, but either the dim or var has been renamed */
    nc_bool_t became_coord_var;  /* True if variable _became_ a coordinate var, because either the dim or var has been renamed */
@@ -250,13 +317,12 @@ typedef struct NC_TYPE_INFO
    union {
       struct {
          int num_members;
-         NC_LISTMAP enum_member; /* NC_LISTMAP<NC_ENUM_MEMBER_INFO_T*> */
+         NClist* enum_member; /* NClist<NC_ENUM_MEMBER_INFO_T*> */
          nc_type base_nc_typeid;
          hid_t base_hdf_typeid;
       } e;                      /* Enum */
       struct {
-         int num_fields;
-         NC_LISTMAP field; /* NC_LISTMAP<NC_FIELD_INFO_T*> */
+         NClist* field; /* NClist<NC_FIELD_INFO_T*> */
       } c;                      /* Compound */
       struct {
          nc_type base_nc_typeid;
@@ -266,8 +332,10 @@ typedef struct NC_TYPE_INFO
 } NC_TYPE_INFO_T;
 
 typedef struct NC_VAR_ARRAY_T {
+#if 0
 	size_t nalloc;		/* number allocated >= nelems */
 	size_t nelems;		/* length of the array */
+#endif
 	NC_LISTMAP value; /* NC_LISTMAP<NC_VAR_INFO_T*> */
 } NC_VAR_ARRAY_T;
 
@@ -280,13 +348,15 @@ typedef struct NC_GRP_INFO
    int nc_grpid;
    struct NC_HDF5_FILE_INFO *nc4_info;
    struct NC_GRP_INFO *parent;
-   NC_LISTMAP* children; /* NC_LISTMAP<struct NC_GRP_INFO*> */
+   NC_LISTMAP children; /* NC_LISTMAP<struct NC_GRP_INFO*> */
    NC_VAR_ARRAY_T vars;
    NC_LISTMAP dim; /* NC_LISTMAP<NC_DIM_INFO_T> * */
    NC_LISTMAP att; /* NC_LISTMAP<NC_ATT_INFO_T> * */
    NC_LISTMAP type; /* NC_LISTMAP<NC_TYPE_INFO_T> * */
+#if 0
    int nvars;
    int natts;
+#endif
 } NC_GRP_INFO_T;
 
 /* These constants apply to the cmode parameter in the
@@ -316,10 +386,17 @@ typedef struct NC_HDF5_FILE_INFO
    int fill_mode;               /* Fill mode for vars - Unused internally currently */
    nc_bool_t no_write;          /* true if nc_open has mode NC_NOWRITE. */
    NC_GRP_INFO_T *root_grp;
-   short next_nc_grpid;
+#if 0
    NC_TYPE_INFO_T *type;
+   short next_nc_grpid;
    int next_typeid;
    int next_dimid;
+#else
+   /* Dim,type, and group ids define position of the object in these vectors */
+   NClist* alldims;
+   NClist* alltypes;
+   NClist* allgroups; /* including root group */
+#endif
 #ifdef USE_HDF4
    nc_bool_t hdf4;              /* True for HDF4 file */
    int sdid;
@@ -369,7 +446,7 @@ int nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dim, NC_GRP_INFO
 int nc4_find_var(NC_GRP_INFO_T *grp, const char *name, NC_VAR_INFO_T **var);
 int nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len);
 int nc4_find_type(const NC_HDF5_FILE_INFO_T *h5, int typeid1, NC_TYPE_INFO_T **type);
-NC_TYPE_INFO_T *nc4_rec_find_nc_type(const NC_GRP_INFO_T *start_grp, nc_type target_nc_typeid);
+NC_TYPE_INFO_T *nc4_rec_find_nc_type(NC_GRP_INFO_T *start_grp, nc_type target_nc_typeid);
 NC_TYPE_INFO_T *nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid);
 NC_TYPE_INFO_T *nc4_rec_find_named_type(NC_GRP_INFO_T *start_grp, char *name);
 NC_TYPE_INFO_T *nc4_rec_find_equal_type(NC_GRP_INFO_T *start_grp, int ncid1, NC_TYPE_INFO_T *type);
@@ -389,23 +466,22 @@ int nc4_type_free(NC_TYPE_INFO_T *type);
 
 /* These list functions add and delete vars, atts. */
 int nc4_nc4f_list_add(NC *nc, const char *path, int mode);
-int nc4_var_add(NC_VAR_INFO_T **var);
+int nc4_var_new(NC_VAR_INFO_T **var);
 int nc4_var_del(NC_VAR_INFO_T *var);
-int nc4_dim_list_add(NC_LISTMAP* list, NC_DIM_INFO_T **dim);
+int nc4_dim_new(const char* name, NC_DIM_INFO_T **dim);
+int nc4_dim_list_add(NC_LISTMAP* list, const char* name, NC_DIM_INFO_T **dim);
 int nc4_dim_list_del(NC_LISTMAP* list, NC_DIM_INFO_T *dim);
-int nc4_att_list_add(NC_LISTMAP* list, NC_ATT_INFO_T **att);
-int nc4_type_list_add(NC_LISTMAP* list, size_t size, const char *name,
+int nc4_att_list_add(NC_LISTMAP* list, const char* name, NC_ATT_INFO_T **att);
+int nc4_type_list_add(NC_GRP_INFO_T* grp, size_t size, const char *name,
                   NC_TYPE_INFO_T **type);
-int nc4_field_list_add(NC_LISTMAP* list, int fieldid, const char *name,
+int nc4_field_list_add(NC_TYPE_INFO_T*, const char *name,
 		       size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
 		       nc_type xtype, int ndims, const int *dim_sizesp);
 void nc4_file_list_del(NC *nc);
 int nc4_att_list_del(NC_LISTMAP* list, NC_ATT_INFO_T *att);
-int nc4_grp_list_add(NC_LISTMAP* list, int new_nc_grpid, NC_GRP_INFO_T *parent_grp,
-		     NC *nc, char *name, NC_GRP_INFO_T **grp);
-int nc4_rec_grp_del(NC_LISTMAP* list, NC_GRP_INFO_T *grp);
-int nc4_enum_member_add(NC_LISTMAP* list, size_t size,
-			const char *name, const void *value);
+int nc4_grp_list_add(NC_GRP_INFO_T *parent_grp, char *name, NC_GRP_INFO_T **grp);
+int nc4_rec_grp_del(NC_GRP_INFO_T* list);
+int nc4_enum_member_add(NC_TYPE_INFO_T*, size_t size, const char *name, const void *value);
 
 /* Break & reform coordinate variables */
 int nc4_break_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var, NC_DIM_INFO_T *dim);

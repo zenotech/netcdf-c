@@ -42,15 +42,16 @@ int num_spaces;
  * @param[in] attlist List of attributes, may be NULL.
  * @return Returns NC_NOERR on succes, error on failure.
  */
-static int flag_atts_dirty(NC_ATT_INFO_T **attlist) {
+static int flag_atts_dirty(NC_LISTMAP* attlist) {
 
   NC_ATT_INFO_T *att = NULL;
+  size_t iter;
 
   if(attlist == NULL) {
     return NC_NOERR;
   }
 
-  for(att = *attlist; att; att = att->l.next) {
+  for(iter=0;NC_listmap_next(attlist,iter,(uintptr_t*)&att);iter++) {
     att->dirty = NC_TRUE;
   }
 
@@ -71,19 +72,21 @@ rec_reattach_scales(NC_GRP_INFO_T *grp, int dimid, hid_t dimscaleid)
   NC_GRP_INFO_T *child_grp;
   int d, i;
   int retval;
+  size_t iter;
 
   assert(grp && grp->name && dimid >= 0 && dimscaleid >= 0);
   LOG((3, "%s: grp->name %s", __func__, grp->name));
 
   /* If there are any child groups, attach dimscale there, if needed. */
-  for (child_grp = grp->children; child_grp; child_grp = child_grp->l.next)
+  
+  for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&child_grp);iter++) {
     if ((retval = rec_reattach_scales(child_grp, dimid, dimscaleid)))
       return retval;
+  }
 
   /* Find any vars that use this dimension id. */
-  for (i=0; i < grp->vars.nelems; i++)
+  for(iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var);iter++)
   {
-    var = grp->vars.value[i];
     if (!var) continue;
     for (d = 0; d < var->ndims; d++)
       if (var->dimids[d] == dimid && !var->dimscale)
@@ -114,19 +117,20 @@ rec_detach_scales(NC_GRP_INFO_T *grp, int dimid, hid_t dimscaleid)
   NC_GRP_INFO_T *child_grp;
   int d, i;
   int retval;
+  size_t iter;
 
   assert(grp && grp->name && dimid >= 0 && dimscaleid >= 0);
   LOG((3, "%s: grp->name %s", __func__, grp->name));
 
   /* If there are any child groups, detach dimscale there, if needed. */
-  for (child_grp = grp->children; child_grp; child_grp = child_grp->l.next)
+  for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&child_grp);iter++) {
     if ((retval = rec_detach_scales(child_grp, dimid, dimscaleid)))
       return retval;
+  }
 
   /* Find any vars that use this dimension id. */
-  for (i=0; i < grp->vars.nelems; i++)
+  for(iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var);iter++)
   {
-    var = grp->vars.value[i];
     if (!var) continue;
     for (d = 0; d < var->ndims; d++)
       if (var->dimids[d] == dimid && !var->dimscale)
@@ -152,9 +156,9 @@ nc4_open_var_grp2(NC_GRP_INFO_T *grp, int varid, hid_t *dataset)
   NC_VAR_INFO_T *var;
 
   /* Find the requested varid. */
-   if (varid < 0 || varid >= grp->vars.nelems)
+   if (varid < 0 || varid >= NC_listmap_size(&grp->vars.value))
      return NC_ENOTVAR;
-   var = grp->vars.value[varid];
+   var = NC_listmap_iget(&grp->vars.value,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->varid == varid);
 
@@ -1435,12 +1439,13 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
 
 /* Write all the dirty atts in an attlist. */
 static int
-write_attlist(NC_ATT_INFO_T *attlist, int varid, NC_GRP_INFO_T *grp)
+write_attlist(NC_LISTMAP *attlist, int varid, NC_GRP_INFO_T *grp)
 {
   NC_ATT_INFO_T *att;
   int retval;
-
-  for (att = attlist; att; att = att->l.next)
+  size_t iter;
+  
+  for(iter=0;NC_listmap_next(attlist,iter,(uintptr_t*)&att);iter++)
     {
       if (att->dirty)
         {
@@ -1773,7 +1778,7 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
 
 
   /* Write attributes for this var. */
-  if ((retval = write_attlist(var->att, var->varid, grp)))
+  if ((retval = write_attlist(&var->att, var->varid, grp)))
     BAIL(retval);
   var->attr_dirty = NC_FALSE;
 
@@ -1852,6 +1857,7 @@ static int
 commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
 {
   int retval;
+  size_t iter;
 
   assert(grp && type);
 
@@ -1870,8 +1876,8 @@ commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
       LOG((4, "creating compound type %s hdf_typeid 0x%x", type->name,
            type->hdf_typeid));
 
-      for (field = type->u.c.field; field; field = field->l.next)
-        {
+      for(iter=0;iter<nclistlength(type->u.c.field);iter++) {
+	  field = nclistget(type->u.c.field,iter);
           if ((retval = nc4_get_hdf_typeid(grp->nc4_info, field->nc_typeid,
                                            &hdf_base_typeid, type->endianness)))
             return retval;
@@ -1925,8 +1931,9 @@ commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
   else if (type->nc_type_class == NC_ENUM)
     {
       NC_ENUM_MEMBER_INFO_T *enum_m;
+      size_t iter;
 
-      if (!type->u.e.enum_member)
+      if (nclistlength(type->u.e.enum_member) == 0)
         return NC_EINVAL;
 
       /* Find the HDF typeid of the base type of this enum. */
@@ -1939,9 +1946,11 @@ commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
         return NC_EHDFERR;
 
       /* Add all the members to the HDF5 type. */
-      for (enum_m = type->u.e.enum_member; enum_m; enum_m = enum_m->l.next)
+      for(iter=0;iter<nclistlength(type->u.e.enum_member);iter++) {
+	enum_m = nclistget(type->u.e.enum_member,iter);
         if (H5Tenum_insert(type->hdf_typeid, enum_m->name, enum_m->value) < 0)
           return NC_EHDFERR;
+      }
     }
   else
     {
@@ -2073,11 +2082,11 @@ attach_dimscales(NC_GRP_INFO_T *grp)
   NC_DIM_INFO_T *dim1;
   int d, i;
   int retval = NC_NOERR;
+  size_t iter;
 
   /* Attach dimension scales. */
-  for (i=0; i < grp->vars.nelems; i++)
+  for(iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var);iter++)
     {
-      var = grp->vars.value[i];
       if (!var) continue;
       /* Scales themselves do not attach. But I really wish they
        * would. */
@@ -2192,8 +2201,9 @@ write_var(NC_VAR_INFO_T *var, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
   if (var->became_coord_var)
     {
       NC_DIM_INFO_T *d1;
+      size_t iter;
 
-      for (d1 = grp->dim; d1; d1 = d1->l.next)
+      for(iter=0;NC_listmap_next(&grp->dim,iter,(uintptr_t*)&d1);iter++) {
         if (!strcmp(d1->name, var->name))
           {
             nc_bool_t exists;
@@ -2208,6 +2218,7 @@ write_var(NC_VAR_INFO_T *var, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
                 break;
               }
           }
+      }
     }
 
   /* Check dims if the variable will be replaced, so that the dimensions
@@ -2220,8 +2231,9 @@ write_var(NC_VAR_INFO_T *var, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
   if (replace_existing_var)
     {
       NC_DIM_INFO_T *d1;
+      size_t iter;
 
-      for (d1 = grp->dim; d1; d1 = d1->l.next)
+      for(iter=0;NC_listmap_next(&grp->dim,iter,(uintptr_t*)&d1);iter++) {
         if (!strcmp(d1->name, var->name))
           {
             nc_bool_t exists;
@@ -2248,6 +2260,7 @@ write_var(NC_VAR_INFO_T *var, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
                 break;
               }
           }
+       }
     }
 
   /* If this is not a dimension scale, do this stuff. */
@@ -2359,7 +2372,7 @@ write_var(NC_VAR_INFO_T *var, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
   if (var->attr_dirty)
     {
       /* Write attributes for this var. */
-      if ((retval = write_attlist(var->att, var->varid, grp)))
+      if ((retval = write_attlist(&var->att, var->varid, grp)))
         BAIL(retval);
       var->attr_dirty = NC_FALSE;
     }
@@ -2453,19 +2466,14 @@ write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
   if (dim->extended)
     {
       NC_VAR_INFO_T *v1 = NULL;
+      size_t iter;
 
       assert(dim->unlimited);
       /* If this is a dimension without a variable, then update
        * the secret length information at the end of the NAME
        * attribute. */
-      for (i=0; i < grp->vars.nelems; i++)
-      {
-	if (grp->vars.value[i] && !strcmp(grp->vars.value[i]->name, dim->name))
-	{
-	  v1 = grp->vars.value[i];
-          break;
-	}
-      }
+      /* Find var with same name as dim, if any */
+      v1 = NC_listmap_get(&grp->vars.value,dim->name);
       if (v1)
         {
           hsize_t *new_size = NULL;
@@ -2516,11 +2524,11 @@ nc4_rec_detect_need_to_preserve_dimids(NC_GRP_INFO_T *grp, nc_bool_t *bad_coord_
   int last_dimid = -1;
   int retval;
   int i;
+  size_t iter;
 
   /* Iterate over variables in this group */
-  for (i=0; i < grp->vars.nelems; i++)
+  for(iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var);iter++)
     {
-      var = grp->vars.value[i];
       if (!var) continue;
       /* Only matters for dimension scale variables, with non-scalar dimensionality */
       if (var->dimscale && var->ndims)
@@ -2560,10 +2568,10 @@ nc4_rec_detect_need_to_preserve_dimids(NC_GRP_INFO_T *grp, nc_bool_t *bad_coord_
     }
 
   /* If there are any child groups, check them also for this condition. */
-  for (child_grp = grp->children; child_grp; child_grp = child_grp->l.next)
+  for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&child_grp);iter++) {
     if ((retval = nc4_rec_detect_need_to_preserve_dimids(child_grp, bad_coord_orderp)))
       return retval;
-
+  }
   return NC_NOERR;
 }
 
@@ -2579,19 +2587,29 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
   NC_GRP_INFO_T *child_grp = NULL;
   int coord_varid = -1;
   int var_index = 0;
-
   int retval;
+  size_t dindex;
+  size_t iter;
+
   assert(grp && grp->name && grp->hdf_grpid);
   LOG((3, "%s: grp->name %s, bad_coord_order %d", __func__, grp->name, bad_coord_order));
 
   /* Write global attributes for this group. */
-  if ((retval = write_attlist(grp->att, NC_GLOBAL, grp)))
+  if ((retval = write_attlist(&grp->att, NC_GLOBAL, grp)))
     return retval;
+#if 0
   /* Set the pointers to the beginning of the list of dims & vars in this
    * group. */
   dim = grp->dim;
-  if (var_index < grp->vars.nelems)
+#endif
+  dindex = 0;
+  dim = NC_listmap_iget(&grp->dim,dindex);
+  if (var_index < grp->vars.nelems) {
+#if 0
     var = grp->vars.value[var_index];
+#endif
+    var = NC_listmap_iget(&grp->vars.value,var_index);
+  }
 
   /* Because of HDF5 ordering the dims and vars have to be stored in
    * this way to ensure that the dims and coordinate vars come out in
@@ -2602,7 +2620,7 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
 
       /* Write non-coord dims in order, stopping at the first one that
        * has an associated coord var. */
-      for (found_coord = NC_FALSE; dim && !found_coord; dim = dim->l.next)
+      for (found_coord = NC_FALSE; dim && !found_coord; dim = NC_listmap_iget(&grp->dim,++dindex))
         {
           if (!dim->coord_var)
             {
@@ -2625,20 +2643,23 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
           if (found_coord && var->varid == coord_varid)
             wrote_coord = NC_TRUE;
 	  if (++var_index < grp->vars.nelems)
+#if 0
 	    var = grp->vars.value[var_index];
+#endif
+	    var = NC_listmap_iget(&grp->vars.value,++var_index);
 	  else
 	    var = NULL;
         }
-    } /* end while */
+   } /* end while */
 
   if ((retval = attach_dimscales(grp)))
     return retval;
 
   /* If there are any child groups, write their metadata. */
-  for (child_grp = grp->children; child_grp; child_grp = child_grp->l.next)
+  for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&child_grp);iter++) {
     if ((retval = nc4_rec_write_metadata(child_grp, bad_coord_order)))
       return retval;
-
+  }
   return NC_NOERR;
 }
 
@@ -2649,6 +2670,7 @@ nc4_rec_write_groups_types(NC_GRP_INFO_T *grp)
   NC_GRP_INFO_T *child_grp;
   NC_TYPE_INFO_T *type;
   int retval;
+  size_t iter;
 
   assert(grp && grp->name);
   LOG((3, "%s: grp->name %s", __func__, grp->name));
@@ -2665,14 +2687,16 @@ nc4_rec_write_groups_types(NC_GRP_INFO_T *grp)
       return retval;
 
   /* If there are any user-defined types, write them now. */
-  for (type = grp->type; type; type = type->l.next)
+  for(iter=0;NC_listmap_next(&grp->type,iter,(uintptr_t*)&type);iter++) {
     if ((retval = commit_type(grp, type)))
       return retval;
+  }
 
   /* If there are any child groups, write their groups and types. */
-  for (child_grp = grp->children; child_grp; child_grp = child_grp->l.next)
+  for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&child_grp);iter++) {
     if ((retval = nc4_rec_write_groups_types(child_grp)))
       return retval;
+  }
 
   return NC_NOERR;
 }
@@ -3662,22 +3686,23 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
   NC_DIM_INFO_T *dim;
   int retval = NC_NOERR;
   int i;
+  size_t iter;
 
   assert(grp && grp->name);
   LOG((4, "%s: grp->name %s", __func__, grp->name));
 
   /* Perform var dimscale match for child groups. */
-  for (g = grp->children; g; g = g->l.next)
+  for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&g);iter++) {
     if ((retval = nc4_rec_match_dimscales(g)))
       return retval;
+  }
 
   /* Check all the vars in this group. If they have dimscale info,
    * try and find a dimension for them. */
-  for (i=0; i < grp->vars.nelems; i++)
+  for(iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var);iter++)
     {
       int ndims;
       int d;
-      var = grp->vars.value[i];
       if (!var) continue;
       /* Check all vars and see if dim[i] != NULL if dimids[i] valid. */
       ndims = var->ndims;
@@ -3706,7 +3731,8 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
                    * match. */
                   for (g = grp; g && !finished; g = g->parent)
                     {
-                      for (dim = g->dim; dim; dim = dim->l.next)
+		      size_t diter;
+		      for(diter=0;NC_listmap_next(&g->dim,diter,(uintptr_t*)&dim);diter++)
                         {
                           if (var->dimscale_hdf5_objids[d].fileno[0] == dim->hdf5_objid.fileno[0] &&
                               var->dimscale_hdf5_objids[d].objno[0] == dim->hdf5_objid.objno[0] &&
@@ -3783,33 +3809,33 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
                * size. */
               for (d = 0; d < var->ndims; d++)
                 {
+		  size_t diter;		  
                   /* Is there already a phony dimension of the correct size? */
-                  for (dim = grp->dim; dim; dim = dim->l.next)
+		  for(diter=0;NC_listmap_next(&grp->dim,diter,(uintptr_t*)&dim);diter++) {
                     if ((dim->len == h5dimlen[d]) &&
                         ((h5dimlenmax[d] == H5S_UNLIMITED && dim->unlimited) ||
                          (h5dimlenmax[d] != H5S_UNLIMITED && !dim->unlimited)))
                       break;
-
+		  }
                   /* Didn't find a phony dim? Then create one. */
                   if (!dim)
                     {
                       char phony_dim_name[NC_MAX_NAME + 1];
+                      sprintf(phony_dim_name, "phony_dim_%d", dim->dimid);
 
                       LOG((3, "%s: creating phony dim for var %s", __func__, var->name));
-                      if ((retval = nc4_dim_list_add(&grp->dim, &dim))) {
+                      if ((retval = nc4_dim_list_add(&grp->dim, phony_dim_name, &dim))) {
                         free(h5dimlenmax);
                         free(h5dimlen);
                         return retval;
                       }
                       dim->dimid = grp->nc4_info->next_dimid++;
-                      sprintf(phony_dim_name, "phony_dim_%d", dim->dimid);
                       if (!(dim->name = strdup(phony_dim_name))) {
                         free(h5dimlenmax);
                         free(h5dimlen);
                         return NC_ENOMEM;
                       }
                       dim->len = h5dimlen[d];
-                      dim->hash = hash_fast(phony_dim_name, strlen(phony_dim_name));
                       if (h5dimlenmax[d] == H5S_UNLIMITED)
                         dim->unlimited = NC_TRUE;
                     }
@@ -4144,15 +4170,13 @@ NC4_walk(hid_t gid, int* countp)
             for(j = 0; j < na; j++) {
                 hid_t aid =  H5Aopen_idx(dsid,(unsigned int)    j);
                 if(aid >= 0) {
-                    const char** p;
+	            const NC_reservedatt* ra = NULL;
                     ssize_t len = H5Aget_name(aid, NC_HDF5_MAX_NAME, name);
                     if(len < 0) return len;
                     /* Is this a netcdf-4 marker attribute */
-                        for(p=NC_RESERVED_VARATT_LIST;*p;p++) {
-                            if(strcmp(name,*p) ==     0) {
-                                *countp = *countp + 1;
-                            }
-                        }
+		    ra = NC_findreserved(name);
+	            if(ra != NULL && (ra->flags & DIMSCALEFLAG))
+			*countp = *countp+1;
                 }
                 H5Aclose(aid);
             }

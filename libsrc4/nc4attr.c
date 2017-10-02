@@ -22,9 +22,10 @@ static int nc4_get_att_special(NC_HDF5_FILE_INFO_T*, const char*,
 
 int nc4typelen(nc_type type);
 
-/* Get or put attribute metadata from our linked list of file
-   info. Always locate the attribute by name, never by attnum.
-   The mem_type is ignored if data=NULL. */
+/* Get or put attribute metadata.
+   Always locate the attribute by name, never by attnum.
+   The mem_type is ignored if data=NULL.
+*/
 int
 nc4_get_att(int ncid, NC *nc, int varid, const char *name,
 	    nc_type *xtype, nc_type mem_type, size_t *lenp,
@@ -57,7 +58,7 @@ nc4_get_att(int ncid, NC *nc, int varid, const char *name,
 
    /* Check varid */
    if (varid != NC_GLOBAL) {
-       if (varid < 0 || varid >= grp->vars.nelems)
+       if (varid < 0 || varid >= NC_listmap_size(&grp->vars.value))
 	   return NC_ENOTVAR;
        if(NCLISTGETVAR(grp->vars.value.list,varid) == NULL)
            return NC_ENOTVAR;
@@ -79,7 +80,7 @@ nc4_get_att(int ncid, NC *nc, int varid, const char *name,
     }
 
    /* Find the attribute, if it exists.
-      <strike>If we don't find it, we are major failures.</strike>
+      If we don't find it, we are major failures.
    */
    if ((retval = nc4_find_grp_att(grp, varid, norm_name, my_attnum, &att))) {
      if(retval == NC_ENOTATT)
@@ -258,7 +259,7 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
       attlist = &grp->att;
    else
    {
-      if (varid < 0 || varid >= grp->vars.nelems)
+      if (varid < 0 || varid >= NC_listmap_size(&grp->vars.value))
 	return NC_ENOTVAR;
       var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars.value,varid);
       if (!var) return NC_ENOTVAR;
@@ -279,8 +280,6 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
 	    return NC_ENOTATT;
     }
 
-   att = NC_listmap_get(attlist,norm_name);
-
    /* If len is not zero, then there must be some data. */
    if (len && !data)
       return NC_EINVAL;
@@ -288,6 +287,8 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
    LOG((1, "nc4_put_att: ncid 0x%x varid %d name %s "
 	"file_type %d mem_type %d len %d", ncid, varid,
 	name, file_type, mem_type, len));
+
+   att = NC_listmap_get(attlist,norm_name);
 
    if (!att)
    {
@@ -339,7 +340,8 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
    if (new_att)
    {
       LOG((3, "adding attribute %s to the list...", norm_name));
-      if ((res = nc4_att_list_add(attlist, &att)))
+      /* this will set att->attnum */
+      if ((res = nc4_att_list_add(attlist, norm_name, &att)))
         BAIL (res);
       if (!(att->name = strdup(norm_name)))
         return NC_ENOMEM;
@@ -367,8 +369,6 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
    }
 
    att->len = len;
-   /* locate the index in the listmap of this attribute */
-   att->attnum = (int) NC_listmap_index(attlist,att);
 
    /* If this is the _FillValue attribute, then we will also have to
     * copy the value to the fill_vlue pointer of the NC_VAR_INFO_T
@@ -678,7 +678,7 @@ NC4_rename_att(int ncid, int varid, const char *name,
    }
    else
    {
-      if (varid < 0 || varid >= grp->vars.nelems)
+      if (varid < 0 || varid >= NC_listmap_size(&grp->vars.value))
 	return NC_ENOTVAR;
       var = NC_listmap_iget(&grp->vars.value,varid);
       if (!var) return NC_ENOTVAR;
@@ -787,9 +787,9 @@ NC4_del_att(int ncid, int varid, const char *name)
    }
    else
    {
-      if (varid < 0 || varid >= grp->vars.nelems)
+      if (varid < 0 || varid >= NC_listmap_size(&grp->vars.value))
 	return NC_ENOTVAR;
-      var = NCLISTGETVAR(grp->vars.value.list,varid);
+      var = NC_listmap_iget(&grp->vars.value,varid);
       if (!var) return NC_ENOTVAR;
       attlist = &var->att;
       assert(var->varid == varid);
@@ -815,8 +815,8 @@ NC4_del_att(int ncid, int varid, const char *name)
    }
 
    /* Renumber all following attributes. */
-   for(i=0;i<nclistlength(attlist->list);i++) {
-	natt = NCLISTGETATT(attlist->list,i);
+   for(i=att->attnum+1;i<NC_listmap_size(attlist);i++) {
+	natt = NC_listmap_iget(attlist,i);
 	assert(att != NULL);
 	natt->attnum--;
    }
@@ -859,7 +859,7 @@ nc4_put_att_tc(int ncid, int varid, const char *name, nc_type file_type,
        if (!(grp = nc4_rec_find_grp(h5->root_grp, (ncid & GRP_ID_MASK))))
           return NC_EBADGRPID;
 
-       if (varid < 0 || varid >= grp->vars.nelems)
+       if (varid < 0 || varid >= NC_listmap_size(&grp->vars.value))
 	   return NC_ENOTVAR;
        if(NCLISTGETVAR(grp->vars.value.list,varid) == NULL)
            return NC_ENOTVAR;

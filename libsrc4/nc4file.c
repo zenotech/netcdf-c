@@ -64,20 +64,16 @@ att_read_var_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
   const NC_reservedatt* ra = NULL;
 
   /* Should we ignore this attribute? */
-  ra = NC_findreserved(att->name);
+  ra = NC_findreserved(att_name);
 
   if(ra == NULL || (ra->flags & DIMSCALEFLAG) == 0) {
       /* Open the att by name. */
       if ((attid = H5Aopen(loc_id, att_name, H5P_DEFAULT)) < 0)
 	BAIL(NC_EATTMETA);
       LOG((4, "%s::  att_name %s", __func__, att_name));
-      /* Add to the end of the list of atts for this var. */
-      if ((retval = nc4_att_list_add(&att_info->var->att, &att)))
+      /* Add to the end of the list of atts for this var; fills in att->attnum */
+      if ((retval = nc4_att_list_add(&att_info->var->att, att_name, &att)))
 	BAIL(retval);
-      /* Fill in the information we know. */
-      att->attnum = att_info->var->natts++;
-      if (!(att->name = strdup(att_name)))
-	BAIL(NC_ENOMEM);
 
       /* Read the rest of the info about the att,
        * including its values. */
@@ -693,13 +689,16 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    htri_t attr_exists = -1;             /* Flag indicating hidden attribute exists */
    hid_t attid = -1;                    /* ID of hidden attribute (to store dim ID) */
    int dimscale_created = 0;            /* Remember if a dimension was created (for error recovery) */
-   short initial_next_dimid = grp->nc4_info->next_dimid;/* Retain for error recovery */
    int retval;
+   NC_HDF5_FILE_INFO_T* h5 = NULL;
 
-   /* Add a dimension for this scale. */
-   if ((retval = nc4_dim_list_add(&grp->dim, &new_dim)))
+   /* Create a dimension for this scale but do not record yet */
+   if ((retval = nc4_dim_new(obj_name, &new_dim)))
       BAIL(retval);
    dimscale_created++;
+
+   /* Get our container */
+   h5 = grp->nc4_info;
 
    /* Does this dataset have a hidden attribute that tells us its
     * dimid? If so, read it. */
@@ -710,21 +709,19 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       if ((attid = H5Aopen_name(datasetid, NC_DIMID_ATT_NAME)) < 0)
          BAIL(NC_EHDFERR);
 
+      /* Note: sets dimid */
       if (H5Aread(attid, H5T_NATIVE_INT, &new_dim->dimid) < 0)
          BAIL(NC_EHDFERR);
 
-      /* Check if scale's dimid should impact the group's next dimid */
-      if (new_dim->dimid >= grp->nc4_info->next_dimid)
-         grp->nc4_info->next_dimid = new_dim->dimid + 1;
+      /* Move the attribute to the correct location to match desired dimid.*/
+      nclistset(h5->alldims,new_dim->dimid,new_dim);
+   } else {
+      new_dim->dimid = nclistlength(h5->alldims);
+      nclistpush(h5->alldims,new_dim);
    }
-   else
-   {
-      /* Assign dimid */
-      new_dim->dimid = grp->nc4_info->next_dimid++;
-   }
+   /* Record the dimension as part of the group */
+   NC_listmap_add(&grp->dim,new_dim);
 
-   if (!(new_dim->name = strdup(obj_name)))
-      BAIL(NC_ENOMEM);
    if (SIZEOF_SIZE_T < 8 && scale_size > NC_MAX_UINT)
    {
       new_dim->len = NC_MAX_UINT;
@@ -780,8 +777,6 @@ exit:
        if ((retval = nc4_dim_list_del(&grp->dim, new_dim)))
            BAIL2(retval);
 
-      /* Reset the group's information */
-      grp->nc4_info->next_dimid = initial_next_dimid;
    }
 
    return retval;
@@ -820,7 +815,7 @@ read_coord_dimids(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
    /* Update var->dim field based on the var->dimids */
    for (d = 0; d < var->ndims; d++) {
      /* Ok if does not find a dim at this time, but if found set it */
-     nc4_find_dim(grp, var->dimids[d], NC_listmap_iget(&var->dim,d), NULL);
+     nc4_find_dim(grp, var->dimids[d], &var->dim[d], NULL);
    }
 
    /* Set my HDF5 IDs free! */
@@ -1325,7 +1320,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
    LOG((5, "type_size %d", type_size));
 
    /* Add to the list for this new type, and get a local pointer to it. */
-   if ((retval = nc4_type_list_add(&grp->type, type_size, type_name, &type)))
+   if ((retval = nc4_type_list_add(grp, type_size, type_name, &type)))
       return retval;
 
    /* Remember common info about this type. */
@@ -1416,7 +1411,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 		     break;
 
                   /* Add this member to our list of fields in this compound type. */
-                  if ((retval = nc4_field_list_add(&type->u.c.field, type->u.c.num_fields++, member_name,
+                  if ((retval = nc4_field_list_add(type, member_name,
                                                    member_offset, H5Tget_super(member_hdf_typeid),
                                                    H5Tget_super(member_native_typeid),
                                                    member_xtype, ndims, dim_size)))
@@ -1430,7 +1425,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                      break;
 
                   /* Add this member to our list of fields in this compound type. */
-                  if ((retval = nc4_field_list_add(&type->u.c.field, type->u.c.num_fields++, member_name,
+                  if ((retval = nc4_field_list_add(type, member_name,
                                                    member_offset, member_hdf_typeid, member_native_typeid,
                                                    member_xtype, 0, NULL)))
                      break;
@@ -1558,8 +1553,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                }
 
                /* Insert new field into this type's list of fields. */
-               if ((retval = nc4_enum_member_add(&type->u.e.enum_member, type->size,
-                                                 member_name, value)))
+               if ((retval = nc4_enum_member_add(type, type->size, member_name, value)))
                {
 		  break;
                }
@@ -1617,15 +1611,17 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    assert(obj_name && grp);
    LOG((4, "%s: obj_name %s", __func__, obj_name));
 
-   /* Add a variable to the end of the group's var list. */
-   if ((retval = nc4_var_add(&var)))
+   /* create a variable */
+   if ((retval = nc4_var_new(&var)))
       BAIL(retval);
 
    /* Fill in what we already know. */
    var->hdf_datasetid = datasetid;
    H5Iinc_ref(var->hdf_datasetid);      /* Increment number of objects using ID */
    incr_id_rc++;                        /* Indicate that we've incremented the ref. count (for errors) */
-   var->varid = grp->nvars++;
+
+   var->varid = NC_listmap_size(&grp->vars.value);
+   NC_listmap_add(&grp->vars.value,var);
    var->created = NC_TRUE;
    var->ndims = ndims;
 
@@ -1633,7 +1629,8 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
     * var. */
    if (var->ndims)
    {
-      NC_listmap_init(&var->dim,var->ndims);
+      if (!(var->dim = calloc(var->ndims, sizeof(NC_DIM_INFO_T *))))
+	 BAIL(NC_ENOMEM);
       if (!(var->dimids = calloc(var->ndims, sizeof(int))))
 	 BAIL(NC_ENOMEM);
    }
@@ -1802,7 +1799,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
          assert(0 == strcmp(var->name, dim->name));
 
          var->dimids[0] = dim->dimid;
-	 NC_listmap_add(&var->dim,dim);
+         var->dim[0] = dim;
       }
       dim->coord_var = var;
    }
@@ -1903,7 +1900,7 @@ read_grp_atts(NC_GRP_INFO_T *grp)
 
       /* See if this a readonly global attribute */
       if(grp->nc4_info->root_grp == grp) {
-        NC_reservedatt* ra = NC_findreserved(obj_name);
+        const NC_reservedatt* ra = NC_findreserved(obj_name);
 	readonly = ((ra != NULL && ((ra->flags & READONLYFLAG) == READONLYFLAG)));
       }
 
@@ -1916,7 +1913,7 @@ read_grp_atts(NC_GRP_INFO_T *grp)
              grp->nc4_info->cmode |= NC_CLASSIC_MODEL;
       else if(!readonly) {
          /* Add an att struct at the end of the list, and then go to it. */
-         if ((retval = nc4_att_list_add(&grp->att, &att)))
+         if ((retval = nc4_att_list_add(&grp->att, obj_name, &att)))
             BAIL(retval);
 
 	 /* Add the info about this attribute. */
@@ -1925,7 +1922,6 @@ read_grp_atts(NC_GRP_INFO_T *grp)
 	    BAIL(NC_ENOMEM);
          strncpy(att->name, obj_name, max_len);
          att->name[max_len] = 0;
-         att->attnum = grp->natts++;
          retval = read_hdf5_att(grp, attid, att);
          if(retval == NC_EBADTYPID) {
                if((retval = nc4_att_list_del(&grp->att, att)))
@@ -2204,9 +2200,9 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
         NC_HDF5_FILE_INFO_T *h5 = grp->nc4_info;
 
         /* Add group to file's hierarchy */
-        if ((retval = nc4_grp_list_add(&(grp->children), h5->next_nc_grpid++,
-                        grp, grp->nc4_info->controller, oinfo->oname, &child_grp)))
+        if ((retval = nc4_grp_list_add(grp, oinfo->oname, &child_grp)))
             BAIL(retval);
+	NC_listmap_add(&grp->children,child_grp);
 
         /* Recursively read the child group's metadata */
         if ((retval = nc4_rec_read_metadata(child_grp)))
@@ -2226,8 +2222,12 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
 	BAIL(retval);
 
    /* when exiting define mode, mark all variable written */
-   for (i=0; i<grp->vars.nelems; i++)
-      grp->vars.value[i]->written_to = NC_TRUE;
+   {
+      size_t iter;
+      NC_VAR_INFO_T* var;
+      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); i++)
+          var->written_to = NC_TRUE;
+   }
 
 exit:
     /* Clean up local information on error, if anything remains */
@@ -3009,8 +3009,12 @@ static int NC4_enddef(int ncid)
       return NC_EBADGRPID;
 
    /* when exiting define mode, mark all variable written */
-   for (i=0; i<grp->vars.nelems; i++)
-      grp->vars.value[i]->written_to = NC_TRUE;
+   {
+      size_t iter;
+      NC_VAR_INFO_T* var;
+      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); i++)
+          var->written_to = NC_TRUE;
+   }
 
    return nc4_enddef_netcdf4_file(nc4_info);
 }
@@ -3114,8 +3118,14 @@ close_netcdf4_file(NC_HDF5_FILE_INFO_T *h5, int abort)
 
    /* Delete all the list contents for vars, dims, and atts, in each
     * group. */
-   if ((retval = nc4_rec_grp_del(&h5->root_grp, h5->root_grp)))
+   if ((retval = nc4_rec_grp_del(h5->root_grp)))
 	goto exit;
+   free(h5->root_grp);
+   h5->root_grp = NULL;   
+
+   nclistfree(h5->alldims);
+   nclistfree(h5->alltypes);
+   nclistfree(h5->allgroups);
 
    /* Close hdf file. */
 #ifdef USE_HDF4
@@ -3269,30 +3279,15 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
 
    /* Count the number of dims, vars, and global atts. */
    if (ndimsp)
-   {
-      *ndimsp = 0;
-      for (dim = grp->dim; dim; dim = dim->l.next)
-	 (*ndimsp)++;
-   }
+      *ndimsp = NC_listmap_size(&grp->dim);
    if (nvarsp)
-   {
-      int i;
-      *nvarsp = 0;
-      for (i=0; i < grp->vars.nelems; i++)
-      {
-	if (grp->vars.value[i])
-	  (*nvarsp)++;
-      }
-   }
+      *nvarsp = NC_listmap_size(&grp->vars.value);
    if (nattsp)
-     {
-      *nattsp = 0;
-      for (att = grp->att; att; att = att->l.next)
-	 (*nattsp)++;
-   }
+      *nattsp = NC_listmap_size(&grp->att);
 
    if (unlimdimidp)
    {
+      size_t iter;
       /* Default, no unlimited dimension */
       *unlimdimidp = -1;
 
@@ -3300,12 +3295,13 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
 	 with netcdf-3, then only the last unlimited one will be reported
 	 back in xtendimp. */
       /* Note that this code is inconsistent with nc_inq_unlimid() */
-      for (dim = grp->dim; dim; dim = dim->l.next)
+      for(iter=0;NC_listmap_next(&grp->dim,iter,(uintptr_t*)&dim);iter++) {
 	 if (dim->unlimited)
 	 {
 	    *unlimdimidp = dim->dimid;
 	    break;
 	 }
+      }
    }
 
    return NC_NOERR;

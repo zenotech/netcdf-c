@@ -119,9 +119,10 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
        return NC_ENAMEINUSE;
 
    /* Add a dimension to the list. The ID must come from the file
-    * information, since dimids are visible in more than one group. */
-   nc4_dim_list_add(&grp->dim, &dim);
-   dim->dimid = grp->nc4_info->next_dimid++;
+    * information, since dimids are visible in more than one group.
+    * Sets dim->dimid.
+    */
+   nc4_dim_list_add(&grp->dim, norm_name, &dim);
 
    /* Initialize the metadata for this dimension. */
    if (!(dim->name = strdup(norm_name)))
@@ -320,7 +321,7 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
 
       /* Check if we found a variable and the variable has the dimension in
        * index 0. */
-      if (var && NC_listmap_iget(&var->dim,0) == dim)
+      if (var && (var->dim[0] == dim))
       {
           /* Sanity check */
           assert(var->dimids[0] == dim->dimid);
@@ -376,5 +377,3 @@ NC4_inq_unlimdims(int ncid, int *nunlimdimsp, int *unlimdimidsp)
 
    return NC_NOERR;
 }
-
-
