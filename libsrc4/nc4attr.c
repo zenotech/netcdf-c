@@ -225,7 +225,7 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
    NC_HDF5_FILE_INFO_T *h5;
    NC_VAR_INFO_T *var = NULL;
    NC_ATT_INFO_T *att = NULL;
-   NC_LISTMAP* attlist = NULL;
+   NC_listmap* attlist = NULL;
    char norm_name[NC_MAX_NAME + 1];
    nc_bool_t new_att = NC_FALSE;
    int retval = NC_NOERR, range_error = 0;
@@ -642,7 +642,7 @@ NC4_rename_att(int ncid, int varid, const char *name,
    NC_HDF5_FILE_INFO_T *h5;
    NC_VAR_INFO_T *var = NULL;
    NC_ATT_INFO_T *att;
-   NC_LISTMAP* list;
+   NC_listmap* list;
    char norm_newname[NC_MAX_NAME + 1], norm_name[NC_MAX_NAME + 1];
    hid_t datasetid = 0;
    int retval = NC_NOERR;
@@ -748,7 +748,7 @@ NC4_del_att(int ncid, int varid, const char *name)
    NC_HDF5_FILE_INFO_T *h5;
    NC_ATT_INFO_T *att, *natt;
    NC_VAR_INFO_T *var;
-   NC_LISTMAP* attlist = NULL; /* NC_INDEX<NC_ATT_INFO_T*> */
+   NC_listmap* attlist = NULL; /* NC_INDEX<NC_ATT_INFO_T*> */
    hid_t locid = 0, datasetid = 0;
    int retval = NC_NOERR;
    int i;

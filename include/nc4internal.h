@@ -114,74 +114,7 @@ struct NCFILEINFO;
 /*
 Indexed Access to Meta-data objects:
 
-The goal of this change set is to remove the need for linear
-searches of the current linked list structure used to represent
-relationships between meta-data object.  One example would be
-the group-subgroup relationship.  or the group-type relationship.
-
-There are as a rule, two searches that are used to locate
-meta-data object: (1) search by name and (2) search by
-externally visible id (e.g. dimid or varid).  Additionally, we
-should need a vector representing e.g. the subgroups of a group.
-Ideally, the index of an object in that vector should be
-the same as the object's externally visible id. This however
-is not normally the case because for types, groups, and dimensions,
-the id is globally unique (see e.g. NC_HDF5_FILE_INFO.next_dimid).
-
-Also relevant is the fact that, once created, no meta-data
-object -- except attributes -- can be deleted. They can
-be renamed, but that does not change the associated id.
-Deletion only occurs when an error occurs in creating one
-or on close.
-
-Attributes represent a special situation because their "id"
-can be represented by a simple vector.
-
-Also note that variable id's are not globally unique (IMO a bad
-design decision) but are only unique within the containing group.
-
-Note also that names are unique only within a group and with respect
-to some kind of metadata. That is a group cannot have e.g. two
-dimensions with the same name.
-
-So, the chosen approach is as follows:
-1. The file object -- NC_HDF5_FILE_INFO -- contains a vector
-   for all types, all dimensions, and all groups.
-   The index into these vectors is intentionally the same as the
-   id of the corresponding meta-data object.
-
-2. Groups contain what we call a listmap datastructure (see
-   nclistmap.h).  The listmap contains an indexable vector and a
-   corresponding hash table.  There is one such listmap for
-   types, groups, dimensions, and variables.  The vector index
-   is the same as the object id only for variables.  The
-   hashtable maps a name to the corresponding meta-data object
-   in the associated vector.
-
-3. A note about typeids. Since user defined types have id starting
-   at NC_FIRSTUSERTYPEID, we leave vector entries 0..NC_FIRSTUSERTYPEID-1
-   empty.
-
-4. References between meta-data objects (e.g. group parent or
-   containing group) are stored directly and not using any kind
-   of vector or hashtable.
-
-5. Enum constants are stored only as a vector and linear search is
-   used for them. This implicitly assumes it does not occur a
-   significant number of times to warrant more complex
-   structures.
-
-6. Compound fields are stored only as a vector and linear search is
-   used for them. This implicitly assumes it does not occur a
-   significant number of times to warrant more complex
-   structures.
-
-7. Attributes are kept in a listmap because large numbers of
-   attributes can (and do) occur in real files. Hence hash'd by
-   name is useful. Also, the listmap vector can be used
-   to define the attribute index. This includes the fact that
-   if an attribute is deleted, all "subsequent" attributes are
-   renumbered.
+See the document docs/indexing.dox for detailed information.
 
 WARNING: ALL OBJECTS THAT CAN BE INSERTED INTO AN NC_LISTMAP
 MUST HAVE THEIR NAME AS THE FIRST FIELD SO IT CAN BE CAST
@@ -237,7 +170,7 @@ typedef struct NC_VAR_INFO
    nc_bool_t written_to;        /* True if variable has data written to it */
    struct NC_TYPE_INFO *type_info;
    hid_t hdf_datasetid;
-   NC_LISTMAP att; /* NC_LISTMAP<NC_ATT_INFO_T*> */
+   NC_listmap att; /* NC_listmap<NC_ATT_INFO_T*> */
    nc_bool_t no_fill;           /* True if no fill value is defined for var */
    void *fill_value;
    size_t *chunksizes;
@@ -336,7 +269,7 @@ typedef struct NC_VAR_ARRAY_T {
 	size_t nalloc;		/* number allocated >= nelems */
 	size_t nelems;		/* length of the array */
 #endif
-	NC_LISTMAP value; /* NC_LISTMAP<NC_VAR_INFO_T*> */
+	NC_listmap value; /* NC_listmap<NC_VAR_INFO_T*> */
 } NC_VAR_ARRAY_T;
 
 /* This holds information for one group. Groups reproduce with
@@ -348,11 +281,11 @@ typedef struct NC_GRP_INFO
    int nc_grpid;
    struct NC_HDF5_FILE_INFO *nc4_info;
    struct NC_GRP_INFO *parent;
-   NC_LISTMAP children; /* NC_LISTMAP<struct NC_GRP_INFO*> */
+   NC_listmap children; /* NC_listmap<struct NC_GRP_INFO*> */
    NC_VAR_ARRAY_T vars;
-   NC_LISTMAP dim; /* NC_LISTMAP<NC_DIM_INFO_T> * */
-   NC_LISTMAP att; /* NC_LISTMAP<NC_ATT_INFO_T> * */
-   NC_LISTMAP type; /* NC_LISTMAP<NC_TYPE_INFO_T> * */
+   NC_listmap dim; /* NC_listmap<NC_DIM_INFO_T> * */
+   NC_listmap att; /* NC_listmap<NC_ATT_INFO_T> * */
+   NC_listmap type; /* NC_listmap<NC_TYPE_INFO_T> * */
 #if 0
    int nvars;
    int natts;
@@ -469,16 +402,16 @@ int nc4_nc4f_list_add(NC *nc, const char *path, int mode);
 int nc4_var_new(NC_VAR_INFO_T **var);
 int nc4_var_del(NC_VAR_INFO_T *var);
 int nc4_dim_new(const char* name, NC_DIM_INFO_T **dim);
-int nc4_dim_list_add(NC_LISTMAP* list, const char* name, NC_DIM_INFO_T **dim);
-int nc4_dim_list_del(NC_LISTMAP* list, NC_DIM_INFO_T *dim);
-int nc4_att_list_add(NC_LISTMAP* list, const char* name, NC_ATT_INFO_T **att);
+int nc4_dim_list_add(NC_listmap* list, const char* name, NC_DIM_INFO_T **dim);
+int nc4_dim_list_del(NC_listmap* list, NC_DIM_INFO_T *dim);
+int nc4_att_list_add(NC_listmap* list, const char* name, NC_ATT_INFO_T **att);
 int nc4_type_list_add(NC_GRP_INFO_T* grp, size_t size, const char *name,
                   NC_TYPE_INFO_T **type);
 int nc4_field_list_add(NC_TYPE_INFO_T*, const char *name,
 		       size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
 		       nc_type xtype, int ndims, const int *dim_sizesp);
 void nc4_file_list_del(NC *nc);
-int nc4_att_list_del(NC_LISTMAP* list, NC_ATT_INFO_T *att);
+int nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att);
 int nc4_grp_list_add(NC_GRP_INFO_T *parent_grp, char *name, NC_GRP_INFO_T **grp);
 int nc4_rec_grp_del(NC_GRP_INFO_T* list);
 int nc4_enum_member_add(NC_TYPE_INFO_T*, size_t size, const char *name, const void *value);

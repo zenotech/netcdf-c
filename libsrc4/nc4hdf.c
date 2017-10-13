@@ -42,7 +42,7 @@ int num_spaces;
  * @param[in] attlist List of attributes, may be NULL.
  * @return Returns NC_NOERR on succes, error on failure.
  */
-static int flag_atts_dirty(NC_LISTMAP* attlist) {
+static int flag_atts_dirty(NC_listmap* attlist) {
 
   NC_ATT_INFO_T *att = NULL;
   size_t iter;
@@ -1439,7 +1439,7 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
 
 /* Write all the dirty atts in an attlist. */
 static int
-write_attlist(NC_LISTMAP *attlist, int varid, NC_GRP_INFO_T *grp)
+write_attlist(NC_listmap *attlist, int varid, NC_GRP_INFO_T *grp)
 {
   NC_ATT_INFO_T *att;
   int retval;

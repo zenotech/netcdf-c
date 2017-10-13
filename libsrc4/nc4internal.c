@@ -569,7 +569,7 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
 		 NC_ATT_INFO_T **att)
 {
    NC_VAR_INFO_T *var;
-   NC_LISTMAP *attlist = NULL;
+   NC_listmap *attlist = NULL;
 
    assert(grp && grp->name);
    LOG((4, "nc4_find_grp_att: grp->name %s varid %d name %s attnum %d",
@@ -613,7 +613,7 @@ nc4_find_nc_att(int ncid, int varid, const char *name, int attnum,
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
    NC_VAR_INFO_T *var;
-   NC_LISTMAP *attlist = NULL;
+   NC_listmap *attlist = NULL;
    int retval;
    size_t iter;
 
@@ -737,7 +737,7 @@ nc4_dim_list_add(NC* nc, NC_GRP_INFO_T* parent, const char* name, NC_DIM_INFO_T 
 
 /* Add to the end of an att list. */
 int
-nc4_att_list_add(NC_LISTMAP* list, const char* name, NC_ATT_INFO_T **att)
+nc4_att_list_add(NC_listmap* list, const char* name, NC_ATT_INFO_T **att)
 {
    NC_ATT_INFO_T *new_att;
 
@@ -838,7 +838,7 @@ nc4_type_list_add(NC* nc, NC_GRP_INFO_T* grp, size_t size, const char *name,
                   NC_TYPE_INFO_T **type)
 {
    NC_TYPE_INFO_T *new_type;
-   NC_LISTMAP* list;
+   NC_listmap* list;
    NC_HDF5_INFO_T* h5 = NC4_DATA(nc);
    int new_nc_typid = nclistlength(h5->alltypes);
 
@@ -1128,7 +1128,7 @@ nc4_rec_grp_del(NC_GRP_INFO_T *grp)
    NC_ATT_INFO_T *a, *att;
    NC_DIM_INFO_T *d, *dim;
    NC_TYPE_INFO_T *type, *t;
-   NC_LISTMAP* list;
+   NC_listmap* list;
    int retval;
    int i;
    size_t iter;
@@ -1172,7 +1172,7 @@ nc4_rec_grp_del(NC_GRP_INFO_T *grp)
    */
    if (grp->vars.nalloc != 0) {
      assert(grp->vars.value != NULL);
-     NC_LISTMAP_clear(&grp->vars.value);
+     NC_listmap_clear(&grp->vars.value);
      grp->vars.nalloc = 0;
    }
 
