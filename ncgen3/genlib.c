@@ -27,6 +27,7 @@ extern int c_flag;
 extern int fortran_flag;
 extern int cmode_modifier;
 extern int nofill_flag;
+extern int logging_flag;
 
 int	lineno = 1;
 int	derror_count = 0;
@@ -41,6 +42,13 @@ gen_netcdf(
     int dimid;
     int varid;
     int stat;
+
+#ifdef LOGGING
+    /* Optionally turn on logging */
+    if(logging_flag) {
+        nc_set_log_level(logging_flag);
+    }
+#endif
 
     stat = nc_create(filename, cmode_modifier, &ncid);
     check_err(stat);

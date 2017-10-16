@@ -122,7 +122,10 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
     * information, since dimids are visible in more than one group.
     * Sets dim->dimid.
     */
-   nc4_dim_list_add(&grp->dim, norm_name, &dim);
+   if((retval = nc4_dim_new(norm_name, &dim)))
+	return retval;
+   if((retval = nc4_dim_list_add(grp, dim)))
+	return retval;
 
    /* Initialize the metadata for this dimension. */
    if (!(dim->name = strdup(norm_name)))

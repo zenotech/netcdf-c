@@ -121,15 +121,16 @@ NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
      return retval;
    }
    /* Is the type in this group? If not, search parents. */
-   for (grptwo = grp; grptwo; grptwo = grptwo->parent)
-      for (type = grptwo->type; type; type = type->l.next)
+   for (grptwo = grp; grptwo; grptwo = grptwo->parent) {
+      size_t titer;
+      for(titer=0;NC_listmap_next(&grptwo->type,titer,(uintptr_t*)&type);titer++)
 	 if (!strcmp(norm_name, type->name))
 	 {
 	    if (typeidp)
 	       *typeidp = type->nc_typeid;
 	    break;
 	 }
-
+   }
    /* Still didn't find type? Search file recursively, starting at the
     * root group. */
    if (!type)
@@ -164,13 +165,15 @@ NC4_inq_typeids(int ncid, int *ntypes, int *typeids)
       return retval;
 
    /* If this is a netCDF-4 file, count types. */
-   if (h5 && grp->type)
-      for (type = grp->type; type; type = type->l.next)
+   if (h5 && NC_listmap_size(&grp->type) > 0) {
+      size_t iter;
+      for(iter=0;NC_listmap_next(&grp->type,iter,(uintptr_t*)&type);iter++)
       {
 	 if (typeids)
 	    typeids[num] = type->nc_typeid;
 	 num++;
       }
+   }
 
    /* Give the count to the user. */
    if (ntypes)
@@ -227,11 +230,12 @@ add_user_type(int ncid, size_t size, const char *name, nc_type base_typeid,
       return retval;
    
    /* Add to our list of types. */
-   if ((retval = nc4_type_list_add(grp, size, norm_name, &type)))
+   if ((retval = nc4_type_new(type_class, size, norm_name, &type)))
+      return retval;
+   if ((retval = nc4_type_list_add(grp, type)))
       return retval;
 
    /* Remember info about this type. */
-   type->nc_type_class = type_class;
    if (type_class == NC_VLEN)
       type->u.v.base_nc_typeid = base_typeid;
    else if (type_class == NC_ENUM)
@@ -330,6 +334,7 @@ NC4_insert_array_compound(int ncid, int typeid1, const char *name,
 {
    NC_GRP_INFO_T *grp;
    NC_TYPE_INFO_T *type;
+   NC_FIELD_INFO_T *field;
    char norm_name[NC_MAX_NAME + 1];
    int retval;
 
@@ -359,11 +364,10 @@ NC4_insert_array_compound(int ncid, int typeid1, const char *name,
       return NC_ETYPDEFINED;
 
    /* Insert new field into this type's list of fields. */
-   if ((retval = nc4_field_list_add(&type->u.c.field, type->u.c.num_fields, 
-				    norm_name, offset, 0, 0, field_typeid,
-				    ndims, dim_sizesp)))
+   if ((retval = nc4_field_new(norm_name, offset, 0, 0, field_typeid,ndims, dim_sizesp, &field)))
       return retval;
-   type->u.c.num_fields++;
+   if ((retval = nc4_field_list_add(type, field)))
+      return retval;
    
    return NC_NOERR;
 }
@@ -391,9 +395,9 @@ NC4_inq_user_type(int ncid, nc_type typeid1, char *name, size_t *size,
    if (nfieldsp)
    {
       if (type->nc_type_class == NC_COMPOUND)
-         *nfieldsp = type->u.c.num_fields;
+         *nfieldsp = nclistlength(type->u.c.fields);
       else if (type->nc_type_class == NC_ENUM)
-	 *nfieldsp = type->u.e.num_members;
+	 *nfieldsp = nclistlength(type->u.e.members);
       else
 	 *nfieldsp = 0;
    }
@@ -440,7 +444,7 @@ NC4_inq_compound_field(int ncid, nc_type typeid1, int fieldid, char *name,
    NC_GRP_INFO_T *grp;
    NC_TYPE_INFO_T *type;
    NC_FIELD_INFO_T *field;
-   int d, retval;
+   int i, d, retval;
    
    /* Find file metadata. */
    if ((retval = nc4_find_nc4_grp(ncid, &grp)))
@@ -451,7 +455,9 @@ NC4_inq_compound_field(int ncid, nc_type typeid1, int fieldid, char *name,
       return NC_EBADTYPE;
 
    /* Find the field. */
-   for (field = type->u.c.field; field; field = field->l.next)
+   for(i=0;i<nclistlength(type->u.c.fields);i++)
+   {
+      field = nclistget(type->u.c.fields,i);
       if (field->fieldid == fieldid)
       {
 	 if (name)
@@ -467,7 +473,7 @@ NC4_inq_compound_field(int ncid, nc_type typeid1, int fieldid, char *name,
 	       dim_sizesp[d] = field->dim_size[d];
 	 return NC_NOERR;
       }
-
+   }
    return NC_EBADFIELD;
 }
 
@@ -496,7 +502,7 @@ NC4_inq_compound_fieldindex(int ncid, nc_type typeid1, const char *name, int *fi
    NC_TYPE_INFO_T *type;
    NC_FIELD_INFO_T *field;
    char norm_name[NC_MAX_NAME + 1];
-   int retval;
+   int retval, i;
 
    LOG((2, "nc_inq_compound_fieldindex: ncid 0x%x typeid %d name %s",
 	ncid, typeid1, name));
@@ -517,10 +523,12 @@ NC4_inq_compound_fieldindex(int ncid, nc_type typeid1, const char *name, int *fi
    if ((retval = nc4_normalize_name(name, norm_name)))
       return retval;
 
-   /* Find the field with this name. */
-   for (field = type->u.c.field; field; field = field->l.next)
+   /* Find the field with this name. We assume ok to do linear search */
+   for(i=0;i<nclistlength(type->u.c.fields);i++) {
+      field = nclistget(type->u.c.fields,i);
       if (!strcmp(field->name, norm_name))
 	 break;
+   }
 
    if (!field)
       return NC_EBADFIELD;
@@ -568,7 +576,7 @@ NC4_inq_enum_ident(int ncid, nc_type xtype, long long value, char *identifier)
    NC_TYPE_INFO_T *type;
    NC_ENUM_MEMBER_INFO_T *enum_member;
    long long ll_val;
-   int i;
+   int i, found;
    int retval;
 
    LOG((3, "nc_inq_enum_ident: xtype %d value %d\n", xtype, value));
@@ -585,10 +593,10 @@ NC4_inq_enum_ident(int ncid, nc_type xtype, long long value, char *identifier)
    if (type->nc_type_class != NC_ENUM)
       return NC_EBADTYPE;
    
-   /* Move to the desired enum member in the list. */
-   enum_member = type->u.e.enum_member;
-   for (i = 0; i < type->u.e.num_members; i++)
+   /* Move to the desired enum member in the list; linear search ok */
+   for(found=0,i=0;i<nclistlength(type->u.e.members);i++)
    {
+      enum_member = nclistget(type->u.e.members,i);
       switch (type->u.e.base_nc_typeid)
       {
 	 case NC_BYTE:
@@ -619,16 +627,15 @@ NC4_inq_enum_ident(int ncid, nc_type xtype, long long value, char *identifier)
       LOG((4, "ll_val=%d", ll_val));
       if (ll_val == value)
       {
+         found = 1;
 	 if (identifier)
 	    strcpy(identifier, enum_member->name);
 	 break;
       }
-      else
-	 enum_member = enum_member->l.next;
    }
 
    /* If we didn't find it, life sucks for us. :-( */
-   if (i == type->u.e.num_members)
+   if (!found)
       return NC_EINVAL;
 
    return NC_NOERR;
@@ -661,13 +668,11 @@ NC4_inq_enum_member(int ncid, nc_type typeid1, int idx, char *identifier,
       return NC_EBADTYPE;
    
    /* Check index. */
-   if (idx >= type->u.e.num_members)
+   if (idx < 0 || idx >= nclistlength(type->u.e.members))
       return NC_EINVAL;
    
-   /* Move to the desired enum member in the list. */
-   enum_member = type->u.e.enum_member;
-   for (i = 0; i < idx; i++)
-      enum_member = enum_member->l.next;
+   /* Get the idx'th enum member in the list. */
+   enum_member = nclistget(type->u.e.members,idx);
 
    /* Give the people what they want. */
    if (identifier)
@@ -686,6 +691,7 @@ NC4_insert_enum(int ncid, nc_type typeid1, const char *identifier,
 {
    NC_GRP_INFO_T *grp;
    NC_TYPE_INFO_T *type;
+   NC_ENUM_MEMBER_INFO_T *member;
    char norm_name[NC_MAX_NAME + 1];
    int retval;
 
@@ -714,10 +720,10 @@ NC4_insert_enum(int ncid, nc_type typeid1, const char *identifier,
       return NC_ETYPDEFINED;
 
    /* Insert new field into this type's list of fields. */
-   if ((retval = nc4_enum_member_add(&type->u.e.enum_member, type->size, 
-				     norm_name, value)))
+   if ((retval = nc4_enum_member_new(type->size, norm_name, value, &member)))
       return retval;
-   type->u.e.num_members++;
+   if ((retval = nc4_member_list_add(type, member)))
+      return retval;
    
    return NC_NOERR;
 }

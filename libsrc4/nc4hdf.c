@@ -1876,8 +1876,8 @@ commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
       LOG((4, "creating compound type %s hdf_typeid 0x%x", type->name,
            type->hdf_typeid));
 
-      for(iter=0;iter<nclistlength(type->u.c.field);iter++) {
-	  field = nclistget(type->u.c.field,iter);
+      for(iter=0;iter<nclistlength(type->u.c.fields);iter++) {
+	  field = nclistget(type->u.c.fields,iter);
           if ((retval = nc4_get_hdf_typeid(grp->nc4_info, field->nc_typeid,
                                            &hdf_base_typeid, type->endianness)))
             return retval;
@@ -1933,7 +1933,7 @@ commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
       NC_ENUM_MEMBER_INFO_T *enum_m;
       size_t iter;
 
-      if (nclistlength(type->u.e.enum_member) == 0)
+      if (nclistlength(type->u.e.members) == 0)
         return NC_EINVAL;
 
       /* Find the HDF typeid of the base type of this enum. */
@@ -1946,8 +1946,8 @@ commit_type(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *type)
         return NC_EHDFERR;
 
       /* Add all the members to the HDF5 type. */
-      for(iter=0;iter<nclistlength(type->u.e.enum_member);iter++) {
-	enum_m = nclistget(type->u.e.enum_member,iter);
+      for(iter=0;iter<nclistlength(type->u.e.members);iter++) {
+	enum_m = nclistget(type->u.e.members,iter);
         if (H5Tenum_insert(type->hdf_typeid, enum_m->name, enum_m->value) < 0)
           return NC_EHDFERR;
       }
@@ -2604,7 +2604,7 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
 #endif
   dindex = 0;
   dim = NC_listmap_iget(&grp->dim,dindex);
-  if (var_index < grp->vars.nelems) {
+  if (var_index < NC_listmap_size(&grp->vars.value)) {
 #if 0
     var = grp->vars.value[var_index];
 #endif
@@ -2642,7 +2642,7 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
             return retval;
           if (found_coord && var->varid == coord_varid)
             wrote_coord = NC_TRUE;
-	  if (++var_index < grp->vars.nelems)
+	  if (++var_index < NC_listmap_size(&grp->vars.value))
 #if 0
 	    var = grp->vars.value[var_index];
 #endif
@@ -3687,6 +3687,7 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
   int retval = NC_NOERR;
   int i;
   size_t iter;
+  hsize_t *h5dimlen = NULL, *h5dimlenmax = NULL;
 
   assert(grp && grp->name);
   LOG((4, "%s: grp->name %s", __func__, grp->name));
@@ -3755,7 +3756,6 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
           else
             {
               hid_t spaceid = 0;
-              hsize_t *h5dimlen = NULL, *h5dimlenmax = NULL;
               int dataset_ndims;
 
               /* Find the space information for this dimension. */
@@ -3772,33 +3772,32 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
                     return NC_ENOMEM;
                   if (!(h5dimlenmax = malloc(var->ndims * sizeof(hsize_t))))
                     {
-                      free(h5dimlen);
-                      return NC_ENOMEM;
+		      retval = NC_ENOMEM;
+		      goto fail;
                     }
                   if ((dataset_ndims = H5Sget_simple_extent_dims(spaceid, h5dimlen,
                                                                  h5dimlenmax)) < 0) {
-                    free(h5dimlenmax);
-                    free(h5dimlen);
-                    return NC_EHDFERR;
+		      retval = NC_EHDFERR;
+		      goto fail;
                   }
                   if (dataset_ndims != var->ndims) {
-                    free(h5dimlenmax);
-                    free(h5dimlen);
-                    return NC_EHDFERR;
+		      retval = NC_EHDFERR;
+		      goto fail;
                   }
                 }
               else
                 {
                   /* Make sure it's scalar. */
-                  if (H5Sget_simple_extent_type(spaceid) != H5S_SCALAR)
-                    return NC_EHDFERR;
+                  if (H5Sget_simple_extent_type(spaceid) != H5S_SCALAR) {
+		      retval = NC_EHDFERR;
+		      goto fail;
+		  }
                 }
 
               /* Release the space object. */
               if (H5Sclose(spaceid) < 0) {
-                free(h5dimlen);
-                free(h5dimlenmax);
-                return NC_EHDFERR;
+		      retval = NC_EHDFERR;
+		      goto fail;
               }
 #ifdef EXTRA_TESTS
               num_spaces--;
@@ -3824,16 +3823,13 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
                       sprintf(phony_dim_name, "phony_dim_%d", dim->dimid);
 
                       LOG((3, "%s: creating phony dim for var %s", __func__, var->name));
-                      if ((retval = nc4_dim_list_add(&grp->dim, phony_dim_name, &dim))) {
-                        free(h5dimlenmax);
-                        free(h5dimlen);
-                        return retval;
-                      }
-                      dim->dimid = grp->nc4_info->next_dimid++;
+                      if ((retval = nc4_dim_new(phony_dim_name, &dim)))
+			goto fail;
+                      if ((retval = nc4_dim_list_add(grp, dim)))
+			goto fail;
                       if (!(dim->name = strdup(phony_dim_name))) {
-                        free(h5dimlenmax);
-                        free(h5dimlen);
-                        return NC_ENOMEM;
+			retval = NC_ENOMEM;
+			goto fail;
                       }
                       dim->len = h5dimlen[d];
                       if (h5dimlenmax[d] == H5S_UNLIMITED)
@@ -3853,6 +3849,13 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
     }
 
   return retval;
+
+fail:
+  if(h5dimlen) free(h5dimlen);
+  if(h5dimlenmax) free(h5dimlenmax);
+  return retval;
+
+
 }
 
 /* Get the length, in bytes, of one element of a type in memory. */

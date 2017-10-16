@@ -112,7 +112,7 @@ locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int 
 }
 
 NC_hashmap*
-NC_hashmapcreate(size_t startsize)
+NC_hashmapnew(size_t startsize)
 {
     NC_hashmap* hm = (NC_hashmap*)malloc(sizeof(NC_hashmap));
 
@@ -129,7 +129,7 @@ NC_hashmapcreate(size_t startsize)
     return hm;
 }
 
-void
+int
 NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key)
 {
     if(hash->size*3/4 <= hash->count)
@@ -145,16 +145,17 @@ NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key)
 	if(entry->flags & ACTIVE) {
 	    /* key already exists in table => overwrite */
 	    entry->data = data;
-	    return;
+	    return 1;
         } else { /* !ACTIVE || DELETED */
 	    entry->flags = ACTIVE;
 	    entry->data = data;
 	    entry->hashkey = hashkey;
 	    entry->key = (char*)key;
 	    ++hash->count;
-	    return;
+	    return 1;
 	}
      }
+     return 0;
 }
 
 int
@@ -194,19 +195,56 @@ NC_hashmapget(NC_hashmap* hash, const char* key, uintptr_t* datap)
     return 0;
 }
 
+/* Locate an object by its data value */
+static int
+datalocate(NC_hashmap* hash, uintptr_t data, size_t* indexp)
+{
+    size_t i;
+    for(i=0;i<hash->size;i++) {
+	NC_hentry* e = &hash->table[i];
+        if(e->flags == ACTIVE && e->data == data) {
+	    if(indexp) *indexp = i;	    	    
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+/* rehash an entry with a new key */
+int
+NC_hashmapmove(NC_hashmap* hash, const uintptr_t data, const char* newkey)
+{
+    size_t index;
+    NC_hentry* entry;
+ 
+   if(hash->count == 0)
+      return 0;
+   if(!datalocate(hash,data,&index))
+	return 0; /* not present */
+    entry = &hash->table[index];
+    assert(entry->flags == ACTIVE);
+    /* Mark old entry as deleted */
+    entry->flags = DELETED;
+    entry->key = NULL;
+    /* Insert new entry with new name and old data */
+    NC_hashmapadd(hash,data,newkey);
+    return 1;
+}
+
 size_t
 NC_hashmapCount(NC_hashmap* hash)
 {
     return hash->count;
 }
 
-void
+int
 NC_hashmapfree(NC_hashmap* hash)
 {
     if(hash) {
       free(hash->table);
       free(hash);
     }
+    return 1;
 }
 
 /**************************************************/

@@ -535,7 +535,7 @@ v1h_get_NC_dimarray(v1hs *gsp, NC_dimarray *ncap)
 		return NC_ENOMEM;
 	ncap->nalloc = ncap->nelems;
 
-	ncap->hashmap = NC_hashmapcreate(ncap->nelems);
+	ncap->hashmap = NC_hashmapnew(ncap->nelems);
 
 	{
 		NC_dim **dpp = ncap->value;
@@ -1158,7 +1158,7 @@ v1h_get_NC_vararray(v1hs *gsp, NC_vararray *ncap)
 		return NC_ENOMEM;
 	ncap->nalloc = ncap->nelems;
 
-	ncap->hashmap = NC_hashmapcreate(ncap->nelems);
+	ncap->hashmap = NC_hashmapnew(ncap->nelems);
 	{
 		NC_var **vpp = ncap->value;
 		NC_var *const *const end = &vpp[ncap->nelems];

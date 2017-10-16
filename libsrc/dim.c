@@ -286,7 +286,7 @@ incr_NC_dimarray(NC_dimarray *ncap, NC_dim *newelemp)
 			return NC_ENOMEM;
 		ncap->value = vp;
 		ncap->nalloc = NC_ARRAY_GROWBY;
-		ncap->hashmap = NC_hashmapcreate(0);
+		ncap->hashmap = NC_hashmapnew(0);
 	}
 	else if(ncap->nelems +1 > ncap->nalloc)
 	{

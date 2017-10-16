@@ -170,7 +170,7 @@ typedef struct NC_VAR_INFO
    nc_bool_t written_to;        /* True if variable has data written to it */
    struct NC_TYPE_INFO *type_info;
    hid_t hdf_datasetid;
-   NC_listmap att; /* NC_listmap<NC_ATT_INFO_T*> */
+   NC_listmap att;		/* NC_listmap<NC_ATT_INFO_T*> */
    nc_bool_t no_fill;           /* True if no fill value is defined for var */
    void *fill_value;
    size_t *chunksizes;
@@ -249,13 +249,12 @@ typedef struct NC_TYPE_INFO
    /* Information for each type or class */
    union {
       struct {
-         int num_members;
-         NClist* enum_member; /* NClist<NC_ENUM_MEMBER_INFO_T*> */
+         NClist* members; /* NClist<NC_ENUM_MEMBER_INFO_T*> */
          nc_type base_nc_typeid;
          hid_t base_hdf_typeid;
       } e;                      /* Enum */
       struct {
-         NClist* field; /* NClist<NC_FIELD_INFO_T*> */
+         NClist* fields; /* NClist<NC_FIELD_INFO_T*> */
       } c;                      /* Compound */
       struct {
          nc_type base_nc_typeid;
@@ -269,7 +268,7 @@ typedef struct NC_VAR_ARRAY_T {
 	size_t nalloc;		/* number allocated >= nelems */
 	size_t nelems;		/* length of the array */
 #endif
-	NC_listmap value; /* NC_listmap<NC_VAR_INFO_T*> */
+	NC_listmap value;	 /* NC_listmap<NC_VAR_INFO_T*> */
 } NC_VAR_ARRAY_T;
 
 /* This holds information for one group. Groups reproduce with
@@ -335,7 +334,7 @@ typedef struct NC_HDF5_FILE_INFO
    int sdid;
 #endif /* USE_HDF4 */
    struct NCFILEINFO* fileinfo;
-} NC_HDF5_FILE_INFO_T;
+}  NC_HDF5_FILE_INFO_T;
 
 
 /* Defined in lookup3.c */
@@ -394,27 +393,38 @@ int nc4_get_hdf_typeid(NC_HDF5_FILE_INFO_T *h5, nc_type xtype,
 int nc4_get_typeclass(const NC_HDF5_FILE_INFO_T *h5, nc_type xtype,
                       int *type_class);
 
-/* Free various types */
-int nc4_type_free(NC_TYPE_INFO_T *type);
+/* These functions create various kinds of object */
+int nc4_grp_new(NC_GRP_INFO_T* parent, char *name, NC_GRP_INFO_T **grpp);
+int nc4_dim_new(const char* name, NC_DIM_INFO_T **);
+int nc4_type_new(nc_type typeclass, size_t size, const char *name, NC_TYPE_INFO_T **);
+int nc4_var_new(NC_VAR_INFO_T **);
+int nc4_att_new(const char* name, NC_ATT_INFO_T **attp); /* Does not set value */
+int nc4_enum_member_new(size_t size, const char *name, const void *value, NC_ENUM_MEMBER_INFO_T**);
+int nc4_field_new(const char *name,
+		   size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
+		   nc_type xtype, int ndims, const int *dim_sizesp, NC_FIELD_INFO_T**);
+
+/* These functions reclaim various kinds of object */
+int nc4_grp_free(NC_GRP_INFO_T*);
+int nc4_dim_free(NC_DIM_INFO_T*);
+int nc4_type_free(NC_TYPE_INFO_T*);
+int nc4_var_free(NC_VAR_INFO_T*);
+int nc4_att_free(NC_ATT_INFO_T*);
+int nc4_enum_member_free(NC_ENUM_MEMBER_INFO_T*);
+int nc4_field_free(NC_FIELD_INFO_T*);
 
 /* These list functions add and delete vars, atts. */
+/* Delete functions only exist when the deletion has complications */
 int nc4_nc4f_list_add(NC *nc, const char *path, int mode);
-int nc4_var_new(NC_VAR_INFO_T **var);
-int nc4_var_del(NC_VAR_INFO_T *var);
-int nc4_dim_new(const char* name, NC_DIM_INFO_T **dim);
-int nc4_dim_list_add(NC_listmap* list, const char* name, NC_DIM_INFO_T **dim);
-int nc4_dim_list_del(NC_listmap* list, NC_DIM_INFO_T *dim);
-int nc4_att_list_add(NC_listmap* list, const char* name, NC_ATT_INFO_T **att);
-int nc4_type_list_add(NC_GRP_INFO_T* grp, size_t size, const char *name,
-                  NC_TYPE_INFO_T **type);
-int nc4_field_list_add(NC_TYPE_INFO_T*, const char *name,
-		       size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
-		       nc_type xtype, int ndims, const int *dim_sizesp);
-void nc4_file_list_del(NC *nc);
+int nc4_dim_list_add(NC_GRP_INFO_T*, NC_DIM_INFO_T *dim);
+int nc4_att_list_add(NC_listmap* list, NC_ATT_INFO_T *att);
 int nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att);
-int nc4_grp_list_add(NC_GRP_INFO_T *parent_grp, char *name, NC_GRP_INFO_T **grp);
+int nc4_type_list_add(NC_GRP_INFO_T* grp, NC_TYPE_INFO_T *type);
+int nc4_field_list_add(NC_TYPE_INFO_T*, NC_FIELD_INFO_T*);
+int nc4_member_list_add(NC_TYPE_INFO_T*, NC_ENUM_MEMBER_INFO_T*);
+int nc4_grp_list_add(struct NC_HDF5_FILE_INFO*, NC_GRP_INFO_T *grp);
 int nc4_rec_grp_del(NC_GRP_INFO_T* list);
-int nc4_enum_member_add(NC_TYPE_INFO_T*, size_t size, const char *name, const void *value);
+void nc4_file_list_del(NC *nc);
 
 /* Break & reform coordinate variables */
 int nc4_break_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var, NC_DIM_INFO_T *dim);

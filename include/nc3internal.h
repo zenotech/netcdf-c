@@ -178,8 +178,8 @@ typedef struct NC_vararray {
 	/* below gets xdr'd */
 	/* NCtype type = NC_VARIABLE */
 	size_t nelems;		/* length of the array */
-  NC_hashmap *hashmap;
-  NC_var **value;
+        NC_hashmap *hashmap;
+        NC_var **value;
 } NC_vararray;
 
 /* Begin defined in var.c */

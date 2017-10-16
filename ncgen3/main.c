@@ -44,6 +44,7 @@ int netcdf_flag;
 int cmode_modifier;
 int nofill_flag;
 char *netcdf_name = NULL;	/* name of output netCDF file to write */
+int logging_flag;
 
 extern FILE *ncgin;
 extern int derror_count;
@@ -113,13 +114,14 @@ main(
     netcdf_flag = 0;
     cmode_modifier = 0;
     nofill_flag = 0;
+    logging_flag = 0;
 
 #if _CRAYMPP && 0
     /* initialize CRAY MPP parallel-I/O library */
     (void) par_io_init(32, 32);
 #endif
 
-    while ((c = getopt(argc, argv, "bcfk:l:no:v:x")) != EOF)
+    while ((c = getopt(argc, argv, "bcfk:l:no:v:xL:34")) != EOF)
       switch(c) {
 	case 'c':		/* for c output, old version of "-lc" */
 	  c_flag = 1;
@@ -210,6 +212,15 @@ main(
 		free(kind_name);
 	    }
 	  break;
+	case '3':
+	    cmode_modifier |= NC_CLASSIC_MODEL;
+	    break;
+	case '4':
+	    cmode_modifier |= NC_NETCDF4;
+	    break;
+	case 'L':
+	    logging_flag = atoi(optarg);
+	    break;
 	case '?':
 	  usage();
 	  return(8);

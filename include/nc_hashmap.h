@@ -26,7 +26,7 @@ The hashmap object must give us the hash table (table),
 the |table| size, and the # of defined entries in the table
 */
 typedef struct NC_hashmap {
-  size_t size;
+  size_t size; /* allocated */
   size_t count;
   NC_hentry* table;
 } NC_hashmap;
@@ -34,11 +34,11 @@ typedef struct NC_hashmap {
 /* defined in nc_hashmap.c */
 
 /** Creates a new hashmap near the given size. */
-extern NC_hashmap* NC_hashmapcreate(size_t startsize);
+extern NC_hashmap* NC_hashmapnew(size_t startsize);
 
 /** Inserts a new element into the hashmap. */
 /* Note we pass the NC_hobjecty struct by value */
-extern void NC_hashmapadd(NC_hashmap*, uintptr_t data, const char* name);
+extern int NC_hashmapadd(NC_hashmap*, uintptr_t data, const char* name);
 
 /** Removes the storage for the element of the key.
     Return 1 if found, 0 otherwise; returns the data in datap if !null
@@ -50,10 +50,13 @@ extern int NC_hashmapremove(NC_hashmap*, const char* name, uintptr_t* datap);
 */
 extern int NC_hashmapget(NC_hashmap*, const char*, uintptr_t* datap);
 
+/* rehash an entry with a new key */
+extern int NC_hashmapmove(NC_hashmap* hash, const uintptr_t data, const char* newkey);
+
 /** Returns the number of saved elements. */
 extern size_t NC_hashmapCount(NC_hashmap*);
 
 /** Reclaims the hashmap structure. */
-extern void NC_hashmapfree(NC_hashmap*);
+extern int NC_hashmapfree(NC_hashmap*);
 
 #endif

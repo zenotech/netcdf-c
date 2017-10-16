@@ -72,7 +72,9 @@ att_read_var_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
 	BAIL(NC_EATTMETA);
       LOG((4, "%s::  att_name %s", __func__, att_name));
       /* Add to the end of the list of atts for this var; fills in att->attnum */
-      if ((retval = nc4_att_list_add(&att_info->var->att, att_name, &att)))
+      if ((retval = nc4_att_new(att_name, &att)))
+	BAIL(retval);
+      if ((retval = nc4_att_list_add(&att_info->var->att, att)))
 	BAIL(retval);
 
       /* Read the rest of the info about the att,
@@ -774,9 +776,9 @@ exit:
    if (retval < 0 && dimscale_created)
    {
        /* Delete the dimension */
-       if ((retval = nc4_dim_list_del(&grp->dim, new_dim)))
-           BAIL2(retval);
-
+       if(!NC_listmap_del(&grp->dim,new_dim))
+	BAIL2(NC_EDIMMETA);
+       nc4_dim_free(new_dim);
    }
 
    return retval;
@@ -1305,6 +1307,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
    hid_t native_typeid;
    size_t type_size;
    int retval = NC_NOERR;
+   nc_type nc4class = NC_NAT;
 
    assert(grp && type_name);
 
@@ -1319,8 +1322,24 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
       return NC_EHDFERR;
    LOG((5, "type_size %d", type_size));
 
+   /* What is the class of this type, compound, vlen, etc. */
+   if ((class = H5Tget_class(hdf_typeid)) < 0)
+      return NC_EHDFERR;
+   switch (class) {
+   case H5T_STRING: nc4class = NC_STRING; break;
+   case H5T_COMPOUND: nc4class = NC_COMPOUND; break;
+   case H5T_VLEN: nc4class = NC_VLEN; break; /* May get overwritten below as NC_STRING*/
+   case H5T_OPAQUE: nc4class = NC_OPAQUE; break;
+   case H5T_ENUM: nc4class = NC_ENUM; break;
+   case H5T_INTEGER: nc4class = NC_INT;
+   case H5T_FLOAT: nc4class = NC_FLOAT;
+   default: nc4class = NC_NAT; /* unknown for now */
+   }
+
    /* Add to the list for this new type, and get a local pointer to it. */
-   if ((retval = nc4_type_list_add(grp, type_size, type_name, &type)))
+   if ((retval = nc4_type_new(nc4class, type_size, type_name, &type)))
+      return retval;
+   if ((retval = nc4_type_list_add(grp, type)))
       return retval;
 
    /* Remember common info about this type. */
@@ -1329,9 +1348,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
    H5Iinc_ref(type->hdf_typeid);        /* Increment number of objects using ID */
    type->native_hdf_typeid = native_typeid;
 
-   /* What is the class of this type, compound, vlen, etc. */
-   if ((class = H5Tget_class(hdf_typeid)) < 0)
-      return NC_EHDFERR;
+   /* Process class of this type, compound, vlen, etc. */
    switch (class)
    {
       case H5T_STRING:
@@ -1359,7 +1376,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                size_t member_offset;
                H5T_class_t mem_class;
                nc_type member_xtype;
-
+	       NC_FIELD_INFO_T* field;
 
                /* Get the typeid and native typeid of this member of the
                 * compound type. */
@@ -1411,10 +1428,12 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 		     break;
 
                   /* Add this member to our list of fields in this compound type. */
-                  if ((retval = nc4_field_list_add(type, member_name,
+                  if ((retval = nc4_field_new(member_name,
                                                    member_offset, H5Tget_super(member_hdf_typeid),
                                                    H5Tget_super(member_native_typeid),
-                                                   member_xtype, ndims, dim_size)))
+                                                   member_xtype, ndims, dim_size, &field)))
+		      break;
+                  if ((retval = nc4_field_list_add(type, field)))
                      break;
                }
                else
@@ -1425,10 +1444,12 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                      break;
 
                   /* Add this member to our list of fields in this compound type. */
-                  if ((retval = nc4_field_list_add(type, member_name,
+                  if ((retval = nc4_field_new(member_name,
                                                    member_offset, member_hdf_typeid, member_native_typeid,
-                                                   member_xtype, 0, NULL)))
+                                                   member_xtype, 0, NULL, &field)))
                      break;
+                  if ((retval = nc4_field_list_add(type, field)))
+		     break;
                }
 
 	       hdf5free(member_name);
@@ -1494,6 +1515,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
             void *value;
             int i;
 	    char *member_name = NULL;
+	    size_t nmembers;
 #ifdef JNA
             char jna[1001];
 #endif
@@ -1519,7 +1541,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
             type->u.e.base_hdf_typeid = base_hdf_typeid;
 
             /* Find out how many member are in the enum. */
-            if ((type->u.e.num_members = H5Tget_nmembers(hdf_typeid)) < 0)
+            if ((nmembers = H5Tget_nmembers(hdf_typeid)) < 0)
                return NC_EHDFERR;
 
             /* Allocate space for one value. */
@@ -1527,8 +1549,9 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
                return NC_ENOMEM;
 
             /* Read each name and value defined in the enum. */
-            for (i = 0; i < type->u.e.num_members; i++)
+            for (i = 0; i < nmembers; i++)
             {
+		NC_ENUM_MEMBER_INFO_T* member = NULL;
 
                /* Get the name and value from HDF5. */
                if (!(member_name = H5Tget_member_name(hdf_typeid, i)))
@@ -1552,11 +1575,11 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
 		  break;
                }
 
-               /* Insert new field into this type's list of fields. */
-               if ((retval = nc4_enum_member_add(type, type->size, member_name, value)))
-               {
+               /* Insert new member into this type's list of members */
+               if ((retval = nc4_enum_member_new(type->size, member_name, value, &member)))
 		  break;
-               }
+               if ((retval = nc4_member_list_add(type, member)))
+		  break;
 
 	       hdf5free(member_name);
 	       member_name = NULL;
@@ -1859,7 +1882,7 @@ exit:
    {
        if (incr_id_rc && H5Idec_ref(datasetid) < 0)
           BAIL2(NC_EHDFERR);
-       if (var && nc4_var_del(var))
+       if (var && nc4_var_free(var))
           BAIL2(NC_EHDFERR);
    }
    if (access_pid && H5Pclose(access_pid) < 0)
@@ -1913,7 +1936,9 @@ read_grp_atts(NC_GRP_INFO_T *grp)
              grp->nc4_info->cmode |= NC_CLASSIC_MODEL;
       else if(!readonly) {
          /* Add an att struct at the end of the list, and then go to it. */
-         if ((retval = nc4_att_list_add(&grp->att, obj_name, &att)))
+         if ((retval = nc4_att_new(obj_name, &att)))
+            BAIL(retval);
+         if ((retval = nc4_att_list_add(&grp->att, att)))
             BAIL(retval);
 
 	 /* Add the info about this attribute. */
@@ -2200,9 +2225,10 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
         NC_HDF5_FILE_INFO_T *h5 = grp->nc4_info;
 
         /* Add group to file's hierarchy */
-        if ((retval = nc4_grp_list_add(grp, oinfo->oname, &child_grp)))
+        if ((retval = nc4_grp_new(grp, oinfo->oname, &child_grp)))
             BAIL(retval);
-	NC_listmap_add(&grp->children,child_grp);
+        if ((retval = nc4_grp_list_add(h5, child_grp)))
+            BAIL(retval);
 
         /* Recursively read the child group's metadata */
         if ((retval = nc4_rec_read_metadata(child_grp)))
@@ -3012,7 +3038,7 @@ static int NC4_enddef(int ncid)
    {
       size_t iter;
       NC_VAR_INFO_T* var;
-      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); i++)
+      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); iter++)
           var->written_to = NC_TRUE;
    }
 

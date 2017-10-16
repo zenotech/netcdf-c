@@ -309,7 +309,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 		ncap->value = vp;
 		ncap->nalloc = NC_ARRAY_GROWBY;
 
-		ncap->hashmap = NC_hashmapcreate(0);
+		ncap->hashmap = NC_hashmapnew(0);
 	}
 	else if(ncap->nelems +1 > ncap->nalloc)
 	{

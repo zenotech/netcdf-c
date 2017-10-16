@@ -94,9 +94,7 @@ NC4_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   if (varid < 0 || varid >= grp->vars.nelems)
-     return NC_ENOTVAR;
-   var = grp->vars.value[varid];
+   var = NC_listmap_iget(&grp->vars.value,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->varid == varid);
 
@@ -157,9 +155,7 @@ NC4_get_var_chunk_cache(int ncid, int varid, size_t *sizep,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   if (varid < 0 || varid >= grp->vars.nelems)
-     return NC_ENOTVAR;
-   var = grp->vars.value[varid];
+   var = NC_listmap_iget(&grp->vars.value,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->varid == varid);
 
@@ -340,33 +336,17 @@ nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
    return NC_NOERR;
 }
 
-#define NC_ARRAY_GROWBY 4
-int nc4_vararray_add(NC_GRP_INFO_T *grp,
-		     NC_VAR_INFO_T *var)
+int
+nc4_vararray_add(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
   NC_VAR_INFO_T **vp = NULL;
 
-  if (grp->vars.nalloc == 0) {
-    assert(grp->vars.nelems == 0);
-    vp = (NC_VAR_INFO_T **) malloc(NC_ARRAY_GROWBY * sizeof(NC_VAR_INFO_T *));
-    if(vp == NULL)
-      return NC_ENOMEM;
-    grp->vars.value = vp;
-    grp->vars.nalloc = NC_ARRAY_GROWBY;
+  if(!NC_listmap_initialized(&grp->vars.value)) {
+    NC_listmap_init(&grp->vars.value,0); /* Use default size */
   }
-  else if(grp->vars.nelems +1 > grp->vars.nalloc) {
-    vp = (NC_VAR_INFO_T **) realloc(grp->vars.value,
-			     (grp->vars.nalloc + NC_ARRAY_GROWBY) * sizeof(NC_VAR_INFO_T *));
-    if(vp == NULL)
-      return NC_ENOMEM;
-    grp->vars.value = vp;
-    grp->vars.nalloc += NC_ARRAY_GROWBY;
-  }
-
   if(var != NULL) {
-    assert(var->varid == grp->vars.nelems);
-    grp->vars.value[grp->vars.nelems] = var;
-    grp->vars.nelems++;
+    var->varid = NC_listmap_size(&grp->vars.value);
+    NC_listmap_add(&grp->vars.value,var);
   }
   return NC_NOERR;
 }
@@ -385,6 +365,7 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
    char norm_name[NC_MAX_NAME + 1];
    int d;
    int retval;
+   size_t iter;
 
    /* Find info for this file and group, and set pointer to each. */
    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
@@ -440,20 +421,18 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
    }
 #endif
 
-   /* Add a new var. */
-   if ((retval = nc4_var_add(&var)))
+   /* Create a new var. */
+   if ((retval = nc4_var_new(&var)))
       BAIL(retval);
 
    /* Now fill in the values in the var info structure. */
    if (!(var->name = malloc((strlen(norm_name) + 1) * sizeof(char))))
       BAIL(NC_ENOMEM);
    strcpy(var->name, norm_name);
-   var->hash = hash_fast(norm_name, strlen(norm_name));
-   var->varid = grp->nvars++;
    var->ndims = ndims;
    var->is_new_var = NC_TRUE;
 
-   nc4_vararray_add(grp, var);
+   nc4_vararray_add(grp, var); /* will set varid */
 
    /* If this is a user-defined type, there is a type_info struct with
     * all the type information. For atomic types, fake up a type_info
@@ -546,7 +525,7 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
          BAIL(retval);
 
       /* Check for dim index 0 having the same name, in the same group */
-      if (d == 0 && dim_grp == grp && dim->hash == var->hash && strcmp(dim->name, norm_name) == 0)
+      if (d == 0 && dim_grp == grp && strcmp(dim->name, norm_name) == 0)
       {
          var->dimscale = NC_TRUE;
          dim->coord_var = var;
@@ -603,10 +582,11 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
     * is not a coordinate variable. I need to change its HDF5 name,
     * because the dimension will cause a HDF5 dataset to be created,
     * and this var has the same name. */
-   for (dim = grp->dim; dim; dim = dim->l.next)
-      if (dim->hash == var->hash && !strcmp(dim->name, norm_name) &&
-	  (!var->ndims || dimidsp[0] != dim->dimid))
-      {
+   /* See if grp has a dim with the same name as var, but not first dim */
+   dim = NC_listmap_get(&grp->dim,norm_name);
+   if(dim != NULL && dimidsp != NULL && dimidsp[0] != dim->dimid)
+   {
+ 	 /* We need a fix up */
 	 /* Set a different hdf5 name for this variable to avoid name
 	  * clash. */
 	 if (strlen(norm_name) + strlen(NON_COORD_PREPEND) > NC_MAX_NAME)
@@ -616,8 +596,8 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
 	    BAIL(NC_ENOMEM);
 
 	 sprintf(var->hdf5_name, "%s%s", NON_COORD_PREPEND, norm_name);
-      }
-
+   }
+   
    /* If this is a coordinate var, it is marked as a HDF5 dimension
     * scale. (We found dim above.) Otherwise, allocate space to
     * remember whether dimension scales have been attached to each
@@ -699,17 +679,13 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    {
       if (nattsp)
       {
-         for (att = grp->att; att; att = att->l.next)
-            natts++;
-         *nattsp = natts;
+	 *nattsp = NC_listmap_size(&grp->att);
       }
       return NC_NOERR;
    }
 
    /* Find the var. */
-   if (varid < 0 || varid >= grp->vars.nelems)
-     return NC_ENOTVAR;
-   var = grp->vars.value[varid];
+   var = NC_listmap_iget(&grp->vars.value,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->varid == varid);
 
@@ -725,9 +701,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
          dimidsp[d] = var->dimids[d];
    if (nattsp)
    {
-      for (att = var->att; att; att = att->l.next)
-         natts++;
-      *nattsp = natts;
+      *nattsp = NC_listmap_size(&var->att);
    }
 
    /* Chunking stuff. */
@@ -855,9 +829,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   if (varid < 0 || varid >= grp->vars.nelems)
-     return NC_ENOTVAR;
-   var = grp->vars.value[varid];
+   var = NC_listmap_iget(&grp->vars.value,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->varid == varid);
 
@@ -1181,17 +1153,11 @@ NC4_inq_varid(int ncid, const char *name, int *varidp)
    nn_hash = hash_fast(norm_name, strlen(norm_name));
 
    /* Find var of this name. */
-   for (i=0; i < grp->vars.nelems; i++)
-      {
-	var = grp->vars.value[i];
-	if (!var) continue;
-        if (nn_hash == var->hash && !(strcmp(var->name, norm_name)))
-          {
-             *varidp = var->varid;
-             return NC_NOERR;
-          }
-      }
-   return NC_ENOTVAR;
+   var = NC_listmap_get(&grp->vars.value,norm_name);
+   if(var == NULL)
+       return NC_ENOTVAR;
+   if(varidp) *varidp = var->varid;
+   return NC_NOERR;
 }
 
 /* Rename a var to "bubba," for example.
@@ -1231,21 +1197,15 @@ NC4_rename_var(int ncid, int varid, const char *name)
    if ((retval = NC_check_name(name)))
       return retval;
 
-   /* Check if name is in use, and retain a pointer to the correct variable */
-   nn_hash = hash_fast(name, strlen(name));
-   tmp_var = NULL;
-   for (i=0; i < grp->vars.nelems; i++)
-   {
-      var = grp->vars.value[i];
-      if (!var) continue;
-      if (nn_hash == var->hash && !strncmp(var->name, name, NC_MAX_NAME))
-         return NC_ENAMEINUSE;
-      if (var->varid == varid)
-         tmp_var = var;
-   }
-   if (!tmp_var)
-      return NC_ENOTVAR;
-   var = tmp_var;
+   /* Get var to be renamed by its varid */
+   var = NC_listmap_iget(&grp->vars.value,varid);
+   if(var == NULL)
+	return NC_ENOTVAR;
+
+   /* Check if new name is in use, and retain a pointer to the correct variable */
+   tmp_var = NC_listmap_get(&grp->vars.value,name);
+   if(tmp_var != NULL)
+	return NC_ENAMEINUSE;
 
    /* If we're not in define mode, new name must be of equal or
       less size, if strict nc3 rules are in effect for this . */
@@ -1266,7 +1226,7 @@ NC4_rename_var(int ncid, int varid, const char *name)
    if (!(var->name = malloc((strlen(name) + 1) * sizeof(char))))
       return NC_ENOMEM;
    strcpy(var->name, name);
-   var->hash = nn_hash;
+   NC_listmap_move(&grp->vars.value,(uintptr_t)var);
 
    /* Check if this was a coordinate variable previously, but names are different now */
    if (var->dimscale && strcmp(var->name, var->dim[0]->name))

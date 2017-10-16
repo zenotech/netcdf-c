@@ -341,7 +341,9 @@ nc4_put_att(int ncid, NC *nc, int varid, const char *name,
    {
       LOG((3, "adding attribute %s to the list...", norm_name));
       /* this will set att->attnum */
-      if ((res = nc4_att_list_add(attlist, norm_name, &att)))
+      if ((res = nc4_att_new(norm_name, &att)))
+        BAIL (res);
+      if ((res = nc4_att_list_add(attlist, att)))
         BAIL (res);
       if (!(att->name = strdup(norm_name)))
         return NC_ENOMEM;
