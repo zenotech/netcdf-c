@@ -569,10 +569,11 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
 /* Given a group, find an att. */
 int
 nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
-		 NC_ATT_INFO_T **att)
+		 NC_ATT_INFO_T **attp)
 {
    NC_VAR_INFO_T *var;
    NC_listmap *attlist = NULL;
+   NC_ATT_INFO_T* att;
 
    assert(grp && grp->name);
    LOG((4, "nc4_find_grp_att: grp->name %s varid %d name %s attnum %d",
@@ -596,13 +597,13 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
    if(attlist) {
        size_t iter;
        for(iter=0;NC_listmap_next(attlist,iter,(uintptr_t*)&att);iter++) {
-           if (name && (*att)->name && !strcmp((*att)->name, name))
+           if(attp) *attp = att;
+           if (name && att->name && !strcmp(att->name, name))
 	       return NC_NOERR;
-           if (!name && (*att)->attnum == attnum)
+           if (!name && att->attnum == attnum)
 	       return NC_NOERR;
        }
    }
-
    /* If we get here, we couldn't find the attribute. */
    return NC_ENOTATT;
 }
@@ -1144,7 +1145,7 @@ nc4_field_new(const char *name,
       for (i = 0; i < ndims; i++)
 	 field->dim_size[i] = dim_sizesp[i];
    }
-
+   *fieldp = field;
    return NC_NOERR;
 }
 

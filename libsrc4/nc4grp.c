@@ -18,7 +18,7 @@ $Id: nc4grp.c,v 1.44 2010/05/25 17:54:23 dmh Exp $
 int
 NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
 {
-   NC_GRP_INFO_T *grp;
+   NC_GRP_INFO_T *parent_grp;
    NC_GRP_INFO_T *subgrp;
    NC_HDF5_FILE_INFO_T *h5;
    char norm_name[NC_MAX_NAME + 1];
@@ -27,7 +27,7 @@ NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
    LOG((2, "%s: parent_ncid 0x%x name %s", __func__, parent_ncid, name));
 
    /* Find info for this file and group, and set pointer to each. */
-   if ((retval = nc4_find_grp_h5(parent_ncid, &grp, &h5)))
+   if ((retval = nc4_find_grp_h5(parent_ncid, &parent_grp, &h5)))
       return retval;
    if (!h5)
       return NC_ENOTNC4;
@@ -37,7 +37,7 @@ NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
       return retval;
 
    /* Check that this name is not in use as a var, grp, or type. */
-   if ((retval = nc4_check_dup_name(grp, norm_name)))
+   if ((retval = nc4_check_dup_name(parent_grp, norm_name)))
       return retval;
 
    /* No groups in netcdf-3! */
@@ -52,12 +52,12 @@ NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
    /* Update internal lists to reflect new group. The actual HDF5
     * group creation will be done when metadata is written by a
     * sync. */
-   if ((retval = nc4_grp_new(grp, norm_name, &subgrp)))
+   if ((retval = nc4_grp_new(parent_grp, norm_name, &subgrp)))
       return retval;
    if ((retval = nc4_grp_list_add(h5, subgrp)))
       return retval;
    if (new_ncid)
-      *new_ncid = grp->nc4_info->controller->ext_ncid | grp->nc_grpid;
+      *new_ncid = parent_grp->nc4_info->controller->ext_ncid | subgrp->nc_grpid;
    
    return NC_NOERR;
 }

@@ -2597,17 +2597,9 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
   /* Write global attributes for this group. */
   if ((retval = write_attlist(&grp->att, NC_GLOBAL, grp)))
     return retval;
-#if 0
-  /* Set the pointers to the beginning of the list of dims & vars in this
-   * group. */
-  dim = grp->dim;
-#endif
   dindex = 0;
-  dim = NC_listmap_iget(&grp->dim,dindex);
+  dim = NC_listmap_iget(&grp->dim,0);
   if (var_index < NC_listmap_size(&grp->vars.value)) {
-#if 0
-    var = grp->vars.value[var_index];
-#endif
     var = NC_listmap_iget(&grp->vars.value,var_index);
   }
 
@@ -2620,8 +2612,10 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
 
       /* Write non-coord dims in order, stopping at the first one that
        * has an associated coord var. */
-      for (found_coord = NC_FALSE; dim && !found_coord; dim = NC_listmap_iget(&grp->dim,++dindex))
+      for (found_coord = NC_FALSE; !found_coord; dindex++) 
         {
+	  dim = NC_listmap_iget(&grp->dim,dindex);
+	  if(dim == NULL) break;
           if (!dim->coord_var)
             {
               if ((retval = write_dim(dim, grp, bad_coord_order)))
@@ -2643,10 +2637,7 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
           if (found_coord && var->varid == coord_varid)
             wrote_coord = NC_TRUE;
 	  if (++var_index < NC_listmap_size(&grp->vars.value))
-#if 0
-	    var = grp->vars.value[var_index];
-#endif
-	    var = NC_listmap_iget(&grp->vars.value,++var_index);
+	    var = NC_listmap_iget(&grp->vars.value,var_index);
 	  else
 	    var = NULL;
         }

@@ -2615,7 +2615,6 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
       /* Add to the end of the list of atts for this var. */
       if ((retval = nc4_att_list_add(&h5->root_grp->att, &att)))
 	 return retval;
-      att->attnum = grp->natts++;
       att->created = NC_TRUE;
 
       /* Learn about this attribute. */
@@ -2801,7 +2800,6 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 	   if(dimsize) free(dimsize);
 	   return retval;
 	 }
-	 att->attnum = var->natts++;
 	 att->created = NC_TRUE;
 
 	 /* Learn about this attribute. */

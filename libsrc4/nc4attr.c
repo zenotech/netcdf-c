@@ -73,7 +73,7 @@ nc4_get_att(int ncid, NC *nc, int varid, const char *name,
       BAIL(retval);
 
    if(nc->ext_ncid == ncid && varid == NC_GLOBAL) {
-	const NC_reservedatt* ra = NC_findreserved(name);
+	const NC_reservedatt* ra = NC_findreserved(norm_name);
 	if(ra != NULL && (ra->flags & NAMEONLYFLAG)) {
 	    return nc4_get_att_special(h5, norm_name, xtype, mem_type, lenp, attnum, is_long, data);
 	}
