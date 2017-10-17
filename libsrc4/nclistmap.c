@@ -12,8 +12,8 @@ objects.
 
 #include "config.h"
 #include <stdlib.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
 #endif
 #include <assert.h>
 #include "nclistmap.h"
@@ -133,9 +133,9 @@ NC_listmap_idel(NC_listmap* listmap, size_t index)
 
 /* Pseudo iterator; start index at 0, return 0 when complete.
    Usage:
-      size_t iter = 0;
+      size_t iter;
       uintptr_t data      
-      while((iter=NC_listmap_next(listmap,iter,&data))) {f(data);}
+      for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
 */
 size_t
 NC_listmap_next(NC_listmap* listmap, size_t index, uintptr_t* datap)
@@ -149,13 +149,13 @@ NC_listmap_next(NC_listmap* listmap, size_t index, uintptr_t* datap)
 }
 
 /* Reverse pseudo iterator; start index at 0, return 1 if more data, 0 if done.
-   Usage:
-      size_t iter;
-      uintptr_t data;
-      for(iter=0;NC_listmap_prev(listmap,iter,&data);iter++) {f(data);}
    Differs from NC_listmap_next in that it iterates from last to first.
    This means that the iter value cannot be directly used as an index
    for e.g. NC_listmap_iget().
+   Usage:
+      size_t iter;
+      uintptr_t data;
+      for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
 */
 size_t
 NC_listmap_prev(NC_listmap* listmap, size_t iter, uintptr_t* datap)

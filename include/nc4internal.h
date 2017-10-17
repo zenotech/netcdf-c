@@ -397,7 +397,7 @@ int nc4_get_typeclass(const NC_HDF5_FILE_INFO_T *h5, nc_type xtype,
 int nc4_grp_new(NC_GRP_INFO_T* parent, char *name, NC_GRP_INFO_T **grpp);
 int nc4_dim_new(const char* name, NC_DIM_INFO_T **);
 int nc4_type_new(nc_type typeclass, size_t size, const char *name, NC_TYPE_INFO_T **);
-int nc4_var_new(NC_VAR_INFO_T **);
+int nc4_var_new(const char* name, int ndims, NC_VAR_INFO_T **var);
 int nc4_att_new(const char* name, NC_ATT_INFO_T **attp); /* Does not set value */
 int nc4_enum_member_new(size_t size, const char *name, const void *value, NC_ENUM_MEMBER_INFO_T**);
 int nc4_field_new(const char *name,

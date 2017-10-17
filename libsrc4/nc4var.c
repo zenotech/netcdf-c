@@ -422,14 +422,10 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
 #endif
 
    /* Create a new var. */
-   if ((retval = nc4_var_new(&var)))
+   if ((retval = nc4_var_new(norm_name,ndims,&var)))
       BAIL(retval);
 
    /* Now fill in the values in the var info structure. */
-   if (!(var->name = malloc((strlen(norm_name) + 1) * sizeof(char))))
-      BAIL(NC_ENOMEM);
-   strcpy(var->name, norm_name);
-   var->ndims = ndims;
    var->is_new_var = NC_TRUE;
 
    nc4_vararray_add(grp, var); /* will set varid */

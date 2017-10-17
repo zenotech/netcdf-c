@@ -8,7 +8,9 @@ See LICENSE.txt for license information.
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #include "nc.h"
 #include "nc3internal.h"
 #include "nc_hashmap.h"

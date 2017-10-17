@@ -704,9 +704,10 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
 
 /* Return a pointer to the new var. */
 int
-nc4_var_new(NC_VAR_INFO_T **var)
+nc4_var_new(const char* name, int ndims, NC_VAR_INFO_T **var)
 {
    NC_VAR_INFO_T *new_var;
+   int i;
 
    /* Allocate storage for new variable. */
    if (!(new_var = calloc(1, sizeof(NC_VAR_INFO_T))))
@@ -718,6 +719,9 @@ nc4_var_new(NC_VAR_INFO_T **var)
    new_var->chunk_cache_preemption = nc4_chunk_cache_preemption;
 
    /* Init other fields */
+   new_var->name = nulldup(name);
+   new_var->ndims = ndims;
+
    if(!NC_listmap_init(&new_var->att,0))
 	return NC_ENOMEM;
 
@@ -1000,6 +1004,9 @@ nc4_rec_grp_del(NC_GRP_INFO_T *grp)
       LOG((4, "%s: deleting var %s", __func__, var->name));
       /* Close HDF5 dataset associated with this var, unless it's a
        * scale. */
+if(var->name == NULL || strlen(var->name) == 0) {
+int x = 0;
+}
       if (var->hdf_datasetid && H5Dclose(var->hdf_datasetid) < 0)
 	 return NC_EHDFERR;
       if ((retval = nc4_var_free(var)))

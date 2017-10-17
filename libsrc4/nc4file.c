@@ -1605,7 +1605,7 @@ read_type(NC_GRP_INFO_T *grp, hid_t hdf_typeid, char *type_name)
  * including the attributes. */
 static int
 read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
-         size_t ndims, NC_DIM_INFO_T *dim)
+         size_t ndims, NC_DIM_INFO_T *dimx)
 {
    NC_VAR_INFO_T *var = NULL;
    hid_t access_pid = 0;
@@ -1635,18 +1635,17 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    LOG((4, "%s: obj_name %s", __func__, obj_name));
 
    /* create a variable */
-   if ((retval = nc4_var_new(&var)))
+   if ((retval = nc4_var_new(obj_name,ndims,&var)))
       BAIL(retval);
 
    /* Fill in what we already know. */
+   var->created = NC_TRUE;
    var->hdf_datasetid = datasetid;
    H5Iinc_ref(var->hdf_datasetid);      /* Increment number of objects using ID */
    incr_id_rc++;                        /* Indicate that we've incremented the ref. count (for errors) */
 
    var->varid = NC_listmap_size(&grp->vars.value);
    NC_listmap_add(&grp->vars.value,var);
-   var->created = NC_TRUE;
-   var->ndims = ndims;
 
    /* We need some room to store information about dimensions for this
     * var. */
@@ -1807,7 +1806,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       var->no_fill = NC_TRUE;
 
    /* If it's a scale, mark it as such. */
-   if (dim)
+   if (dimx)
    {
       assert(ndims);
       var->dimscale = NC_TRUE;
@@ -1819,12 +1818,12 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       else
       {
          /* sanity check */
-         assert(0 == strcmp(var->name, dim->name));
+         assert(0 == strcmp(var->name, dimx->name));
 
-         var->dimids[0] = dim->dimid;
-         var->dim[0] = dim;
+         var->dimids[0] = dimx->dimid;
+         var->dim[0] = dimx;
       }
-      dim->coord_var = var;
+      dimx->coord_var = var;
    }
    /* If this is not a scale, but has scales, iterate
     * through them. (i.e. this is a variable that is not a
@@ -2251,7 +2250,7 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
    {
       size_t iter;
       NC_VAR_INFO_T* var;
-      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); i++)
+      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); iter++)
           var->written_to = NC_TRUE;
    }
 

@@ -67,18 +67,18 @@ extern int NC_listmap_move(NC_listmap* listmap, uintptr_t obj);
    Usage:
       size_t iter;
       uintptr_t data;
-      for(iter=0;NC_listmap_next(listmap,iter,&data);iter++) {f(data);}
+      for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
 */
 extern size_t NC_listmap_next(NC_listmap*, size_t iter, uintptr_t* datap);
 
 /* Reverse pseudo iterator; start index at 0, return 1 if more data, 0 if done.
-   Usage:
-      size_t iter;
-      uintptr_t data;
-      for(iter=0;NC_listmap_prev(listmap,iter,&data);iter++) {f(data);}
    Differs from NC_listmap_next in that it iterates from last to first.
    This means that the iter value cannot be directly used as an index
    for e.g. NC_listmap_iget().
+   Usage:
+      size_t iter;
+      uintptr_t data;
+      for(iter=0;NC_listmap_prev(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
 */
 extern size_t NC_listmap_prev(NC_listmap* listmap, size_t iter, uintptr_t* datap);
 

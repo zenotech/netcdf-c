@@ -25,9 +25,15 @@ Test _NCProperties and other special attributes
 #define GROUPNAME "subgroup"
 #define DIMNAME "time"
 
+#define DEBUG
+
 int
 main(int argc, char **argv)
 {
+#ifdef DEBUG
+    nc_set_log_level(5);
+#endif    
+
     printf("\n*** Testing 'Fileinfo attributes.\n");
 
     {
