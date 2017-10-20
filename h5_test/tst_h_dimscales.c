@@ -367,7 +367,7 @@ main()
 
    {
       hid_t fileid, grpid, spaceid = 0, datasetid = 0;
-      hsize_t volatile num_obj, i;
+      hsize_t num_obj, i;
       int obj_class;
       char obj_name[STR_LEN + 1];
       htri_t is_scale;
