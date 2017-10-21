@@ -50,8 +50,10 @@ extern int NC_hashmapremove(NC_hashmap*, const char* name, uintptr_t* datap);
 */
 extern int NC_hashmapget(NC_hashmap*, const char*, uintptr_t* datap);
 
-/* rehash an entry with a new key */
-extern int NC_hashmapmove(NC_hashmap* hash, const uintptr_t data, const char* newkey);
+/** Change the data for the specified key
+    Return 1 if found, 0 otherwise
+*/
+extern int NC_hashmapsetdata(NC_hashmap*, const char*, uintptr_t newdata);
 
 /** Returns the number of saved elements. */
 extern size_t NC_hashmapCount(NC_hashmap*);

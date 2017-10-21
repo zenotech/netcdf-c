@@ -27,6 +27,21 @@
 
 #define NC_HDF5_MAX_NAME 1024
 
+/* Define som auxilliary types for use in writing metadata */
+
+typedef enum NC_kind {
+   NC_NONE=0,
+   NC_GRP=1,
+   NC_TYPE=2,
+   NC_DIM=3,
+   NC_VAR=4
+} NC_kind;
+
+typedef struct NC_order {
+    void* object;
+    NC_kind kind;
+} NC_order;
+
 /* This is to track opened HDF5 objects to make sure they are
  * closed. */
 #ifdef EXTRA_TESTS
@@ -2582,13 +2597,13 @@ nc4_rec_detect_need_to_preserve_dimids(NC_GRP_INFO_T *grp, nc_bool_t *bad_coord_
 int
 nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
 {
+  int retval = NC_NOERR;
   NC_DIM_INFO_T *dim = NULL;
   NC_VAR_INFO_T *var = NULL;
   NC_GRP_INFO_T *child_grp = NULL;
   int coord_varid = -1;
   int var_index = 0;
-  int retval;
-  size_t dindex;
+  size_t dim_index;
   size_t iter;
 
   assert(grp && grp->name && grp->hdf_grpid);
@@ -2596,62 +2611,56 @@ nc4_rec_write_metadata(NC_GRP_INFO_T *grp, nc_bool_t bad_coord_order)
 
   /* Write global attributes for this group. */
   if ((retval = write_attlist(&grp->att, NC_GLOBAL, grp)))
-    return retval;
-  dindex = 0;
-  dim = NC_listmap_iget(&grp->dim,0);
-  if (var_index < NC_listmap_size(&grp->vars.value)) {
-    var = NC_listmap_iget(&grp->vars.value,var_index);
-  }
+    goto done;
 
   /* Because of HDF5 ordering the dims and vars have to be stored in
    * this way to ensure that the dims and coordinate vars come out in
    * the correct order. */
+  /* Change to separate out the determination of the order from the writing part */
+  
+  dim_index = 0;
+  var_index = 0;
+  /* Prime the loop walking dims and vars in interleaved fashion */
+  dim = NC_listmap_iget(&grp->dim,0);
+  var = NC_listmap_iget(&grp->vars.value,var_index);
   while (dim || var)
     {
       nc_bool_t found_coord, wrote_coord;
-
       /* Write non-coord dims in order, stopping at the first one that
        * has an associated coord var. */
-      for (found_coord = NC_FALSE; !found_coord; dindex++) 
-        {
-	  dim = NC_listmap_iget(&grp->dim,dindex);
-	  if(dim == NULL) break;
-          if (!dim->coord_var)
-            {
-              if ((retval = write_dim(dim, grp, bad_coord_order)))
-                return retval;
-            }
-          else
-            {
+      for(found_coord=NC_FALSE; dim && !found_coord;) {
+          if (!dim->coord_var) {
+	      if ((retval = write_dim(dim, grp, bad_coord_order)))
+		goto done;
+          } else {
               coord_varid = dim->coord_var->varid;
-              found_coord = NC_TRUE;
-            }
-        }
-
-      /* Write each var. When we get to the coord var we are waiting
-       * for (if any), then we break after writing it. */
-      for (wrote_coord = NC_FALSE; var && !wrote_coord; )
-        {
+	      found_coord = NC_TRUE;
+          }
+	  /* Always move to next dim */
+	  dim = NC_listmap_iget(&grp->dim,++dim_index);
+      }
+      /* Traverse each var. When we get to the coord var we are waiting
+       * for (if any), then we break after recording it. */
+      for (wrote_coord = NC_FALSE; var && !wrote_coord; ) {
           if ((retval = write_var(var, grp, bad_coord_order)))
-            return retval;
+               goto done;
           if (found_coord && var->varid == coord_varid)
-            wrote_coord = NC_TRUE;
-	  if (++var_index < NC_listmap_size(&grp->vars.value))
-	    var = NC_listmap_iget(&grp->vars.value,var_index);
-	  else
-	    var = NULL;
+	      wrote_coord = NC_TRUE;
+          var = NC_listmap_iget(&grp->vars.value,++var_index);
         }
    } /* end while */
 
   if ((retval = attach_dimscales(grp)))
-    return retval;
+    goto done;
 
   /* If there are any child groups, write their metadata. */
   for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&child_grp);iter++) {
     if ((retval = nc4_rec_write_metadata(child_grp, bad_coord_order)))
-      return retval;
+      goto done;;
   }
-  return NC_NOERR;
+
+done:
+  return retval;
 }
 
 /* Recursively write all groups and types. */

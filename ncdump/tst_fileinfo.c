@@ -25,7 +25,7 @@ Test _NCProperties and other special attributes
 #define GROUPNAME "subgroup"
 #define DIMNAME "time"
 
-#define DEBUG
+#undef DEBUG
 
 int
 main(int argc, char **argv)

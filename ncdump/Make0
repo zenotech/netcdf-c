@@ -1,5 +1,5 @@
 # Test c output
-T=tst_fileinfo
+T=tst_fillbug
 #ARGS=./x.nc
 
 TF=test_atomic_array.cdl

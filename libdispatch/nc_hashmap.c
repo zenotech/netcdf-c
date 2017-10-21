@@ -79,6 +79,7 @@ rehash(NC_hashmap* hm)
    if fail to find spot return 0 else 1.
    If deletok then a deleted slot is ok to return;
    If hashkeyp is non-null, then return hashkey
+   return invariant: return == 0 || *indexp is defined 
  */
 static int
 locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int deletedok)
@@ -88,6 +89,8 @@ locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int 
     size_t hashkey = hash_fast(key, keylen);
     size_t index = hashkey % hash->size;
     size_t step = 1; /* simple linear probe */
+    int deletefound = 0;
+    size_t deletedindex = 0; /* first deleted entry encountered */
 
     if(hashkeyp) *hashkeyp = hashkey;
     /* Search table using linear probing */
@@ -100,15 +103,23 @@ locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int 
 		if(indexp) *indexp = index;
 		return 1;
             }
-	} else if(deletedok && (entry.flags & DELETED)) {
-	    if(indexp) *indexp = index;
-	    return 1;
+	    /* Keep looking */
+	} else if(entry.flags & DELETED) {
+	    if(!deletefound) {/* save this position */
+	        deletefound = 1;
+		deletedindex = index;
+	    }
+	    /* Keep looking */
  	} else { /* Empty slot */
 	    if(indexp) *indexp = index;
 	    return 1;
 	}
         /* linear probe */
 	index = (index + step) % hash->size;
+    }
+    if(deletedok && deletefound) {
+	if(indexp) *indexp = deletedindex;	
+	return 1;
     }
     return 0;
 }
@@ -197,44 +208,26 @@ NC_hashmapget(NC_hashmap* hash, const char* key, uintptr_t* datap)
     return 0;
 }
 
-/* Locate an object by its data value */
-static int
-datalocate(NC_hashmap* hash, uintptr_t data, size_t* indexp)
-{
-    size_t i;
-    for(i=0;i<hash->size;i++) {
-	NC_hentry* e = &hash->table[i];
-        if(e->flags == ACTIVE && e->data == data) {
-	    if(indexp) *indexp = i;	    	    
-	    return 1;
-	}
-    }
-    return 0;
-}
-
-/* rehash an entry with a new key */
+/** Change the data for the specified key
+    Return 1 if found, 0 otherwise
+*/
 int
-NC_hashmapmove(NC_hashmap* hash, const uintptr_t data, const char* newkey)
+NC_hashmapsetdata(NC_hashmap* hash, const char* key, uintptr_t newdata)
 {
     size_t index;
     NC_hentry* entry;
- 
-   if(hash->count == 0)
-      return 0;
-   if(!datalocate(hash,data,&index))
-	return 0; /* not present */
+    if(hash == NULL || hash->count == 0 || key == NULL)
+	return 0; /* no such entry */
+    if(!locate(hash,key,&index,NULL,0))
+        return 0; /* not present */
     entry = &hash->table[index];
-    assert(entry->flags == ACTIVE);
-    /* Mark old entry as deleted */
-    entry->flags = DELETED;
-    entry->key = NULL;
-    /* Insert new entry with new name and old data */
-    NC_hashmapadd(hash,data,newkey);
-    return 1;
+    assert((entry->flags & ACTIVE) == ACTIVE);
+    entry->data = newdata;
+    return 1;    
 }
 
 size_t
-NC_hashmapCount(NC_hashmap* hash)
+NC_hashmapcount(NC_hashmap* hash)
 {
     return hash->count;
 }

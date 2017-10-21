@@ -50,37 +50,11 @@ char errstr[100];		/* for short error messages */
 
 %p 6000
 
-/* The most correct (validating) version of UTF8 character set
-   (Taken from: http://www.w3.org/2005/03/23-lex-U)
-
-The lines of the expression cover the UTF8 characters as follows:
-1. non-overlong 2-byte
-2. excluding overlongs
-3. straight 3-byte
-4. excluding surrogates
-5. straight 3-byte
-6. planes 1-3
-7. planes 4-15
-8. plane 16
-
-UTF8   ([\xC2-\xDF][\x80-\xBF])                       \
-     | (\xE0[\xA0-\xBF][\x80-\xBF])                   \
-     | ([\xE1-\xEC][\x80-\xBF][\x80-\xBF])            \
-     | (\xED[\x80-\x9F][\x80-\xBF])                   \
-     | ([\xEE-\xEF][\x80-\xBF][\x80-\xBF])            \
-     | (\xF0[\x90-\xBF][\x80-\xBF][\x80-\xBF])        \
-     | ([\xF1-\xF3][\x80-\xBF][\x80-\xBF][\x80-\xBF]) \
-     | (\xF4[\x80-\x8F][\x80-\xBF][\x80-\xBF])        \
-
+/* 
+For a description of the utf-8 used here, see ncgen/ncgen.l
 */
 
-/* Wish there was some way to ifdef lex files */
-
-/*The most relaxed version of UTF8 (not used)
-UTF8 ([\xC0-\xD6].)|([\xE0-\xEF]..)|([\xF0-\xF7]...)
-*/
-
-/*The partially relaxed version of UTF8, and the one used here */
+/* This should be same as used in ncgen/ncgen.l */
 UTF8 ([\xC0-\xD6][\x80-\xBF])|([\xE0-\xEF][\x80-\xBF][\x80-\xBF])|([\xF0-\xF7][\x80-\xBF][\x80-\xBF][\x80-\xBF])
 
 /* The old definition of ID

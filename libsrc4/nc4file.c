@@ -123,7 +123,6 @@ typedef struct NC4_rec_read_metadata_obj_info
     hid_t oid;                          /* HDF5 object ID */
     char oname[NC_MAX_NAME + 1];        /* Name of object */
     H5G_stat_t statbuf;                 /* Information about the object */
-    struct NC4_rec_read_metadata_obj_info *next;        /* Pointer to next node in list */
 } NC4_rec_read_metadata_obj_info_t;
 
 /*! User data struct for call to H5Literate() in nc4_rec_read_metadata()
@@ -134,7 +133,7 @@ Tracks the groups, named datatypes and datasets in the group, for later use.
 */
 typedef struct NC4_rec_read_metadata_ud
 {
-   NC4_rec_read_metadata_obj_info_t *grps_head, *grps_tail;      /* Pointers to head & tail of list of groups */
+   NClist* grps; /* list of grps */
    NC_GRP_INFO_T *grp;                                          /* Pointer to parent group */
 } NC4_rec_read_metadata_ud_t;
 
@@ -680,7 +679,10 @@ done:
  * dataset is encountered. It reads in the dimension data (creating a
  * new NC_DIM_INFO_T object), and also checks to see if this is a
  * dimension without a variable - that is, a coordinate dimension
- * which does not have any coordinate data. */
+ * which does not have any coordinate data.
+ * Note: it appears that this is called for all dimensions, not just
+ * scale dimensions. So name is misleading.
+*/
 static int
 read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
         const H5G_stat_t *statbuf, hsize_t scale_size, hsize_t max_scale_size,
@@ -697,6 +699,7 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    /* Create a dimension for this scale but do not record yet */
    if ((retval = nc4_dim_new(obj_name, &new_dim)))
       BAIL(retval);
+
    dimscale_created++;
 
    /* Get our container */
@@ -716,6 +719,7 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
          BAIL(NC_EHDFERR);
 
       /* Move the attribute to the correct location to match desired dimid.*/
+      /* nclistset makes sure there is room */
       nclistset(h5->alldims,new_dim->dimid,new_dim);
    } else {
       new_dim->dimid = nclistlength(h5->alldims);
@@ -1644,9 +1648,6 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    H5Iinc_ref(var->hdf_datasetid);      /* Increment number of objects using ID */
    incr_id_rc++;                        /* Indicate that we've incremented the ref. count (for errors) */
 
-   var->varid = NC_listmap_size(&grp->vars.value);
-   NC_listmap_add(&grp->vars.value,var);
-
    /* We need some room to store information about dimensions for this
     * var. */
    if (var->ndims)
@@ -1869,6 +1870,7 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
    if ((H5Aiterate2(var->hdf_datasetid, H5_INDEX_CRT_ORDER, H5_ITER_INC, NULL, att_read_var_callbk, &att_info)) < 0)
      BAIL(NC_EATTMETA);
 
+   /* Now add the var to the grp var list */
    nc4_vararray_add(grp, var);
 
    /* Is this a deflated variable with a chunksize greater than the
@@ -2010,7 +2012,7 @@ read_dataset(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
          BAIL(retval);
    }
 
-   /* Add a var to the linked list, and get its metadata,
+   /* Record a var, and get its metadata,
     * unless this is one of those funny dimscales that are a
     * dimension in netCDF but not a variable. (Spooky!) */
    if (NULL == dim || (dim && !dim->hdf_dimscaleid))
@@ -2028,8 +2030,7 @@ exit:
 }
 
 static int
-nc4_rec_read_metadata_cb_list_add(NC4_rec_read_metadata_obj_info_t **head,
-                  NC4_rec_read_metadata_obj_info_t **tail,
+nc4_rec_read_metadata_cb_list_add(NC4_rec_read_metadata_ud_t *udata,
                   const NC4_rec_read_metadata_obj_info_t *oinfo)
 {
    NC4_rec_read_metadata_obj_info_t *new_oinfo;    /* Pointer to info for object */
@@ -2040,19 +2041,7 @@ nc4_rec_read_metadata_cb_list_add(NC4_rec_read_metadata_obj_info_t **head,
 
    /* Make a copy of the object's info */
    memcpy(new_oinfo, oinfo, sizeof(*oinfo));
-
-   if (*tail)
-   {
-       assert(*head);
-       (*tail)->next = new_oinfo;
-       *tail = new_oinfo;
-   }
-   else
-   {
-       assert(NULL == *head);
-       *head = *tail = new_oinfo;
-   }
-
+   nclistpush(udata->grps,new_oinfo);   
    return (NC_NOERR);
 }
 
@@ -2087,7 +2076,7 @@ nc4_rec_read_metadata_cb(hid_t grpid, const char *name, const H5L_info_t *info,
           *     in the current group can be processed and be ready for use by
           *     vars in the child group(s).
           */
-         if (nc4_rec_read_metadata_cb_list_add(&udata->grps_head, &udata->grps_tail, &oinfo))
+         if (nc4_rec_read_metadata_cb_list_add(udata, &oinfo))
              BAIL(H5_ITER_ERROR);
          break;
 
@@ -2157,13 +2146,14 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
     hid_t pid = 0;
     unsigned crt_order_flags = 0;
     H5_index_t iter_index;
-    int i, retval = NC_NOERR; /* everything worked! */
+    int i, j, retval = NC_NOERR; /* everything worked! */
 
     assert(grp && grp->name);
     LOG((3, "%s: grp->name %s", __func__, grp->name));
 
     /* Portably initialize user data for later */
     memset(&udata, 0, sizeof(udata));
+    udata.grps = nclistnew();
 
     /* Open this HDF5 group and retain its grpid. It will remain open
      * with HDF5 until this file is nc_closed. */
@@ -2218,10 +2208,12 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
     /* (Deferred until now, so that the types in the current group get
      *  processed and are available for vars in the child group(s).)
      */
-    for (oinfo = udata.grps_head; oinfo; oinfo = udata.grps_head)
+    while(nclistlength(udata.grps) > 0)
     {
         NC_GRP_INFO_T *child_grp;
         NC_HDF5_FILE_INFO_T *h5 = grp->nc4_info;
+
+	oinfo = nclistremove(udata.grps,0); /* treat like a queue */
 
         /* Add group to file's hierarchy */
         if ((retval = nc4_grp_new(grp, oinfo->oname, &child_grp)))
@@ -2237,8 +2229,7 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
         if (H5Oclose(oinfo->oid) < 0)
 	    BAIL(NC_EHDFERR);
 
-        /* Advance to next node, free current node */
-        udata.grps_head = oinfo->next;
+        /* free current node */
         free(oinfo);
     }
 
@@ -2258,17 +2249,18 @@ exit:
     /* Clean up local information on error, if anything remains */
     if (retval)
     {
-        for (oinfo = udata.grps_head; oinfo; oinfo = udata.grps_head)
+	while(nclistlength(udata.grps) > 0)
         {
+	    oinfo = nclistremove(udata.grps,0);
             /* Close the object */
             if (H5Oclose(oinfo->oid) < 0)
                 BAIL2(NC_EHDFERR);
 
-            /* Advance to next node, free current node */
-            udata.grps_head = oinfo->next;
+            /* free current node */
             free(oinfo);
         }
     }
+    if(udata.grps != NULL) nclistfree(udata.grps);
 
     return retval;
 }
@@ -2746,6 +2738,7 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 	 int32 dimid, dim_len, dim_data_type, dim_num_attrs;
 	 char dim_name[NC_MAX_NAME + 1];
 	 NC_DIM_INFO_T *dim;
+	 size_t diter;
 
 	 if ((dimid = SDgetdimid(var->sdsid, d)) == FAIL) {
 	   if(dimsize) free(dimsize);
@@ -2760,27 +2753,28 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 
 	 /* Do we already have this dimension? HDF4 explicitly uses
 	  * the name to tell. */
-	 for (dim = grp->dim; dim; dim = dim->l.next)
-	    if (!strcmp(dim->name, dim_name))
+	 for(dim=NULL,diter=0;NC_listmap_next(&grp->dim,diter,(uintptr_t*)&dim);diter++)
+	    if (!strcmp(dim->name, dim_name)) {
+	       dim = NULL;
 	       break;
+            }
 
 	 /* If we didn't find this dimension, add one. */
 	 if (!dim)
 	 {
 	    LOG((4, "adding dimension %s for HDF4 dataset %s",
 		 dim_name, var->name));
+	    dim = nc4_dim_new(dim_name, dim_len, &dim);
+	    if(!dim)
+		return NC_ENOMEM;
 	    if ((retval = nc4_dim_list_add(&grp->dim, &dim)))
 	       return retval;
-	    dim->dimid = grp->nc4_info->next_dimid++;
 	    if (strlen(dim_name) > NC_MAX_HDF4_NAME)
 	       return NC_EMAXNAME;
-	    if (!(dim->name = strdup(dim_name)))
-	       return NC_ENOMEM;
 	    if (dim_len)
 	       dim->len = dim_len;
 	    else
 	       dim->len = *dimsize;
-	    dim->hash = hash_fast(dim_name, strlen(dim_name));
 	 }
 
 	 /* Tell the variable the id of this dimension. */

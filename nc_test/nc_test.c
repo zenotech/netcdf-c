@@ -12,6 +12,9 @@ int numTypes;  /* number of netCDF data types to test */
 #include "config.h"
 
 
+#define DEBUG
+#define NC4ONLY
+
 /*
  * Test driver for netCDF-3 interface.  This program performs tests against
  * the netCDF-3 specification for all user-level functions in an
@@ -81,7 +84,13 @@ char scratch[] = "scratch.nc";  /* writable scratch file */
 
 /* Test everything for classic and 64-bit offsetfiles. If netcdf-4 is
  * included, that means another whole round of testing. */
-#define NUM_FORMATS (5)
+#ifdef NC4ONLY
+#define FIRST_FORMAT (NC_FORMAT_NETCDF4)
+#define LAST_FORMAT (NC_FORMAT_NETCDF4)
+#else
+#define FIRST_FORMAT (NC_FORMAT_CLASSIC)
+#define LAST_FORMAT (NC_FORMAT_CDF5)
+#endif
 
 int
 main(int argc, char *argv[])
@@ -107,14 +116,14 @@ main(int argc, char *argv[])
      * start. */
     /*nc_set_log_level(3);*/
 
-    fprintf(stderr, "Testing %d different netCDF formats.\n", NUM_FORMATS);
+    fprintf(stderr, "Testing %d different netCDF formats.\n", (LAST_FORMAT - FIRST_FORMAT +1));
 
     /* Go thru formats and run all tests for each of two (for netCDF-3
      * only builds), or 3 (for netCDF-4 builds) different formats. Do
      * the netCDF-4 format last, however, because, as an additional
      * test, the ../nc_test4/tst_nc_test_file program looks at the
      * output of this program. */
-    for (i = 1; i <= NUM_FORMATS; i++)
+    for (i = FIRST_FORMAT; i <= LAST_FORMAT; i++)
     {
        numGatts = 6;
        numVars  = 136;
@@ -170,6 +179,7 @@ main(int argc, char *argv[])
        (void) remove(scratch);
 
 	/* Test read-only functions, using pre-generated test-file */
+#ifndef DEBUG
  	NC_TEST(nc_strerror);
 	NC_TEST(nc_open);
 	NC_TEST(nc_close);
@@ -359,6 +369,7 @@ main(int argc, char *argv[])
 	NC_TEST(nc_put_att_longlong);
 	NC_TEST(nc_put_att_ulonglong);
 	NC_TEST(nc_put_att);
+#endif
 	NC_TEST(nc_copy_att);
 	NC_TEST(nc_rename_att);
 	NC_TEST(nc_del_att);

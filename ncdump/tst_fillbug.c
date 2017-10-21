@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <netcdf.h>
 
+#undef DEBUG
+
 #define FILENAME "tst_fillbug.nc"
 
 static int count_udtypes(int ncid);
@@ -35,6 +37,10 @@ main(int argc, char **argv)
     /* variable shapes */
     int Time_dims[RANK_Time];
     int P_dims[RANK_P];
+
+#ifdef DEBUG
+    nc_set_log_level(2);
+#endif
 
    printf("\n*** Testing preparation of fillbug test.\n");
    printf("*** creating fillbug test file %s...", FILENAME);
@@ -98,8 +104,10 @@ main(int argc, char **argv)
 	if ( nc_inq_unlimdims(ncid, &nunlim, NULL) ) ERR;
 	if ( nc_inq_unlimdims(ncid, &nunlim, unlimids) ) ERR;
 	for (d_grp = 0; d_grp < ndims_grp; d_grp++) {
+	    int ret = 0;
 	    int dimid = dimids_grp[d_grp];
-	    if ( nc_inq_dim(ncid, dimid, dimname, &dimsize) ) ERR;
+	    if ((ret= nc_inq_dim(ncid, dimid, dimname, &dimsize)))
+		ERR;
 	}
 	if ( nc_inq_format(ncid, &format) ) ERR;
 	if ( nc_inq_varids(ncid, &nvars_grp, varids_grp) ) ERR;

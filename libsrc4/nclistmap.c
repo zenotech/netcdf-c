@@ -12,6 +12,8 @@ objects.
 
 #include "config.h"
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -75,6 +77,7 @@ NC_listmap_add(NC_listmap* listmap, void* obj)
    return 1;
 }
 
+#if 0
 /* Add object at specific index; will overwrite anything already there;
    obj == NULL is ok.
    Return 1 if ok, 0 otherwise.
@@ -90,7 +93,7 @@ NC_listmap_iput(NC_listmap* listmap, size_t pos, void* obj)
 	if(pos >= nclistlength(listmap->list)) return 0;
 	/* Temporarily remove from hashmap */
 	if(!NC_hashmapremove(listmap->map,name,&index))
-            return 0; /* not there */
+	    return 0; /* not there */
 	/* Reinsert with new pos */
 	NC_hashmapadd(listmap->map,(uintptr_t)pos,*(char**)obj);
     }
@@ -98,6 +101,7 @@ NC_listmap_iput(NC_listmap* listmap, size_t pos, void* obj)
     nclistset(listmap->list,pos,obj);
     return 1;
 }
+#endif
 
 /* Remove object from listmap; assume cast (char**)target is defined */
 /* Return 1 if ok, 0 otherwise.*/
@@ -131,10 +135,25 @@ NC_listmap_idel(NC_listmap* listmap, size_t index)
    return 1;
 }
 
+/* Change data associated with a key */
+/* Return 1 if ok, 0 otherwise.*/
+int
+NC_listmap_setdata(NC_listmap* listmap, void* obj, uintptr_t newdata)
+{
+   uintptr_t index;
+   char** onamep;
+   if(listmap == NULL || obj == NULL || listmap->map == NULL)
+	return 0;
+   onamep = (char**)obj;
+   if(!NC_hashmapget(listmap->map,*onamep,&index))
+	return 0; /* not present */
+   return NC_hashmapsetdata(listmap->map,*onamep,newdata);
+}
+
 /* Pseudo iterator; start index at 0, return 0 when complete.
    Usage:
       size_t iter;
-      uintptr_t data      
+      uintptr_t data	  
       for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
 */
 size_t
@@ -170,13 +189,20 @@ NC_listmap_prev(NC_listmap* listmap, size_t iter, uintptr_t* datap)
     return iter+1;
 }
 
-/* Rehash object with new name */
+/* Rehash object with new name.
+Assumes that currently obj has new name.
+ */
 /* Return 1 if ok, 0 otherwise.*/
 int
-NC_listmap_move(NC_listmap* listmap, uintptr_t obj)
+NC_listmap_move(NC_listmap* listmap, void* obj, const char* oldname)
 { 
    const char* new_name = *(const char**)obj;
-   return NC_hashmapmove(listmap->map,(uintptr_t)obj,new_name);
+   uintptr_t data;
+   /* Remove the obj from the hashtable using the oldname */
+   if(!NC_hashmapremove(listmap->map, oldname, &data))
+     return 0; /* not found */
+   /* Reinsert using its new key */
+   return NC_hashmapadd(listmap->map,data,new_name);
 }
 
 /* Clear a list map without free'ing the map itself */
@@ -202,4 +228,103 @@ NC_listmap_init(NC_listmap* listmap, size_t size0)
     return 1;
 }
 
+int
+NC_listmap_verify(NC_listmap* lm, int dump)
+{
+    size_t i;
+    NC_hashmap* map = lm->map;
+    NClist* l = lm->list;
+    size_t m;
+    int nerrs = 0;
 
+    if(dump) {
+	fprintf(stderr,"-------------------------\n");
+        if(map->count == 0) {
+	    fprintf(stderr,"hash: <empty>\n");
+	    goto next1;
+	}
+	for(i=0;i < map->size; i++) {
+	    NC_hentry* e = &map->table[i];
+	    if(e->flags != 1) continue;
+	    fprintf(stderr,"hash: %d: data=%lu key=%s\n",i,(unsigned long)e->data,e->key);
+	    fflush(stderr);
+	}
+next1:
+        if(nclistlength(l) == 0) {
+	    fprintf(stderr,"list: <empty>\n");
+	    goto next2;
+	}
+	for(i=0;i < nclistlength(l); i++) {
+	    const char** a = (const char**)nclistget(l,i);
+	    fprintf(stderr,"list: %d: name=%s\n",i,*a);
+	    fflush(stderr);
+	}
+	fprintf(stderr,"-------------------------\n");
+	fflush(stderr);
+    }
+
+next2:
+    /* Need to verify that every entry in map is also in vector and vice-versa */
+
+    /* Verify that map entry points to same-named entry in vector */
+    for(m=0;m < map->size; m++) {
+	NC_hentry* e = &map->table[m];
+        char** object = NULL;
+	char* oname = NULL;
+	if((e->flags & 1) == 0) continue;
+	object = nclistget(l,(size_t)((uintptr_t)e->data));
+        if(object == NULL) {
+	    fprintf(stderr,"bad data: %d: %lu\n",(int)m,(unsigned long)e->data);
+	    nerrs++;
+	} else {
+	    oname = *object;
+	    if(strcmp(oname,e->key) != 0)  {
+	        fprintf(stderr,"name mismatch: %d: %lu: hash=%s list=%s\n",
+			(int)m,(unsigned long)e->data,e->key,oname);
+	        nerrs++;
+	    }
+	}
+    }
+    /* Walk vector and mark corresponding hash entry*/
+    if(nclistlength(l) == 0 || map->count == 0)
+	goto done; /* cannot verify */
+    for(i=0;i < nclistlength(l); i++) {
+	int match;
+	const char** xp = (const char**)nclistget(l,i);
+        /* Walk map looking for *xp */
+	for(match=0,m=0;m < map->size; m++) {
+	    NC_hentry* e = &map->table[m];
+	    if((e->flags & 1) == 0) continue;
+	    if(strcmp(e->key,*xp)==0) {
+		if((e->flags & 128) == 128) {
+		    fprintf(stderr,"%d: %s already in map at %d\n",i,e->key,m);
+		    nerrs++;
+		}
+		match = 1;
+		e->flags += 128;
+	    }
+	}
+	if(!match) {
+	    fprintf(stderr,"mismatch: %d: %s in vector, not in map\n",(int)i,*xp);
+	    nerrs++;
+	}
+    }
+    /* Verify that every element in map in in vector */
+    for(m=0;m < map->size; m++) {
+	NC_hentry* e = &map->table[m];
+	if((e->flags & 1) == 0) continue;
+	if((e->flags & 128) == 128) continue;
+	/* We have a hash entry not in the vector */
+	fprintf(stderr,"mismatch: %d: %s->%lu in hash, not in vector\n",(int)m,e->key,(unsigned long)e->data);
+	nerrs++;
+    }
+    /* clear the 'touched' flag */
+    for(m=0;m < map->size; m++) {
+	NC_hentry* e = &map->table[m];
+	e->flags &= ~128;
+    }
+
+done:
+    fflush(stderr);
+    return (nerrs > 0 ? 0: 1);
+}

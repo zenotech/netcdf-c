@@ -63,7 +63,6 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
    NC_DIM_INFO_T *dim;
    char norm_name[NC_MAX_NAME + 1];
    int retval = NC_NOERR;
-   uint32_t nn_hash;
 
    LOG((2, "%s: ncid 0x%x name %s len %d", __func__, ncid, name, 
 	(int)len));
@@ -111,8 +110,6 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
       if(len > X_UINT_MAX) /* Backward compat */
 	 return NC_EDIMSIZE;
 
-   nn_hash = hash_fast(norm_name, strlen(norm_name));
-
    /* Make sure the name is not already in use. */
    dim = NC_listmap_get(&grp->dim,norm_name);
    if(dim != NULL)
@@ -127,9 +124,7 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
    if((retval = nc4_dim_list_add(grp, dim)))
 	return retval;
 
-   /* Initialize the metadata for this dimension. */
-   if (!(dim->name = strdup(norm_name)))
-      return NC_ENOMEM;
+   /* Initialize other metadata for this dimension. */
    dim->len = len;
    if (len == NC_UNLIMITED)
       dim->unlimited = NC_TRUE;
@@ -247,6 +242,7 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
    NC_DIM_INFO_T *dim, *tmp_dim;
    char norm_name[NC_MAX_NAME + 1];
    int retval;
+   char* old_name = NULL;
 
    if (!name)
       return NC_EINVAL;
@@ -269,16 +265,22 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
    if ((retval = nc4_check_name(name, norm_name)))
       return retval;
 
-   /* Check if name is in use, and retain a pointer to the correct dim */
-   tmp_dim = NULL;
-   dim = NC_listmap_get(&grp->dim, norm_name);
-   if(dim != NULL)
-     return NC_ENAMEINUSE;
-   if(dim->dimid == dimid)
-     tmp_dim = dim;
-   if (!tmp_dim)
-      return NC_EBADDIM;
-   dim = tmp_dim;
+   /* When we rename, we need to ensure that that new name is not
+      already within the group
+   */
+   tmp_dim = NC_listmap_get(&grp->dim, norm_name);
+   if(tmp_dim != NULL)
+     return NC_ENAMEINUSE; /* Dim with that new name already defined in group */
+
+   /* Get the dim to be renamed */
+   dim = nclistget(h5->alldims,dimid);   
+   if(dim == NULL)
+	return NC_EBADDIM; /* no such dim */
+
+   /* Make sure this dim is within this grp */
+   tmp_dim = NC_listmap_get(&grp->dim,dim->name);
+   if(tmp_dim == NULL || tmp_dim->dimid != dim->dimid)
+      return NC_EBADDIM; /* this should never happen, but better safe...*/
 
    /* Check for renaming dimension w/o variable */
    if (dim->hdf_dimscaleid)
@@ -298,11 +300,17 @@ NC4_rename_dim(int ncid, int dimid, const char *name)
 
    /* Give the dimension its new name in metadata. UTF8 normalization
     * has been done. */
-   if(dim->name)
-      free(dim->name);
-   if (!(dim->name = malloc((strlen(norm_name) + 1) * sizeof(char))))
-      return NC_ENOMEM;
-   strcpy(dim->name, norm_name);
+   old_name = dim->name;
+   if((dim->name = strdup(norm_name)) == NULL)
+      {if(old_name) free(old_name); return NC_ENOMEM;}
+   /* We need to rehash the dim using the newname within the grp;
+      note that since the dimid and the memory is not changed, we do not need
+      to do anything to references to this dim in e.g. h5->alldims */
+   if(!NC_listmap_move(&grp->dim,dim,old_name))
+      {if(old_name) free(old_name); return NC_EINVAL;}
+
+   /* No longer need old name */
+   if(old_name) free(old_name);
 
    /* Check if dimension was a coordinate variable, but names are different now */
    if (dim->coord_var && strcmp(dim->name, dim->coord_var->name))

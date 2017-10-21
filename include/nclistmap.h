@@ -43,14 +43,6 @@ extern uintptr_t NC_listmap_index(NC_listmap* listmap, void* obj);
 /* Return 1 if ok, 0 otherwise.*/
 extern int NC_listmap_add(NC_listmap* listmap, void* obj);
 
-/* Add object at specific index.
-   If not already there, then it will be added.
-   Will overwrite anything already at the specified pos.
-   obj == NULL is ok.
-*/
-/* Return 1 if ok, 0 otherwise.*/
-extern int NC_listmap_iput(NC_listmap* listmap, size_t pos, void* obj);
-
 /* Remove object from listmap; assume cast (char**)target is defined */
 /* Return 1 if ok, 0 otherwise.*/
 extern int NC_listmap_del(NC_listmap* listmap, void* target);
@@ -59,9 +51,13 @@ extern int NC_listmap_del(NC_listmap* listmap, void* target);
 /* Return 1 if ok, 0 otherwise.*/
 extern int NC_listmap_idel(NC_listmap* listmap, size_t index);
 
-/* Rehash object with new name */
+/* Rehash object after it has been given a new name */
 /* Return 1 if ok, 0 otherwise.*/
-extern int NC_listmap_move(NC_listmap* listmap, uintptr_t obj);
+extern int NC_listmap_move(NC_listmap* listmap, void* obj, const char* oldname);
+
+/* Change data associated with a key */
+/* Return 1 if ok, 0 otherwise.*/
+extern int NC_listmap_setdata(NC_listmap* listmap, void* obj, uintptr_t data);
 
 /* Pseudo iterator; start index at 0, return 1 if more data, 0 if done.
    Usage:
@@ -90,6 +86,8 @@ extern int NC_listmap_clear(NC_listmap* listmap);
 /* Return 1 if ok; 0 otherwise */
 extern int NC_listmap_init(NC_listmap* listmap, size_t initsize);
 
+extern int NC_listmap_verify(NC_listmap* lm, int dump);
+
 /* Inline functions */
 
 /* Test if map has been initialized */
@@ -98,6 +96,5 @@ extern int NC_listmap_init(NC_listmap* listmap, size_t initsize);
 /* Get number of entries in a listmap */
 /* size_t NC_listmap_size(NC_listmap* listmap) */
 #define NC_listmap_size(listmap) ((listmap)==NULL?0:(nclistlength((listmap)->list)))
-
 
 #endif /*NCLISTMAP_H*/

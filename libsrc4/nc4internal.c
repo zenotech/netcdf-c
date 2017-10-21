@@ -359,36 +359,40 @@ nc4_find_g_var_nc(NC *nc, int ncid, int varid,
 
 /* Find a dim in a grp (or parents). */
 int
-nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dim,
-	     NC_GRP_INFO_T **dim_grp)
+nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dimp,
+	     NC_GRP_INFO_T **dim_grpp)
 {
    NC_GRP_INFO_T *g, *dg = NULL;
    int finished = 0;
-
-   assert(grp && dim);
+   NC_DIM_INFO_T* d;
+   NC_HDF5_FILE_INFO_T* h5;
+ 
+   assert(dim_grpp || dimp);
 
    /* Find the dim info. */
+   
+   /* First, find dim via dimid */
+   h5 = grp->nc4_info;
+   d = nclistget(h5->alldims,dimid);
+   if(d == NULL)
+      return NC_EBADDIM;
+   /* Now search grp and its parents looking for this dim by name */
+   dg = NULL;
    for (g = grp; g && !finished; g = g->parent) {
-      size_t diter;
-      NC_DIM_INFO_T* d;
-      *dim = NULL;
-      for(diter=0;NC_listmap_next(&g->dim,diter,(uintptr_t*)&d);diter++) {
-	 *dim = d;
-	 if (d->dimid == dimid)
-	 {
-	    dg = g;
-	    finished++;
-	    break;
-	 }
+         NC_DIM_INFO_T* tmpd = NC_listmap_get(&g->dim,d->name);
+      if(tmpd != NULL && tmpd->dimid == d->dimid) {
+	dg = g;
+	break;
       }
    }
    /* If we didn't find it, return an error. */
-   if (!(*dim))
+   if (dg == NULL)
      return NC_EBADDIM;
 
+   if(dimp) *dimp = d;
    /* Give the caller the group the dimension is in. */
-   if (dim_grp)
-      *dim_grp = dg;
+   if (dim_grpp)
+      *dim_grpp = dg;
 
    return NC_NOERR;
 }
@@ -809,15 +813,7 @@ nc4_var_free(NC_VAR_INFO_T *var)
    return NC_NOERR;
 }
 
-/* Add to the beginning of a var list. */
-int
-nc4_var_list_add(NC_GRP_INFO_T* parent, NC_VAR_INFO_T *var)
-{
-   var->varid = NC_listmap_size(&parent->vars.value);
-   /* Add object to lists */
-   NC_listmap_add(&parent->vars.value, var);
-   return NC_NOERR;
-}
+/* See also nc4var.c#nc4_vararray_add */
 
 /* Create and partially initialize new dim object */
 int
@@ -844,7 +840,6 @@ nc4_dim_free(NC_DIM_INFO_T *dim)
    /* Free memory allocated for names. */
    if (dim->name)
       free(dim->name);
-
    free(dim);
    return NC_NOERR;
 }
@@ -854,9 +849,8 @@ int
 nc4_dim_list_add(NC_GRP_INFO_T* parent, NC_DIM_INFO_T *new_dim)
 {
    NC_HDF5_FILE_INFO_T* h5 = parent->nc4_info;
-   int new_nc_dimid = nclistlength(h5->alldims);
 
-   new_dim->dimid = new_nc_dimid;
+   new_dim->dimid = nclistlength(h5->alldims);
 
    /* Add object to lists */
    nclistpush(h5->alldims, new_dim);
@@ -1004,9 +998,6 @@ nc4_rec_grp_del(NC_GRP_INFO_T *grp)
       LOG((4, "%s: deleting var %s", __func__, var->name));
       /* Close HDF5 dataset associated with this var, unless it's a
        * scale. */
-if(var->name == NULL || strlen(var->name) == 0) {
-int x = 0;
-}
       if (var->hdf_datasetid && H5Dclose(var->hdf_datasetid) < 0)
 	 return NC_EHDFERR;
       if ((retval = nc4_var_free(var)))
@@ -1207,6 +1198,8 @@ nc4_enum_member_new(size_t size, const char *name, const void *value, NC_ENUM_ME
    /* Store the value for this member. */
    memcpy(member->value, value, size);
 
+   *emp = member;
+
    return NC_NOERR;
 }
 
@@ -1305,24 +1298,26 @@ nc4_type_free(NC_TYPE_INFO_T *type)
 int
 nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att)
 {
-    int attnum = 0;
+    int oldattnum = 0;
     size_t pos = 0;
     NC_ATT_INFO_T *tmp;
 
     if(list == NULL || NC_listmap_size(list) == 0 || att == NULL)
 	return NC_ENOTATT;    
-    if(attnum >= NC_listmap_size(list))
-	return NC_ENOTATT; /* bad index */
+    oldattnum = att->attnum; /* save for later */
+    assert(oldattnum <= NC_listmap_size(list));
     /* Verify the att number */
-    tmp = NC_listmap_iget(list,att->attnum);
-    if(tmp == NULL || tmp->attnum != att->attnum)
+    tmp = NC_listmap_iget(list,oldattnum);
+    if(tmp == NULL || tmp->attnum != oldattnum)
 	return NC_ENOTATT; /* mismatch */
-    if(!NC_listmap_idel(list,att->attnum))
+    if(!NC_listmap_idel(list,oldattnum))
 	return NC_ENOTATT;
     /* Renumber */
-    for(pos=att->attnum;pos<NC_listmap_size(list);pos++) {
+    for(pos=oldattnum;pos<NC_listmap_size(list);pos++) {
         tmp = NC_listmap_iget(list,pos);
         tmp->attnum--;
+	if(!NC_listmap_setdata(list,tmp,tmp->attnum))
+	    return NC_EINTERNAL;
     }
     /* Now free the deleted attribute */
     nc4_att_free(att);
@@ -1577,14 +1572,13 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
 
    for(iter=0;NC_listmap_next(&grp->type,iter,(uintptr_t*)&type);iter++) {
       LOG((2, "%s TYPE - nc_typeid: %d hdf_typeid: 0x%x size: %d committed: %d "
-	   "name: %s num_fields: %d", tabs, type->nc_typeid,
-	   type->hdf_typeid, type->size, (int)type->committed, type->name,
-	   nclistlength(type->u.c.fields)));
+	   "name: %s", tabs, type->nc_typeid,
+	   type->hdf_typeid, type->size, (int)type->committed, type->name));
       /* Is this a compound type? */
       if (type->nc_type_class == NC_COMPOUND)
       {
 	 int i;
-	 LOG((3, "compound type"));
+	 LOG((3, "compound type: num_fields: %d", nclistlength(type->u.c.fields)));
 	 for (i=0;i<nclistlength(type->u.c.fields);i++) {
 	    field = nclistget(type->u.c.fields,i);
 	    LOG((4, "field %s offset %d nctype %d ndims %d", field->name,
@@ -1600,7 +1594,7 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
 	 LOG((3, "Opaque type"));
       else if (type->nc_type_class == NC_ENUM)
       {
-	 LOG((3, "Enum type"));
+	 LOG((3, "Enum type: num_members: %d", nclistlength(type->u.e.members)));
          LOG((4, "base_nc_type: %d", type->u.e.base_nc_typeid));
       }
       else
@@ -1631,7 +1625,7 @@ log_metadata_nc(NC *nc)
 {
    NC_HDF5_FILE_INFO_T *h5 = NC4_DATA(nc);
 
-   LOG((2, "*** NetCDF-4 Internal Metadata: int_ncid 0x%x ext_ncid 0x%x",
+   LOG((2, "\n*** NetCDF-4 Internal Metadata: int_ncid 0x%x ext_ncid 0x%x",
 	nc->int_ncid, nc->ext_ncid));
    if (!h5)
    {

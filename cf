@@ -194,6 +194,7 @@ fi
 if test -z "$FAST" ; then
   if test -f Makefile ; then ${MAKE} distclean >/dev/null 2>&1 ; fi
 fi
+if ! test -f m4 ; then mkdir m4; fi
 sh $X ./configure ${FLAGS}
 for c in $cmds; do
 printenv LD_LIBRARY_PATH

@@ -1170,6 +1170,7 @@ NC4_rename_var(int ncid, int varid, const char *name)
    uint32_t nn_hash;
    int retval = NC_NOERR;
    int i;
+   char* old_name = NULL;
 
    LOG((2, "%s: ncid 0x%x varid %d name %s",
         __func__, ncid, varid, name));
@@ -1218,11 +1219,12 @@ NC4_rename_var(int ncid, int varid, const char *name)
    }
 
    /* Now change the name in our metadata. */
-   free(var->name);
+   old_name = var->name;
    if (!(var->name = malloc((strlen(name) + 1) * sizeof(char))))
       return NC_ENOMEM;
    strcpy(var->name, name);
-   NC_listmap_move(&grp->vars.value,(uintptr_t)var);
+   NC_listmap_move(&grp->vars.value,var,old_name);
+   if(old_name) free(old_name);
 
    /* Check if this was a coordinate variable previously, but names are different now */
    if (var->dimscale && strcmp(var->name, var->dim[0]->name))

@@ -80,11 +80,15 @@ nclistsetalloc(NClist* l, size_t sz)
 }
 
 int
-nclistsetlength(NClist* l, size_t sz)
+nclistsetlength(NClist* l, size_t newlen)
 {
   if(l == NULL) return FALSE;
-  if(sz > l->alloc && !nclistsetalloc(l,sz)) return FALSE;
-  l->length = sz;
+  if(newlen > l->alloc && !nclistsetalloc(l,newlen)) return FALSE;
+  if(newlen > l->length) {
+      /* clear any extension */
+      memset(&l->content[l->length],0,(newlen - l->length)*sizeof(void*));
+  }
+  l->length = newlen;
   return TRUE;
 }
 
@@ -96,12 +100,17 @@ nclistget(NClist* l, size_t index)
   return l->content[index];
 }
 
-/* Insert at position i of l; will overwrite previous value */
+/* Insert at position i of l; will overwrite previous value;
+   guarantees alloc and length
+*/
 int
 nclistset(NClist* l, size_t index, void* elem)
 {
   if(l == NULL) return FALSE;
-  if(index >= l->length) return FALSE;
+  if(!nclistsetalloc(l,index+1)) return FALSE;
+  if(index >= l->length) {
+      if(!nclistsetlength(l,index+1)) return FALSE;	
+  }
   l->content[index] = elem;
   return TRUE;
 }

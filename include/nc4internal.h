@@ -425,6 +425,7 @@ int nc4_member_list_add(NC_TYPE_INFO_T*, NC_ENUM_MEMBER_INFO_T*);
 int nc4_grp_list_add(struct NC_HDF5_FILE_INFO*, NC_GRP_INFO_T *grp);
 int nc4_rec_grp_del(NC_GRP_INFO_T* list);
 void nc4_file_list_del(NC *nc);
+/* See also nc4var.c#nc4_vararray_add */
 
 /* Break & reform coordinate variables */
 int nc4_break_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var, NC_DIM_INFO_T *dim);

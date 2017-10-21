@@ -648,6 +648,7 @@ NC4_rename_att(int ncid, int varid, const char *name,
    char norm_newname[NC_MAX_NAME + 1], norm_name[NC_MAX_NAME + 1];
    hid_t datasetid = 0;
    int retval = NC_NOERR;
+   char* oldname = NULL;
 
    if (!name || !newname)
       return NC_EINVAL;
@@ -687,6 +688,7 @@ NC4_rename_att(int ncid, int varid, const char *name,
       assert(var->varid == varid);
       list = &var->att;
    }
+
    att = NC_listmap_get(list,norm_newname);
    if(att != NULL)
 	return NC_ENAMEINUSE;
@@ -724,11 +726,19 @@ NC4_rename_att(int ncid, int varid, const char *name,
    }
 
    /* Copy the new name into our metadata. */
-   free(att->name);
+   oldname = att->name; /* save for later rehash */
    if (!(att->name = malloc((strlen(norm_newname) + 1) * sizeof(char))))
-      return NC_ENOMEM;
+      {if(oldname) free(oldname); return NC_ENOMEM;}
    strcpy(att->name, norm_newname);
    att->dirty = NC_TRUE;
+   /* We need to rehash the att using the newname.
+      note that since the attid and the memory is not changed, we do not need
+      to do anything to references to this att.
+   */
+   if(!NC_listmap_move(list,att,oldname))
+      {if(oldname) free(oldname); return NC_EINVAL;}
+   /* No longer need old name */
+   if(oldname) free(oldname);
 
    /* Mark attributes on variable dirty, so they get written */
    if(var)
@@ -816,14 +826,7 @@ NC4_del_att(int ncid, int varid, const char *name)
 	 BAIL(NC_EATTMETA);
    }
 
-   /* Renumber all following attributes. */
-   for(i=att->attnum+1;i<NC_listmap_size(attlist);i++) {
-	natt = NC_listmap_iget(attlist,i);
-	assert(att != NULL);
-	natt->attnum--;
-   }
-
-   /* Delete this attribute from this list. */
+   /* Delete this attribute from this list; will also do renumbering */
    if ((retval = nc4_att_list_del(attlist, att)))
       BAIL(retval);
 

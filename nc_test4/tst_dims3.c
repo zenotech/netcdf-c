@@ -14,7 +14,7 @@
 int
 main(int argc, char **argv)
 {
-nc_set_log_level(0);
+nc_set_log_level(5);
    printf("\n*** Testing netcdf-4 dimensions even more.\n");
    printf("*** testing netcdf-4 dimension inheritance...");
    {
