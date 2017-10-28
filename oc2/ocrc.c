@@ -48,11 +48,40 @@ occredentials_in_url(const char *url)
     return 0;
 }
 
+/*
+Given form user:pwd, parse into user and pwd
+and do %xx unescaping
+*/
 static OCerror
-ocextract_credentials(const char *url, char **userpwd, char **result_url)
+parsecredentials(const char* userpwd, char** userp, char** pwdp)
+{
+    char* user = NULL;
+    char* pwd = NULL;
+
+    if(userpwd == NULL)
+	return OC_EINVAL;
+    user = strdup(userpwd);
+    if(user == NULL)
+	return NC_ENOMEM;
+    pwd = strchr(user,':');
+    if(pwd == NULL)
+	return OC_EINVAL;
+    *pwd = '\0';
+    pwd++;
+    if(userp)
+	*userp = ncuridecode(user);
+    if(pwdp)
+	*pwdp = ncuridecode(pwd);
+    free(user);
+    return OC_NOERR;
+}
+
+static OCerror
+ocextract_credentials(const char *url, char **user, char** pwd, char **result_url)
 {
     NCURI* parsed = NULL;
-    if(ncuriparse(url,&parsed) != NCU_OK)
+
+    if(url == NULL || ncuriparse(url,&parsed) != NCU_OK)
 	return OCTHROW(OC_EBADURL);
     if(parsed->user != NULL || parsed->password == NULL) {
 	ncurifree(parsed);
@@ -96,11 +125,13 @@ combinecredentials(const char* user, const char* pwd, char** credsp)
 {
     int userPassSize;
     char *userPassword;
+    char *escapeduser = NULL;
+    char* escapedpwd = NULL;
 
-    if(user == NULL) user = "";
-    if(pwd == NULL) pwd = "";
-
-    userPassSize = strlen(user) + strlen(pwd) + 2;
+    if(user == NULL || pwd == NULL)
+	return NULL;	
+ 
+    userPassSize = 3*strlen(user) + 3*strlen(pwd) + 2; /* times 3 for escapes */
     userPassword = malloc(sizeof(char) * userPassSize);
     if (!userPassword) {
 	return OC_ENOMEM;
@@ -109,6 +140,7 @@ combinecredentials(const char* user, const char* pwd, char** credsp)
     if(credsp) *credsp = userPassword;
     return OC_NOERR;
 }
+#endif
 
 static int
 rcreadline(FILE* f, char* more, int morelen)
@@ -164,7 +196,7 @@ ocparseproxy(OCstate* state, char* v)
 	return OC_NOERR; /* nothing there*/
     if (occredentials_in_url(v)) {
         char *result_url = NULL;
-        ocextract_credentials(v, &state->proxy.userpwd, &result_url);
+        ocextract_credentials(v, &state->proxy.user, &state->proxy.pwd, &result_url);
         v = result_url;
     }
     /* allocating a bit more than likely needed ... */
@@ -214,7 +246,7 @@ ocparseproxy(OCstate* state, char* v)
      if (ocdebug > 1) {
          nclog(NCLOGNOTE,"host name: %s", state->proxy.host);
 #ifdef INSECURE
-         nclog(NCLOGNOTE,"user+pwd: %s", state->proxy.userpwd);
+         nclog(NCLOGNOTE,"user+pwd: %s+%s", state->proxy.user,state->proxy.pwd);
 #endif
          nclog(NCLOGNOTE,"port number: %d", state->proxy.port);
     }
@@ -379,8 +411,8 @@ ocrc_load(void)
     /* locate the configuration files in the following order:
        1. specified by set_rcfile
        2. set by DAPRCFILE env variable
-       3. '.'
-       4. $HOME
+       3. '.'/<rcfile>
+       4. $HOME/<rcfile>
     */
     if(ocglobalstate.rc.rcfile != NULL) { /* always use this */
 	path = strdup(ocglobalstate.rc.rcfile);
@@ -422,7 +454,6 @@ ocrc_process(OCstate* state)
     OCerror stat = OC_NOERR;
     char* value = NULL;
     NCURI* uri = state->uri;
-    char* url_userpwd = NULL;
     char* url_hostport = NULL;
 
     if(!ocglobalstate.initialized)
@@ -551,15 +582,14 @@ ocrc_process(OCstate* state)
 
     { /* Handle various cases for user + password */
 	/* First, see if the user+pwd was in the original url */
-	char* userpwd = NULL;
 	char* user = NULL;
 	char* pwd = NULL;
-	if(url_userpwd != NULL)
-	    userpwd = url_userpwd;
-	else {
+	if(uri->user != NULL && uri->password != NULL) {
+	    user = uri->user;
+	    pwd = uri->password;
+	} else {
    	    user = ocrc_lookup("HTTP.CREDENTIALS.USER",url_hostport);
 	    pwd = ocrc_lookup("HTTP.CREDENTIALS.PASSWORD",url_hostport);
-	    userpwd = ocrc_lookup("HTTP.CREDENTIALS.USERPASSWORD",url_hostport);
 	}
 	if(userpwd == NULL && user != NULL && pwd != NULL) {
 	    stat = combinecredentials(user,pwd,&userpwd);
@@ -631,7 +661,7 @@ storedump(char* msg, struct OCTriple* triples, int ntriples)
     if(ntriples < 0 ) ntriples= ocrc->ntriples;
     for(i=0;i<ntriples;i++) {
         fprintf(stderr,"\t%s\t%s\t%s\n",
-                (strlen(triples[i].host)==0?"--":triples[i].host),
+                (triples[i].host == NULL || strlen(triples[i].host)==0?"--":triples[i].host),
                 triples[i].key,
                 triples[i].value);
     }
