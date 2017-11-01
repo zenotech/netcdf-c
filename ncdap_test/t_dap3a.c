@@ -143,6 +143,7 @@ int main()
 
     /* open file, get varid */
     CHECK(nc_open(url, NC_NOWRITE, &ncid));
+    free(url);
     
     /* extract the string case for netcdf-3*/
 #ifndef USE_NETCDF4
@@ -309,6 +310,7 @@ int main()
         exit(1);
     }
     nc_close(ncid);
+    nc_finalize();
     return 0;
 }
 

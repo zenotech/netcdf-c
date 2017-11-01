@@ -1105,6 +1105,7 @@ free1cdfnode(CDFnode* node)
     nclistfree(node->array.dimsetplus);
     nclistfree(node->array.dimsetall);
     nclistfree(node->array.dimset0);
+    nclistfree(node->array.dimsettrans);
 
     /* Clean up the ncdap4 fields also */
     nullfree(node->typename);

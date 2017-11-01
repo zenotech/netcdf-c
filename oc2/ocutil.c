@@ -557,18 +557,17 @@ ocdtmodestring(OCDT mode,int compact)
     result[0] = '\0';
     if(mode == 0) {
 	if(compact) *p++ = '-';
-	else if(!occoncat(result,sizeof(result),1,"NONE"))
-	    return NULL;
+	else 
+	    strncat(result,"NONE",4);
     } else for(i=0;;i++) {
 	char* ms = modestrings[i];
 	if(ms == NULL) break;
 	if(!compact && i > 0)
-	    if(!occoncat(result,sizeof(result),1,","))
-		return NULL;
+	    strncat(result,",",1);
         if(fisset(mode,(1<<i))) {
 	    if(compact) *p++ = ms[0];
-	    else if(!occoncat(result,sizeof(result),1,ms))
-		return NULL;
+	    else
+		strncat(result,ms,strlen(ms));
 	}
     }
     /* pad compact list out to NMODES in length (+1 for null terminator) */
@@ -577,112 +576,6 @@ ocdtmodestring(OCDT mode,int compact)
 	*p = '\0';
     }
     return result;
-}
-
-
-/*
-Instead of using snprintf to concatenate
-multiple strings into a given target,
-provide a direct concatenator.
-So, this function concats the n argument strings
-and overwrites the contents of dst.
-Care is taken to never overrun the available
-space (the size parameter).
-Note that size is assumed to include the null
-terminator and that in the event of overrun,
-the string will have a null at dst[size-1].
-Return 0 if overrun, 1 otherwise.
-*/
-int
-occopycat(char* dst, size_t size, size_t n, ...)
-{
-    va_list args;
-    size_t avail = size - 1;
-    int i; 
-    int status = 1; /* assume ok */
-    char* p = dst;
-
-    if(n == 0) {
-	if(size > 0)
-	    dst[0] = '\0';
-	return (size > 0 ? 1: 0);
-    }
-	
-    va_start(args,n);
-    for(i=0;i<n;i++) {
-	char* q = va_arg(args, char*);
-	for(;;) {
-	    int c = *q++;
-	    if(c == '\0') break;
-	    if(avail == 0) {status = 0; goto done;}
-	    *p++ = c;
-	    avail--;
-	}
-    }
-    /* make sure we null terminate;
-       note that since avail was size-1, there
-       will always be room
-    */
-    *p = '\0';    
-
-done:
-    va_end(args);
-    return status;    
-}
-
-/*
-Similar to occopycat, but
-the n strings are, in effect,
-concatenated and appended to the
-current contents of dst.
-The size parameter is the total size of dst,
-including room for null terminator.
-Return 0 if overrun, 1 otherwise.
-*/
-int
-occoncat(char* dst, size_t size, size_t n, ...)
-{
-    va_list args;
-    int status = 1; /* assume ok */
-    size_t avail = 0;
-    int i; 
-    char* p;
-    size_t dstused;
-    dstused = strlen(dst);
-    if(dstused >= size)
-	return 0; /* There is no room to append */
-    /* move to the end of the current contents of dst
-       and act like we are doing copycat
-    */
-    p = dst + dstused;
-    size -= dstused;
-    avail = size - 1;
-    if(n == 0) {
-	if(size > 0)
-	    p[0] = '\0';
-	return (size > 0 ? 1: 0);
-    }
-	
-    va_start(args,n);
-    for(i=0;i<n;i++) {
-	char* q = va_arg(args, char*);
-	for(;;) {
-	    int c = *q++;
-	    if(c == '\0') break;
-	    if(avail == 0) {status = 0; goto done;}
-	    *p++ = c;
-	    avail--;
-	}
-    }
-    /* make sure we null terminate;
-       note that since avail was size-1, there
-       will always be room
-    */
-    *p = '\0';    
-
-done:
-    va_end(args);
-    return status;    
 }
 
 
@@ -696,16 +589,12 @@ ocmktmp(const char* base, char** tmpnamep)
     int fd;
     char tmpname[OCPATHMAX+1];
 
-    if(!occopycat(tmpname,sizeof(tmpname)-1,1,base)) {
-	return OC_EOVERRUN;
-    }
 #ifdef HAVE_MKSTEMP
-    if(!occoncat(tmpname,sizeof(tmpname)-1,1,"XXXXXX")) {
-	return OC_EOVERRUN;
-    }
-    /* Note Potential problem: old versions of this function
-       leave the file in mode 0666 instead of 0600 */
     {
+        if(snprintf(tmpname,sizeof(tmpname)-1,"%sXXXXXX",base) >= sizeof(tmpname)-1)
+	    return OC_EOVERRUN;
+        /* Note Potential problem: old versions of this function
+	   leave the file in mode 0666 instead of 0600 */
 	mode_t mask=umask(0077);
 	fd = mkstemp(tmpname);
 	(void)umask(mask);
@@ -716,10 +605,8 @@ ocmktmp(const char* base, char** tmpnamep)
 	int rno = rand();
 	char spid[7];
 	if(rno < 0) rno = -rno;
-        snprintf(spid,sizeof(spid),"%06d",rno);
-	if(!occoncat(tmpname,sizeof(tmpname)-1,1,spid)) {
+        if(snprintf(tmpname,sizeof(tmpname)-1,"%s%06d",base,rno) >= sizeof(tmpname)-1)
 	    return OC_EOVERRUN;
-        }
 #if defined(_WIN32) || defined(_WIN64)
         fd=NCopen3(tmpname,O_RDWR|O_BINARY|O_CREAT, _S_IREAD|_S_IWRITE);
 #  else

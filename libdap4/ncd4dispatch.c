@@ -66,11 +66,12 @@ NCD4_finalize(void)
     if(NCD4_globalstate != NULL) {
         nullfree(NCD4_globalstate->tempdir);
         nullfree(NCD4_globalstate->home);
-	nclistfree(NCD4_globalstate->rc.rc);
+	NCD4_rcfree(NCD4_globalstate->rc.rc);
 	nullfree(NCD4_globalstate->rc.rcfile);
 	free(NCD4_globalstate);
 	NCD4_globalstate = NULL;
     }
+    curl_global_cleanup();
     return THROW(NC_NOERR);
 }
 

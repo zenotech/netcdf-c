@@ -212,7 +212,7 @@ readfile(const char* path, const char* suffix, NCbytes* packet)
     off_t totalread = 0;
     /* check for leading file:/// */
     if(ocstrncmp(path,"file://",7)==0) path += 7; /* assume absolute path*/
-    if(!occopycat(filename,sizeof(filename),2,path,(suffix != NULL ? suffix : "")))
+    if(snprintf(filename,sizeof(filename),"%s%s",path,(suffix != NULL ? suffix : "")) >= sizeof(filename))
 	return OCTHROW(OC_EOVERRUN);
     flags = O_RDONLY;
 #ifdef O_BINARY

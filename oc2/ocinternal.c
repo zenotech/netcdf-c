@@ -369,9 +369,12 @@ createtempfile(OCstate* state, OCtree* tree)
 	  strlen(ocglobalstate.tempdir)
 	  + 1 /* '/' */
 	  + strlen(DATADDSFILE);
-    path = (char*)malloc(len+1);
+    path = (char*)malloc(len+1); /* +1 for nul */
     if(path == NULL) return OC_ENOMEM;
-    occopycat(path,len,3,ocglobalstate.tempdir,"/",DATADDSFILE);
+    if(snprintf(path,len+1,"%s/%s",ocglobalstate.tempdir,DATADDSFILE) >= len+1) {
+	free(path);
+	return OC_EOVERRUN;
+    }
     stat = ocmktmp(path,&name);
     free(path);
     if(stat != OC_NOERR) goto fail;
@@ -577,10 +580,11 @@ ocset_curlproperties(OCstate* state)
     if(state->curlflags.useragent == NULL) {
         size_t len = strlen(DFALTUSERAGENT) + strlen(VERSION) + 1;
 	char* agent = (char*)malloc(len+1);
-	if(occopycat(agent,len,2,DFALTUSERAGENT,VERSION))
-	    state->curlflags.useragent = agent;
-	else
+	if(snprintf(agent,len,"%s%s",DFALTUSERAGENT,VERSION) >= len) {
 	    free(agent);
+	    return OC_EOVERRUN;
+        }
+        state->curlflags.useragent = agent;
     }
 
     /* Some servers (e.g. thredds and columbia) appear to require a place
@@ -598,6 +602,7 @@ ocset_curlproperties(OCstate* state)
         char* path = NULL;
         char* name = NULL;
         int len;
+	int snp;
 	errno = 0;
 	/* Create the unique cookie file name */
         len =
@@ -606,7 +611,10 @@ ocset_curlproperties(OCstate* state)
 	  + strlen("occookies");
         path = (char*)malloc(len+1);
         if(path == NULL) return OC_ENOMEM;
-        occopycat(path,len,3,ocglobalstate.tempdir,"/","occookies");
+        if((snp=snprintf(path,len+1,"%s/occookies",ocglobalstate.tempdir)) >= len+1) {
+	    free(path);
+	    return OC_EOVERRUN;
+	}
         stat = ocmktmp(path,&name);
         free(path);
 	state->curlflags.cookiejar = name;

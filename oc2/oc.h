@@ -545,6 +545,12 @@ This is primarily for debugging of rc files.
 */
 extern OCerror oc_initialize(void);
 
+/*
+Finalize the oc library as if nothing had been called.
+This is primarily for debugging of rc files.
+*/
+extern OCerror oc_finalize(void);
+
 /**************************************************/
 /* Curl options */
 /* This is here because trial and error shows that

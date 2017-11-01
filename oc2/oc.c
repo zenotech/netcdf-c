@@ -2178,17 +2178,25 @@ OCerror
 oc_initialize(void)
 {
     OCerror status = OC_NOERR;
-    if(!ocglobalstate.initialized) {
+    oc_finalize();
+    status = ocinternalinitialize();
+    /* (re) load the rcfile */
+    status =  ocrc_load();
+    return OCTHROW(status);
+}
+
+OCerror
+oc_finalize(void)
+{
+    if(ocglobalstate.initialized) {
         /* Clean up before re-initializing */
 	if(ocglobalstate.tempdir != NULL) free(ocglobalstate.tempdir);
 	if(ocglobalstate.home != NULL) free(ocglobalstate.home);
 	if(ocglobalstate.rc.rcfile != NULL) free(ocglobalstate.rc.rcfile);
     }
     ocglobalstate.initialized = 0;
-    status = ocinternalinitialize();
-    /* (re) load the rcfile */
-    status =  ocrc_load();
-    return OCTHROW(status);
+    curl_global_cleanup();
+    return OC_NOERR;
 }
 
 /**@}*/

@@ -99,6 +99,7 @@ occombinehostport(const NCURI* uri)
 {
     char* hp;
     int len = 0;
+    OCerror stat = OC_NOERR;
 
     if(uri->host == NULL)
 	return NULL;
@@ -108,11 +109,14 @@ occombinehostport(const NCURI* uri)
 	len += strlen(uri->port);
     hp = (char*)malloc(len+1);
     if(hp == NULL)
-	return NULL;
-    if(uri->port == NULL)
-        occopycat(hp,len+1,1,uri->host);
-    else
-        occopycat(hp,len+1,3,uri->host,":",uri->port);
+	goto done;
+    if(uri->port == NULL) {
+        if(snprintf(hp,len,"%s",uri->host) >= len) {stat = OC_EOVERRUN; goto done;}
+    } else {
+        if(snprintf(hp,len,"%s:%s",uri->host,uri->port) >= len) {stat = OC_EOVERRUN; goto done;}
+    }
+done:
+    if(stat != OC_NOERR) {if(hp != NULL) free(hp); hp = NULL;}
     return hp;
 }
 
@@ -124,27 +128,32 @@ Note that we must %xx escape the user and the pwd
 static char*
 combinecredentials(const char* user, const char* pwd)
 {
+    OCerror stat = OC_NOERR;
     int userPassSize;
-    char *userPassword;
+    char *userPassword = NULL;
     char *escapeduser = NULL;
     char* escapedpwd = NULL;
 
     if(user == NULL || pwd == NULL)
-	return NULL;	
+	{stat = OC_EINVAL; goto done;}
  
     userPassSize = 3*strlen(user) + 3*strlen(pwd) + 2; /* times 3 for escapes */
     userPassword = malloc(sizeof(char) * userPassSize);
-    if (!userPassword) {
-        nclog(NCLOGERR,"Out of Memory\n");
-	return NULL;
-    }
+    if (!userPassword) {stat = OC_ENOMEM; goto done;}
     escapeduser = ncuriencodeuserpwd(user);
     escapedpwd = ncuriencodeuserpwd(pwd);
-    if(escapeduser == NULL || escapedpwd == NULL) {
-        nclog(NCLOGERR,"Out of Memory\n");
-	return NULL;
+    if(escapeduser == NULL || escapedpwd == NULL)
+	{stat = OC_ENOMEM; goto done;}
+    if(snprintf(userPassword,userPassSize-1,"%s:%s",escapeduser,escapedpwd) >= userPassSize-1)
+	{stat = OC_EOVERRUN; goto done;}
+	
+done:
+    if(stat != OC_NOERR) {
+        nclog(NCLOGERR,"%s\n",ocerrstring(stat));
+	if(userPassword != NULL)
+	    free(userPassword);
+	    userPassword = NULL;
     }
-    occopycat(userPassword,userPassSize-1,3,escapeduser,":",escapedpwd);
     free(escapeduser);
     free(escapedpwd);
     return userPassword;
@@ -694,7 +703,7 @@ ocrc_lookup(char* suffix, char* url)
     char key[MAXRCLINESIZE+1];
     const char** p = prefixes;
     for(;*p;p++) {
-        if(!occopycat(key,sizeof(key),2,*p,suffix))
+        if(snprintf(key,sizeof(key),"%s%s",*p,suffix) >= sizeof(key))
             return NULL;
 	value = ocrc_lookup(key,url);
 	if(value != NULL)
@@ -762,7 +771,7 @@ rc_search(const char* prefix, const char* rcname, char** pathp)
 	stat = OC_ENOMEM;
 	goto done;
     }
-    if(!occopycat(path,pathlen,3,prefix,"/",rcname)) {
+    if(snprintf(path,pathlen,"%s/%s",prefix,rcname) >= pathlen) {
         stat = OC_EOVERRUN;
 	goto done;
     }
@@ -807,3 +816,4 @@ ocrc_triple_iterate(char* key, char* url, struct OCTriple* prev)
     }
     return next;
 }
+

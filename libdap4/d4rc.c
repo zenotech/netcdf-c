@@ -103,7 +103,6 @@ rcorder(NClist* rc)
 	nclistpush(newrc,ti);
     }
 #ifdef D4DEBUG
-
     storedump("reorder:",newrc);
 #endif
     return newrc;
@@ -188,9 +187,11 @@ rccompile(const char* path)
 	nclistpush(rc,triple);
 	triple = NULL;
     }
-    rcorder(rc);
+    NCD4_globalstate->rc.rc = rcorder(rc);
+    nclistfree(rc);    
 
 done:
+    nullfree(contents);
     ncurifree(uri);
     ncbytesfree(tmp);
     return THROW(ret);

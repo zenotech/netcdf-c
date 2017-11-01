@@ -209,6 +209,7 @@ NCD2_initialize(void)
 int
 NCD2_finalize(void)
 {
+    oc_finalize();    
     return NC_NOERR;
 }
 
