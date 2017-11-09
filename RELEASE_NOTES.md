@@ -5,7 +5,18 @@ Release Notes       {#RELEASE_NOTES}
 
 This file contains a high-level description of this package's evolution. Releases are in reverse chronological order (most recent first). Note that, as of netcdf 4.2, the `netcdf-c++` and `netcdf-fortran` libraries have been separated into their own libraries.
 
-## 4.5.0 - TBD
+
+## 4.5.1 - TBD
+
+* [Enhancement] Reverted behavior/handling of out-of-range attribute values to pre-4.5.0 default. See [Github #512](https://github.com/Unidata/netcdf-c/issues/512) for more information.
+* [Bug] Fixed error in tst_parallel2.c. See [Github #545](https://github.com/Unidata/netcdf-c/issues/545) for more information.
+* [Bug] Fixed handling of corrupt files + proper offset handling for hdf5 files. See [Github #552](https://github.com/Unidata/netcdf-c/issues/552) for more information.
+* [Bug] Corrected a memory overflow in `tst_h_dimscales`, see [Github #511](https://github.com/Unidata/netcdf-c/issues/511), [Github #505](https://github.com/Unidata/netcdf-c/issues/505), [Github #363](https://github.com/Unidata/netcdf-c/issues/363) and [Github #244](https://github.com/Unidata/netcdf-c/issues/244) for more information.
+
+## 4.5.0 - October 20, 2017
+
+* Corrected an issue which could potential result in a hang while using parallel file I/O. See [Github #449](https://github.com/Unidata/netcdf-c/pull/449) for more information.
+* Addressed an issue with `ncdump` not properly handling dates on a 366 day calendar. See [GitHub #359](https://github.com/Unidata/netcdf-c/issues/359) for more information.
 
 ### 4.5.0-rc3 - September 29, 2017
 

@@ -21,7 +21,7 @@ dvarinq.c dinternal.c ddispatch.c dutf8.c                               \
 nclog.c dstring.c                           \
 ncuri.c nclist.c ncbytes.c nctime.c                        \
 nc.c nclistmgr.c drc.c doffsets.c dwinpath.c \
-nc_hashmap.c
+nc_hashmap.c dutil.c drc.c dauth.c
 
 # Add the utf8 codebase
 libdispatch_la_SOURCES += utf8proc.c utf8proc.h

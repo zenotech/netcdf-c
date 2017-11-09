@@ -580,7 +580,9 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   hsize_t start[NC_MAX_VAR_DIMS], count[NC_MAX_VAR_DIMS];
   char *name_to_use;
   int need_to_extend = 0;
+#ifdef USE_PARALLEL4
   int extend_possible = 0;
+#endif
   int retval = NC_NOERR, range_error = 0, i, d2;
   void *bufr = NULL;
 #ifndef HDF5_CONVERT
@@ -629,9 +631,6 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   /* Get file space of data. */
   if ((file_spaceid = H5Dget_space(var->hdf_datasetid)) < 0)
     BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_spaces++;
-#endif
 
   /* Check to ensure the user selection is
    * valid. H5Sget_simple_extent_dims gets the sizes of all the dims
@@ -671,9 +670,6 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
     {
       if ((mem_spaceid = H5Screate(H5S_SCALAR)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces++;
-#endif
     }
   else
     {
@@ -685,9 +681,6 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
          we want. */
       if ((mem_spaceid = H5Screate_simple(var->ndims, count, NULL)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces++;
-#endif
     }
 
 #ifndef HDF5_CONVERT
@@ -732,9 +725,6 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
   /* Create the data transfer property list. */
   if ((xfer_plistid = H5Pcreate(H5P_DATASET_XFER)) < 0)
     BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_plists++;
-#endif
 
   /* Apply the callback function which will detect range
    * errors. Which one to call depends on the length of the
@@ -762,7 +752,9 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
 	  assert(dim && dim->dimid == var->dimids[d2]);
           if (dim->unlimited)
             {
-	      extend_possible = 1;
+#ifdef USE_PARALLEL4
+		extend_possible = 1;
+#endif
               if (start[d2] + count[d2] > fdims[d2])
                 {
                   xtend_size[d2] = (long long unsigned)(start[d2] + count[d2]);
@@ -821,9 +813,6 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
             BAIL2(NC_EHDFERR);
           if ((file_spaceid = H5Dget_space(var->hdf_datasetid)) < 0)
             BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
           if (H5Sselect_hyperslab(file_spaceid, H5S_SELECT_SET,
                                   start, NULL, count, NULL) < 0)
             BAIL(NC_EHDFERR);
@@ -868,19 +857,10 @@ nc4_put_vara(NC *nc, int ncid, int varid, const size_t *startp,
 #endif
   if (file_spaceid > 0 && H5Sclose(file_spaceid) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   if (mem_spaceid > 0 && H5Sclose(mem_spaceid) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   if (xfer_plistid && (H5Pclose(xfer_plistid) < 0))
     BAIL2(NC_EPARINIT);
-#ifdef EXTRA_TESTS
-  num_plists--;
-#endif
 #ifndef HDF5_CONVERT
   if (need_to_convert && bufr) free(bufr);
 #endif
@@ -959,9 +939,6 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
   /* Get file space of data. */
   if ((file_spaceid = H5Dget_space(var->hdf_datasetid)) < 0)
     BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_spaces++;
-#endif
 
   /* Check to ensure the user selection is
    * valid. H5Sget_simple_extent_dims gets the sizes of all the dims
@@ -1053,9 +1030,6 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
           if ((mem_spaceid = H5Screate(H5S_SCALAR)) < 0)
             BAIL(NC_EHDFERR);
           scalar++;
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
         }
       else
         {
@@ -1066,9 +1040,6 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
              we want. */
           if ((mem_spaceid = H5Screate_simple(var->ndims, count, NULL)) < 0)
             BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
         }
 
       /* Fix bug when reading HDF5 files with variable of type
@@ -1125,9 +1096,6 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
       /* Create the data transfer property list. */
       if ((xfer_plistid = H5Pcreate(H5P_DATASET_XFER)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_plists++;
-#endif
 
 #ifdef HDF5_CONVERT
       /* Apply the callback function which will detect range
@@ -1192,9 +1160,6 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
            /* Create the data transfer property list. */
            if ((xfer_plistid = H5Pcreate(H5P_DATASET_XFER)) < 0)
                 BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-           num_plists++;
-#endif
 
            if ((retval = set_par_access(h5, var, xfer_plistid)))
                 BAIL(retval);
@@ -1209,9 +1174,6 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
            if (H5Sselect_none(mem_spaceid)<0)
               BAIL(NC_EHDFERR);
 
-#ifdef EXTRA_TESTS
-             num_spaces++;
-#endif
             /* Read this hyperslab into memory. */
             LOG((5, "About to H5Dread some data..."));
             if (H5Dread(var->hdf_datasetid, var->type_info->native_hdf_typeid,
@@ -1279,25 +1241,16 @@ nc4_get_vara(NC *nc, int ncid, int varid, const size_t *startp,
     {
       if (H5Sclose(file_spaceid) < 0)
         BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces--;
-#endif
     }
   if (mem_spaceid > 0)
     {
       if (H5Sclose(mem_spaceid) < 0)
         BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces--;
-#endif
     }
   if (xfer_plistid > 0)
     {
       if (H5Pclose(xfer_plistid) < 0)
         BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_plists--;
-#endif
     }
 #ifndef HDF5_CONVERT
   if (need_to_convert && bufr != NULL)
@@ -1395,17 +1348,11 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
           string_size = 1;
           if ((spaceid = H5Screate(H5S_NULL)) < 0)
             BAIL(NC_EATTMETA);
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
         }
       else
         {
           if ((spaceid = H5Screate(H5S_SCALAR)) < 0)
             BAIL(NC_EATTMETA);
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
         }
       if (H5Tset_size(file_typeid, string_size) < 0)
         BAIL(NC_EATTMETA);
@@ -1418,17 +1365,11 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
         {
           if ((spaceid = H5Screate(H5S_NULL)) < 0)
             BAIL(NC_EATTMETA);
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
         }
       else
         {
           if ((spaceid = H5Screate_simple(1, dims, NULL)) < 0)
             BAIL(NC_EATTMETA);
-#ifdef EXTRA_TESTS
-          num_spaces++;
-#endif
         }
     }
   if ((attid = H5Acreate(locid, att->name, file_typeid, spaceid,
@@ -1446,9 +1387,6 @@ put_att_grpa(NC_GRP_INFO_T *grp, int varid, NC_ATT_INFO_T *att)
     BAIL2(NC_EHDFERR);
   if (spaceid > 0 && H5Sclose(spaceid) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   return retval;
 }
 
@@ -1495,18 +1433,12 @@ write_coord_dimids(NC_VAR_INFO_T *var)
   /* Write our attribute. */
   coords_len[0] = var->ndims;
   if ((c_spaceid = H5Screate_simple(1, coords_len, coords_len)) < 0) ret++;
-#ifdef EXTRA_TESTS
-  num_spaces++;
-#endif
   if (!ret && (c_attid = H5Acreate(var->hdf_datasetid, COORDINATES, H5T_NATIVE_INT,
                                    c_spaceid, H5P_DEFAULT)) < 0) ret++;
   if (!ret && H5Awrite(c_attid, H5T_NATIVE_INT, var->dimids) < 0) ret++;
 
   /* Close up shop. */
   if (c_spaceid > 0 && H5Sclose(c_spaceid) < 0) ret++;
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   if (c_attid > 0 && H5Aclose(c_attid) < 0) ret++;
   return ret ? NC_EHDFERR : 0;
 }
@@ -1521,9 +1453,6 @@ write_netcdf4_dimid(hid_t datasetid, int dimid)
   /* Create the space. */
   if ((dimid_spaceid = H5Screate(H5S_SCALAR)) < 0)
     return NC_EHDFERR;
-#ifdef EXTRA_TESTS
-  num_spaces++;
-#endif
 
   /* Does the attribute already exist? If so, don't try to create it. */
   if ((attr_exists = H5Aexists(datasetid, NC_DIMID_ATT_NAME)) < 0)
@@ -1547,9 +1476,6 @@ write_netcdf4_dimid(hid_t datasetid, int dimid)
   /* Close stuff*/
   if (H5Sclose(dimid_spaceid) < 0)
     return NC_EHDFERR;
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   if (H5Aclose(dimid_attid) < 0)
     return NC_EHDFERR;
 
@@ -1573,14 +1499,8 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
   /* Scalar or not, we need a creation property list. */
   if ((plistid = H5Pcreate(H5P_DATASET_CREATE)) < 0)
     BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_plists++;
-#endif
   if ((access_plistid = H5Pcreate(H5P_DATASET_ACCESS)) < 0)
     BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_plists++;
-#endif
 
   /* RJ: this suppose to be FALSE that is defined in H5 private.h as 0 */
   if (H5Pset_obj_track_times(plistid,0)<0)
@@ -1737,17 +1657,11 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
       /* Create the dataspace. */
       if ((spaceid = H5Screate_simple(var->ndims, dimsize, maxdimsize)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces++;
-#endif
     }
   else
     {
       if ((spaceid = H5Screate(H5S_SCALAR)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces++;
-#endif
     }
 
   /* Turn on creation order tracking. */
@@ -1802,19 +1716,10 @@ var_create_dataset(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, nc_bool_t write_dimid
     BAIL2(NC_EHDFERR);
   if (plistid > 0 && H5Pclose(plistid) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_plists--;
-#endif
   if (access_plistid > 0 && H5Pclose(access_plistid) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_plists--;
-#endif
   if (spaceid > 0 && H5Sclose(spaceid) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   if (fillp)
     {
       if (var->type_info->nc_type_class == NC_VLEN)
@@ -2011,9 +1916,6 @@ write_nc3_strict_att(hid_t hdf_grpid)
    * strict netcdf-3 rules. */
   if ((spaceid = H5Screate(H5S_SCALAR)) < 0)
     BAIL(NC_EFILEMETA);
-#ifdef EXTRA_TESTS
-  num_spaces++;
-#endif
   if ((attid = H5Acreate(hdf_grpid, NC3_STRICT_ATT_NAME,
                          H5T_NATIVE_INT, spaceid, H5P_DEFAULT)) < 0)
     BAIL(NC_EFILEMETA);
@@ -2023,9 +1925,6 @@ write_nc3_strict_att(hid_t hdf_grpid)
  exit:
   if (spaceid > 0 && (H5Sclose(spaceid) < 0))
     BAIL2(NC_EFILEMETA);
-#ifdef EXTRA_TESTS
-  num_spaces--;
-#endif
   if (attid > 0 && (H5Aclose(attid) < 0))
     BAIL2(NC_EFILEMETA);
   return retval;
@@ -2046,9 +1945,6 @@ create_group(NC_GRP_INFO_T *grp)
        * creation property list. */
       if ((gcpl_id = H5Pcreate(H5P_GROUP_CREATE)) < 0)
         return NC_EHDFERR;
-#ifdef EXTRA_TESTS
-      num_plists++;
-#endif
 
       /* RJ: this suppose to be FALSE that is defined in H5 private.h as 0 */
       if (H5Pset_obj_track_times(gcpl_id,0)<0)
@@ -2063,9 +1959,6 @@ create_group(NC_GRP_INFO_T *grp)
         BAIL(NC_EHDFERR);
       if (H5Pclose(gcpl_id) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_plists--;
-#endif
     }
   else
     {
@@ -2078,9 +1971,6 @@ create_group(NC_GRP_INFO_T *grp)
  exit:
   if (gcpl_id > 0 && H5Pclose(gcpl_id) < 0)
     BAIL2(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-  num_plists--;
-#endif
   if (grp->hdf_grpid > 0 && H5Gclose(grp->hdf_grpid) < 0)
     BAIL2(NC_EHDFERR);
   return retval;
@@ -2423,9 +2313,6 @@ write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
        * up chunking, with a chunksize of 1. */
       if ((create_propid = H5Pcreate(H5P_DATASET_CREATE)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_plists++;
-#endif
 
       /* RJ: this suppose to be FALSE that is defined in H5 private.h as 0 */
       if (H5Pset_obj_track_times(create_propid,0)<0)
@@ -2443,9 +2330,6 @@ write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
       /* Set up space. */
       if ((spaceid = H5Screate_simple(1, dims, max_dims)) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces++;
-#endif
 
       if (H5Pset_attr_creation_order(create_propid, H5P_CRT_ORDER_TRACKED|
                                      H5P_CRT_ORDER_INDEXED) < 0)
@@ -2460,14 +2344,8 @@ write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
       /* Close the spaceid and create_propid. */
       if (H5Sclose(spaceid) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_spaces--;
-#endif
       if (H5Pclose(create_propid) < 0)
         BAIL(NC_EHDFERR);
-#ifdef EXTRA_TESTS
-      num_plists--;
-#endif
 
       /* Indicate that this is a scale. Also indicate that not
        * be shown to the user as a variable. It is hidden. It is
@@ -3761,9 +3639,6 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
               /* Find the space information for this dimension. */
               if ((spaceid = H5Dget_space(var->hdf_datasetid)) < 0)
                 return NC_EHDFERR;
-#ifdef EXTRA_TESTS
-              num_spaces++;
-#endif
 
               /* Get the len of each dim in the space. */
               if (var->ndims)
@@ -3799,9 +3674,6 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
 		      retval = NC_EHDFERR;
 		      goto fail;
               }
-#ifdef EXTRA_TESTS
-              num_spaces--;
-#endif
 
               /* Create a phony dimension for each dimension in the
                * dataset, unless there already is one the correct
@@ -4013,7 +3885,7 @@ reportobject(int log, hid_t id, unsigned int type)
 	LOG((0,"Type = %s(%8u) name='%s'",typename,id,name));
 #endif
     } else {
-	fprintf(stderr,"Type = %s(%8u) name='%s'",typename,id,name);
+	fprintf(stderr,"Type = %s(%8u) name='%s'",typename,(unsigned int)id,name);
     }
 }
 
@@ -4032,7 +3904,7 @@ reportopenobjectsT(int log, hid_t fid, int ntypes, unsigned int* otypes)
         LOG((0,"\nReport: open objects on %d\n",fid));
 #endif
     } else {
-        fprintf(stdout,"\nReport: open objects on %d\n",fid);
+        fprintf(stdout,"\nReport: open objects on %d\n",(int)fid);
     }
     maxobjs = H5Fget_obj_count(fid,H5F_OBJ_ALL);
     if(idlist != NULL) free(idlist);

@@ -891,8 +891,6 @@ NC3_put_att(
         old = *attrpp;
     } else {
         if(!NC_indef(ncp)) return NC_ENOTINDEFINE;
-
-        if(ncap->nelems >= NC_MAX_ATTRS) return NC_EMAXATTS;
     }
 
     status = NC_check_name(name);
