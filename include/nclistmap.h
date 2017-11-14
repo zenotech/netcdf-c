@@ -37,7 +37,7 @@ extern void* NC_listmap_iget(NC_listmap* listmap, size_t index);
 /* Get the index of an object; if not present, return 0
    (=> you have to do your own presence check to avoid ambiguity)
 */
-extern uintptr_t NC_listmap_index(NC_listmap* listmap, void* obj);
+extern size_t NC_listmap_index(NC_listmap* listmap, void* obj);
 
 /* Add object to the end of an index; assume cast (char**)obj is defined */
 /* Return 1 if ok, 0 otherwise.*/
@@ -57,15 +57,15 @@ extern int NC_listmap_move(NC_listmap* listmap, void* obj, const char* oldname);
 
 /* Change data associated with a key */
 /* Return 1 if ok, 0 otherwise.*/
-extern int NC_listmap_setdata(NC_listmap* listmap, void* obj, uintptr_t data);
+extern int NC_listmap_setdata(NC_listmap* listmap, void* obj, void* data);
 
 /* Pseudo iterator; start index at 0, return 1 if more data, 0 if done.
    Usage:
       size_t iter;
-      uintptr_t data;
-      for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
+      void* data;
+      for(iter=0;NC_listmap_next(listmap,iter,&data);iter++) {f(data);}
 */
-extern size_t NC_listmap_next(NC_listmap*, size_t iter, uintptr_t* datap);
+extern size_t NC_listmap_next(NC_listmap*, size_t iter, void** datap);
 
 /* Reverse pseudo iterator; start index at 0, return 1 if more data, 0 if done.
    Differs from NC_listmap_next in that it iterates from last to first.
@@ -73,10 +73,10 @@ extern size_t NC_listmap_next(NC_listmap*, size_t iter, uintptr_t* datap);
    for e.g. NC_listmap_iget().
    Usage:
       size_t iter;
-      uintptr_t data;
-      for(iter=0;NC_listmap_prev(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
+      void* data;
+      for(iter=0;NC_listmap_prev(listmap,iter,&data);iter++) {f(data);}
 */
-extern size_t NC_listmap_prev(NC_listmap* listmap, size_t iter, uintptr_t* datap);
+extern size_t NC_listmap_prev(NC_listmap* listmap, size_t iter, void** datap);
 
 /* Reset a list map without free'ing the map itself */
 /* Return 1 if ok; 0 otherwise */

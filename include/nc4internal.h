@@ -416,6 +416,7 @@ int nc4_field_free(NC_FIELD_INFO_T*);
 /* These list functions add and delete vars, atts. */
 /* Delete functions only exist when the deletion has complications */
 int nc4_nc4f_list_add(NC *nc, const char *path, int mode);
+int nc4_dim_nextid(NC_HDF5_FILE_INFO_T*);
 int nc4_dim_list_add(NC_GRP_INFO_T*, NC_DIM_INFO_T *dim);
 int nc4_att_list_add(NC_listmap* list, NC_ATT_INFO_T *att);
 int nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att);

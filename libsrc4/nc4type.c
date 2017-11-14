@@ -123,7 +123,7 @@ NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
    /* Is the type in this group? If not, search parents. */
    for (grptwo = grp; grptwo; grptwo = grptwo->parent) {
       size_t titer;
-      for(titer=0;NC_listmap_next(&grptwo->type,titer,(uintptr_t*)&type);titer++)
+      for(titer=0;NC_listmap_next(&grptwo->type,titer,(void**)&type);titer++)
 	 if (!strcmp(norm_name, type->name))
 	 {
 	    if (typeidp)
@@ -167,7 +167,7 @@ NC4_inq_typeids(int ncid, int *ntypes, int *typeids)
    /* If this is a netCDF-4 file, count types. */
    if (h5 && NC_listmap_size(&grp->type) > 0) {
       size_t iter;
-      for(iter=0;NC_listmap_next(&grp->type,iter,(uintptr_t*)&type);iter++)
+      for(iter=0;NC_listmap_next(&grp->type,iter,(void**)&type);iter++)
       {
 	 if (typeids)
 	    typeids[num] = type->nc_typeid;

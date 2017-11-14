@@ -60,11 +60,11 @@ rehash(NC_hashmap* hm)
 	--size;
 	oldentry = &oldtable[size];
         if(oldtable[size].flags == ACTIVE) {
-            uintptr_t index = oldtable[size].data;
+            void* index = oldtable[size].data;
 	    char* key = oldtable[size].key;
             NC_hashmapadd(hm, index, key);
 #ifdef VERIFY
-	    { uintptr_t data;
+	    { void* data;
             ASSERT(NC_hashmapget(hm, key, &data) == 1);
 	    ASSERT(data == index);
 	    }
@@ -96,7 +96,7 @@ locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int 
     /* Search table using linear probing */
     for (i = 0; i < hash->size; i++) {
         NC_hentry entry = hash->table[index];
-        uintptr_t pos = entry.data;
+        void* pos = entry.data;
         if(entry.flags & ACTIVE) {
             if(entry.hashkey == hashkey
                && strncmp(key,entry.key,keylen)==0) {
@@ -143,7 +143,7 @@ NC_hashmapnew(size_t startsize)
 }
 
 int
-NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key)
+NC_hashmapadd(NC_hashmap* hash, void* data, const char* key)
 {
     if(hash->size*3/4 <= hash->count)
 	rehash(hash);
@@ -172,7 +172,7 @@ NC_hashmapadd(NC_hashmap* hash, uintptr_t data, const char* key)
 }
 
 int
-NC_hashmapremove(NC_hashmap* hash, const char* key, uintptr_t* datap)
+NC_hashmapremove(NC_hashmap* hash, const char* key, void** datap)
 {
     size_t index;
     NC_hentry entry;
@@ -191,7 +191,7 @@ NC_hashmapremove(NC_hashmap* hash, const char* key, uintptr_t* datap)
 }
 
 int
-NC_hashmapget(NC_hashmap* hash, const char* key, uintptr_t* datap)
+NC_hashmapget(NC_hashmap* hash, const char* key, void** datap)
 {
     if(hash->count) {
         size_t index;
@@ -212,7 +212,7 @@ NC_hashmapget(NC_hashmap* hash, const char* key, uintptr_t* datap)
     Return 1 if found, 0 otherwise
 */
 int
-NC_hashmapsetdata(NC_hashmap* hash, const char* key, uintptr_t newdata)
+NC_hashmapsetdata(NC_hashmap* hash, const char* key, void* newdata)
 {
     size_t index;
     NC_hentry* entry;

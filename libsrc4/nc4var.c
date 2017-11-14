@@ -569,10 +569,13 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
     * doesn't use that dimension first in its list of dimension ids,
     * is not a coordinate variable. I need to change its HDF5 name,
     * because the dimension will cause a HDF5 dataset to be created,
-    * and this var has the same name. */
-   /* See if grp has a dim with the same name as var, but not first dim */
+    * and this var has the same name.
+    * Note: a scalar variable with same name as a dimension is
+    * considered to match this case, and the variable's name must be changed.
+    */
+   /* See if grp has a dim with the same name as var, but not first dim (or scalar) */
    dim = NC_listmap_get(&grp->dim,norm_name);
-   if(dim != NULL && dimidsp != NULL && dimidsp[0] != dim->dimid)
+   if(dim != NULL && (var->ndims == 0 || var->dimids[0] != dim->dimid))
    {
  	 /* We need a fix up */
 	 /* Set a different hdf5 name for this variable to avoid name

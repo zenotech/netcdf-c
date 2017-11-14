@@ -193,7 +193,7 @@ NC4_inq_grps(int ncid, int *numgrps, int *ncids)
    }
 
    /* Count the number of groups in this group. */
-   for(iter=0;NC_listmap_next(&grp->children,iter,(uintptr_t*)&g);iter++)
+   for(iter=0;NC_listmap_next(&grp->children,iter,(void**)&g);iter++)
    {
       if (ncids)
       {
@@ -416,7 +416,7 @@ NC4_inq_varids(int ncid, int *nvars, int *varids)
       /* This is a netCDF-4 group. Round up them doggies and count
        * 'em. The list is in correct (i.e. creation) order. */
       size_t iter;
-      for(iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var);iter++)
+      for(iter=0;NC_listmap_next(&grp->vars.value,iter,(void**)&var);iter++)
       {
 	if (!var) continue;
 	if (varids)
@@ -486,13 +486,13 @@ NC4_inq_dimids(int ncid, int *ndims, int *dimids, int include_parents)
 	 int n = 0;
 
 	 /* Get dimension ids from this group. */
-	 for(iter=0;NC_listmap_next(&grp->dim,iter,(uintptr_t*)&dim);iter++)
+	 for(iter=0;NC_listmap_next(&grp->dim,iter,(void**)&dim);iter++)
 	    dimids[n++] = dim->dimid;
 
 	 /* Get dimension ids from parent groups. */
 	 if (include_parents) {
 	    for (g = grp->parent; g; g = g->parent) {
-	      for(iter=0;NC_listmap_next(&g->dim,iter,(uintptr_t*)&dim);iter++)
+	      for(iter=0;NC_listmap_next(&g->dim,iter,(void**)&dim);iter++)
                 dimids[n++] = dim->dimid;
 	    }
          }	 

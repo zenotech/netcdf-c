@@ -629,6 +629,7 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       new_dim->dimid = nclistlength(h5->alldims);
       nclistpush(h5->alldims,new_dim);
    }
+
    /* Record the dimension as part of the group */
    NC_listmap_add(&grp->dim,new_dim);
 
@@ -2107,7 +2108,7 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
    {
       size_t iter;
       NC_VAR_INFO_T* var;
-      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); iter++)
+      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(void**)&var); iter++)
           var->written_to = NC_TRUE;
    }
 
@@ -2610,7 +2611,7 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
 
 	 /* Do we already have this dimension? HDF4 explicitly uses
 	  * the name to tell. */
-	 for(dim=NULL,diter=0;NC_listmap_next(&grp->dim,diter,(uintptr_t*)&dim);diter++)
+	 for(dim=NULL,diter=0;NC_listmap_next(&grp->dim,diter,(void**)&dim);diter++)
 	    if (!strcmp(dim->name, dim_name)) {
 	       dim = NULL;
 	       break;
@@ -2888,7 +2889,7 @@ static int NC4_enddef(int ncid)
    {
       size_t iter;
       NC_VAR_INFO_T* var;
-      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(uintptr_t*)&var); iter++)
+      for (iter=0;NC_listmap_next(&grp->vars.value,iter,(void**)&var); iter++)
           var->written_to = NC_TRUE;
    }
 
@@ -3171,7 +3172,7 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
 	 with netcdf-3, then only the last unlimited one will be reported
 	 back in xtendimp. */
       /* Note that this code is inconsistent with nc_inq_unlimid() */
-      for(iter=0;NC_listmap_next(&grp->dim,iter,(uintptr_t*)&dim);iter++) {
+      for(iter=0;NC_listmap_next(&grp->dim,iter,(void**)&dim);iter++) {
 	 if (dim->unlimited)
 	 {
 	    *unlimdimidp = dim->dimid;

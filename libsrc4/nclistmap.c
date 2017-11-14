@@ -8,6 +8,10 @@ Internal netcdf-4 functions.
 
 This file contains functions for manipulating NC_listmap
 objects.
+
+Warning: This code depends critically on the assumption that
+|void*| == |uintptr_t|
+
 */
 
 #include "config.h"
@@ -32,7 +36,7 @@ NC_listmap_get(NC_listmap* listmap, const char* name)
    if(listmap == NULL || name == NULL)
 	return NULL;
    assert(listmap->map != NULL);
-   if(!NC_hashmapget(listmap->map,name,&index))
+   if(!NC_hashmapget(listmap->map,name,(void**)&index))
 	return NULL; /* not present */
    obj = nclistget(listmap->list,(size_t)index);
    return obj;
@@ -51,18 +55,18 @@ NC_listmap_iget(NC_listmap* listmap, size_t index)
 /* Get the index of an object; if not present, return 0
    (=> you have to do your own presence check to avoid ambiguity)
 */
-uintptr_t
+size_t
 NC_listmap_index(NC_listmap* listmap, void* obj)
 {
-   uintptr_t index;
+   uintptr_t* index;
    const char* name;
    if(listmap == NULL || obj == NULL)
 	return 0;
    assert(listmap->map != NULL);
    name = *((const char**)obj);
-   if(!NC_hashmapget(listmap->map,name,&index))
+   if(!NC_hashmapget(listmap->map,name,(void**)&index))
 	return 0; /* not present */
-   return index;
+   return (size_t)index;
 }
 
 /* Add object to the end of an index; assume cast (char**)obj is defined */
@@ -70,10 +74,10 @@ NC_listmap_index(NC_listmap* listmap, void* obj)
 int
 NC_listmap_add(NC_listmap* listmap, void* obj)
 {
-   size_t index = nclistlength(listmap->list);
+   uintptr_t index = (uintptr_t)nclistlength(listmap->list);
    if(listmap == NULL) return 0;
    if(!nclistpush(listmap->list,obj)) return 0;
-   NC_hashmapadd(listmap->map,(uintptr_t)index,*(char**)obj);
+   NC_hashmapadd(listmap->map,(void*)index,*(char**)obj);
    return 1;
 }
 
@@ -87,15 +91,16 @@ NC_listmap_iput(NC_listmap* listmap, size_t pos, void* obj)
 {
     if(listmap == NULL) return 0;
     if(obj != NULL) {
-	uintptr_t index = 0;
+	uintptr_t data = 0;
 	const char* name = *(const char**)obj;
 	if(name != NULL) return 0;
 	if(pos >= nclistlength(listmap->list)) return 0;
 	/* Temporarily remove from hashmap */
-	if(!NC_hashmapremove(listmap->map,name,&index))
+	if(!NC_hashmapremove(listmap->map,name,NULL))
 	    return 0; /* not there */
 	/* Reinsert with new pos */
-	NC_hashmapadd(listmap->map,(uintptr_t)pos,*(char**)obj);
+	data = (uintptr_t)pos;
+	NC_hashmapadd(listmap->map,(void*)data,*(char**)obj);
     }
     /* Insert at pos into listmap vector */
     nclistset(listmap->list,pos,obj);
@@ -108,12 +113,12 @@ NC_listmap_iput(NC_listmap* listmap, size_t pos, void* obj)
 int
 NC_listmap_del(NC_listmap* listmap, void* target)
 {
-   uintptr_t index;
+   uintptr_t data;
    void* obj;
    if(listmap == NULL || target == NULL) return 0;
-   if(!NC_hashmapget(listmap->map,*(char**)target,&index))
+   if(!NC_hashmapget(listmap->map,*(char**)target,(void**)&data))
 	return 0; /* not present */
-   obj = nclistremove(listmap->list,(size_t)index);
+   obj = nclistremove(listmap->list,(size_t)data);
    if(obj != NULL)
        assert(obj == target);
    return 1;
@@ -138,14 +143,13 @@ NC_listmap_idel(NC_listmap* listmap, size_t index)
 /* Change data associated with a key */
 /* Return 1 if ok, 0 otherwise.*/
 int
-NC_listmap_setdata(NC_listmap* listmap, void* obj, uintptr_t newdata)
+NC_listmap_setdata(NC_listmap* listmap, void* obj, void* newdata)
 {
-   uintptr_t index;
    char** onamep;
    if(listmap == NULL || obj == NULL || listmap->map == NULL)
 	return 0;
    onamep = (char**)obj;
-   if(!NC_hashmapget(listmap->map,*onamep,&index))
+   if(!NC_hashmapget(listmap->map,*onamep,NULL))
 	return 0; /* not present */
    return NC_hashmapsetdata(listmap->map,*onamep,newdata);
 }
@@ -153,17 +157,17 @@ NC_listmap_setdata(NC_listmap* listmap, void* obj, uintptr_t newdata)
 /* Pseudo iterator; start index at 0, return 0 when complete.
    Usage:
       size_t iter;
-      uintptr_t data	  
-      for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
+      void* data	  
+      for(iter=0;NC_listmap_next(listmap,iter,&data);iter++) {f(data);}
 */
 size_t
-NC_listmap_next(NC_listmap* listmap, size_t index, uintptr_t* datap)
+NC_listmap_next(NC_listmap* listmap, size_t index, void** datap)
 {
     size_t len = nclistlength(listmap->list);
-    if(datap) *datap = 0;
+    if(datap) *datap = NULL;
     if(len == 0) return 0;
     if(index >= nclistlength(listmap->list)) return 0;
-    if(datap) *datap = (uintptr_t)nclistget(listmap->list,index);
+    if(datap) *datap = nclistget(listmap->list,index);
     return index+1;
 }
 
@@ -173,19 +177,19 @@ NC_listmap_next(NC_listmap* listmap, size_t index, uintptr_t* datap)
    for e.g. NC_listmap_iget().
    Usage:
       size_t iter;
-      uintptr_t data;
-      for(iter=0;NC_listmap_next(listmap,iter,(uintptr_t*)&data);iter++) {f(data);}
+      void* data;
+      for(iter=0;NC_listmap_next(listmap,iter,&data);iter++) {f(data);}
 */
 size_t
-NC_listmap_prev(NC_listmap* listmap, size_t iter, uintptr_t* datap)
+NC_listmap_prev(NC_listmap* listmap, size_t iter, void** datap)
 {
     size_t len = nclistlength(listmap->list);
     size_t index;
-    if(datap) *datap = 0;
+    if(datap) *datap = NULL;
     if(len == 0) return 0;
     if(iter >= len) return 0;
     index = (len - iter) - 1;
-    if(datap) *datap = (uintptr_t)nclistget(listmap->list,index);
+    if(datap) *datap = nclistget(listmap->list,index);
     return iter+1;
 }
 
@@ -197,7 +201,7 @@ int
 NC_listmap_move(NC_listmap* listmap, void* obj, const char* oldname)
 { 
    const char* new_name = *(const char**)obj;
-   uintptr_t data;
+   void* data;
    /* Remove the obj from the hashtable using the oldname */
    if(!NC_hashmapremove(listmap->map, oldname, &data))
      return 0; /* not found */
@@ -271,16 +275,17 @@ next2:
 	NC_hentry* e = &map->table[m];
         char** object = NULL;
 	char* oname = NULL;
+	uintptr_t udata = (uintptr_t)e->data;
 	if((e->flags & 1) == 0) continue;
-	object = nclistget(l,(size_t)((uintptr_t)e->data));
+	object = nclistget(l,(size_t)udata);
         if(object == NULL) {
-	    fprintf(stderr,"bad data: %d: %lu\n",(int)m,(unsigned long)e->data);
+	    fprintf(stderr,"bad data: %d: %lu\n",(int)m,(unsigned long)udata);
 	    nerrs++;
 	} else {
 	    oname = *object;
 	    if(strcmp(oname,e->key) != 0)  {
 	        fprintf(stderr,"name mismatch: %d: %lu: hash=%s list=%s\n",
-			(int)m,(unsigned long)e->data,e->key,oname);
+			(int)m,(unsigned long)udata,e->key,oname);
 	        nerrs++;
 	    }
 	}

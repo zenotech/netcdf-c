@@ -2,6 +2,7 @@
    See the COPYRIGHT file for more information. */
 
 #include "config.h"
+#include <stdlib.h>
 #include "ncrc.h"
 #include "ocinternal.h"
 #include "ocdebug.h"

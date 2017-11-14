@@ -550,8 +550,8 @@ v1h_get_NC_dimarray(v1hs *gsp, NC_dimarray *ncap)
 				return status;
 			}
 			{
-			  int dimid = (size_t)(dpp - ncap->value);
-			  NC_hashmapadd(ncap->hashmap, (uintptr_t)dimid, (*dpp)->name->cp);
+			  uintptr_t dimid = (uintptr_t)(dpp - ncap->value);
+			  NC_hashmapadd(ncap->hashmap, (void*)dimid, (*dpp)->name->cp);
 			}
 		}
 	}
@@ -1172,8 +1172,8 @@ v1h_get_NC_vararray(v1hs *gsp, NC_vararray *ncap)
 				return status;
 			}
 			{
-			  int varid = (size_t)(vpp - ncap->value);
-			  NC_hashmapadd(ncap->hashmap, (uintptr_t)varid, (*vpp)->name->cp);
+			  uintptr_t varid = (uintptr_t)(vpp - ncap->value);
+			  NC_hashmapadd(ncap->hashmap, (void*)varid, (*vpp)->name->cp);
 			}
 		}
 	}
