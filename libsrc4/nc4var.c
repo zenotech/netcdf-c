@@ -1133,17 +1133,15 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const u
 
    assert(nc && grp && h5);
 
-    /* Find the var. */
-    if (varid < 0 || varid >= grp->vars.nelems)
-        return NC_ENOTVAR;
-    var = grp->vars.value[varid];
-    if (!var) return NC_ENOTVAR;
-    assert(var->varid == varid);
-
    /* Can't turn on parallel and filters */
    if (nc->mode & (NC_MPIIO | NC_MPIPOSIX)) {
 	 return NC_EINVAL;
    }
+
+    /* Find the var. */
+    var = NC_listmap_iget(&grp->vars.value,varid);
+    if (!var) return NC_ENOTVAR;
+    assert(var->varid == varid);
 
     /* If the HDF5 dataset has already been created, then it is too
     * late to set all the extra stuff. */

@@ -2056,7 +2056,6 @@ openmagic(struct MagicFile* file)
 	/* Get its length */
 	NC_MEM_INFO* meminfo = (NC_MEM_INFO*)file->parameters;
 	file->filelen = (long long)meminfo->size;
-fprintf(stderr,"XXX: openmagic: memory=0x%llx size=%ld\n",meminfo->memory,meminfo->size);
 	goto done;
     }
 #ifdef USE_PARALLEL
@@ -2122,13 +2121,10 @@ readmagic(struct MagicFile* file, long pos, char* magic)
     if(file->inmemory) {
 	char* mempos;
 	NC_MEM_INFO* meminfo = (NC_MEM_INFO*)file->parameters;
-fprintf(stderr,"XXX: readmagic: memory=0x%llx size=%ld\n",meminfo->memory,meminfo->size);
-fprintf(stderr,"XXX: readmagic: pos=%ld filelen=%lld\n",pos,file->filelen);
 	if((pos + MAGIC_NUMBER_LEN) > meminfo->size)
 	    {status = NC_EDISKLESS; goto done;}
 	mempos = ((char*)meminfo->memory) + pos;
 	memcpy((void*)magic,mempos,MAGIC_NUMBER_LEN);
-printmagic("XXX: readmagic",magic,file);
 	goto done;
     }
 #ifdef USE_PARALLEL

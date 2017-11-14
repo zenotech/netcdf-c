@@ -194,8 +194,6 @@ typedef struct NC_VAR_INFO
    unsigned int filterid;
    size_t nparams;
    unsigned int* params;
-   /* Stuff for diskless data files. */
-   void *diskless_data;
 } NC_VAR_INFO_T;
 
 typedef struct NC_FIELD_INFO

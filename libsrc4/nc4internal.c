@@ -758,6 +758,10 @@ nc4_var_free(NC_VAR_INFO_T *var)
    if (var->dim)
      {free(var->dim); var->dim = NULL;}
 
+   /* Release any filter stuff */
+   if(var->params)
+     {free(var->params); var->params = NULL;}	
+
    /* Delete any fill value allocation. This must be done before the
     * type_info is freed. */
    if (var->fill_value)
@@ -1291,7 +1295,6 @@ nc4_type_free(NC_TYPE_INFO_T *type)
    return NC_NOERR;
 }
 
-
 /* remove an attribute from a list and renumber the following elements */
 int
 nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att)
@@ -1312,9 +1315,11 @@ nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att)
 	return NC_ENOTATT;
     /* Renumber */
     for(pos=oldattnum;pos<NC_listmap_size(list);pos++) {
+	uintptr_t attnum;
         tmp = NC_listmap_iget(list,pos);
         tmp->attnum--;
-	if(!NC_listmap_setdata(list,tmp,tmp->attnum))
+	attnum = (uintptr_t)attnum;
+	if(!NC_listmap_setdata(list,tmp,(void*)attnum))
 	    return NC_EINTERNAL;
     }
     /* Now free the deleted attribute */
