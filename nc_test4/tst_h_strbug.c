@@ -92,7 +92,7 @@ main()
     {
 	int ncid, varid, ndims;
 	nc_type type;
-	char *data_in;
+	char *data_in = (char*)17;
 	if (nc_open(FILE_NAME, NC_NOWRITE, &ncid)) ERR;
 	if (nc_inq_varid(ncid, VS_VAR_NAME, &varid)) ERR;
 	if (nc_inq_vartype(ncid, varid, &type)) ERR;
@@ -186,6 +186,7 @@ main()
 	free(dimids);
     	if (nc_close(ncid)) ERR;
     }
+    nc_finalize();
     SUMMARIZE_ERR;
     FINAL_RESULTS;
 }

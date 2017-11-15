@@ -132,9 +132,9 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
 {
 
    int dimid;
-   NC_dim ** loc;
    char *name;
    void* data;
+   uintptr_t intdata;
 
    assert(ncap != NULL);
 
@@ -144,7 +144,6 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
    {
       int stat;
       dimid = 0;
-      loc = (NC_dim **) ncap->value;
 
       /* normalized version of uname */
       stat = nc_utf8_normalize((const unsigned char *)uname,(unsigned char **)&name);
@@ -153,7 +152,8 @@ NC_finddim(const NC_dimarray *ncap, const char *uname, NC_dim **dimpp)
       if(NC_hashmapget(ncap->hashmap, name, &data) == 0)
 	return -1;
       free(name);
-      dimid = (int)data;
+      intdata = (uintptr_t)data;
+      dimid = (int)intdata;
       if (dimid >= 0) {
 	if (dimpp != NULL)
 	  *dimpp = ncap->value[dimid];

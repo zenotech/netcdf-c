@@ -650,7 +650,6 @@ NC4_inq_enum_member(int ncid, nc_type typeid1, int idx, char *identifier,
    NC_GRP_INFO_T *grp;
    NC_TYPE_INFO_T *type;
    NC_ENUM_MEMBER_INFO_T *enum_member;
-   int i;
    int retval;
    
    LOG((2, "nc_inq_enum_member: ncid 0x%x typeid %d", ncid, typeid1));

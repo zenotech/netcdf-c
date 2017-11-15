@@ -327,8 +327,6 @@ nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 int
 nc4_vararray_add(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
-  NC_VAR_INFO_T **vp = NULL;
-
   if(!NC_listmap_initialized(&grp->vars.value)) {
     NC_listmap_init(&grp->vars.value,0); /* Use default size */
   }
@@ -353,7 +351,6 @@ nc_def_var_nc4(int ncid, const char *name, nc_type xtype,
    char norm_name[NC_MAX_NAME + 1];
    int d;
    int retval;
-   size_t iter;
 
    /* Find info for this file and group, and set pointer to each. */
    if ((retval = nc4_find_grp_h5(ncid, &grp, &h5)))
@@ -650,8 +647,6 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
    NC_VAR_INFO_T *var;
-   NC_ATT_INFO_T *att;
-   int natts=0;
    int d;
    int retval;
 
@@ -1123,7 +1118,6 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams, const u
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
    NC_VAR_INFO_T *var;
-   NC_DIM_INFO_T *dim;
 
    LOG((2, "%s: ncid 0x%x varid %d", __func__, ncid, varid));
 
@@ -1190,8 +1184,6 @@ NC4_inq_varid(int ncid, const char *name, int *varidp)
    NC_VAR_INFO_T *var;
    char norm_name[NC_MAX_NAME + 1];
    int retval;
-   uint32_t nn_hash;
-   int i;
    
    if (!name)
       return NC_EINVAL;
@@ -1207,8 +1199,6 @@ NC4_inq_varid(int ncid, const char *name, int *varidp)
    /* Normalize name. */
    if ((retval = nc4_normalize_name(name, norm_name)))
       return retval;
-
-   nn_hash = hash_fast(norm_name, strlen(norm_name));
 
    /* Find var of this name. */
    var = NC_listmap_get(&grp->vars.value,norm_name);
@@ -1229,9 +1219,7 @@ NC4_rename_var(int ncid, int varid, const char *name)
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
    NC_VAR_INFO_T *var, *tmp_var;
-   uint32_t nn_hash;
    int retval = NC_NOERR;
-   int i;
    char* old_name = NULL;
 
    LOG((2, "%s: ncid 0x%x varid %d name %s",

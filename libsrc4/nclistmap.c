@@ -250,7 +250,7 @@ NC_listmap_verify(NC_listmap* lm, int dump)
 	for(i=0;i < map->size; i++) {
 	    NC_hentry* e = &map->table[i];
 	    if(e->flags != 1) continue;
-	    fprintf(stderr,"hash: %d: data=%lu key=%s\n",i,(unsigned long)e->data,e->key);
+	    fprintf(stderr,"hash: %ld: data=%lu key=%s\n",(unsigned long)i,(unsigned long)e->data,e->key);
 	    fflush(stderr);
 	}
 next1:
@@ -260,7 +260,7 @@ next1:
 	}
 	for(i=0;i < nclistlength(l); i++) {
 	    const char** a = (const char**)nclistget(l,i);
-	    fprintf(stderr,"list: %d: name=%s\n",i,*a);
+	    fprintf(stderr,"list: %ld: name=%s\n",(unsigned long)i,*a);
 	    fflush(stderr);
 	}
 	fprintf(stderr,"-------------------------\n");
@@ -302,7 +302,7 @@ next2:
 	    if((e->flags & 1) == 0) continue;
 	    if(strcmp(e->key,*xp)==0) {
 		if((e->flags & 128) == 128) {
-		    fprintf(stderr,"%d: %s already in map at %d\n",i,e->key,m);
+		    fprintf(stderr,"%ld: %s already in map at %ld\n",(unsigned long)i,e->key,(unsigned long)m);
 		    nerrs++;
 		}
 		match = 1;

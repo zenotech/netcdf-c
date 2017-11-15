@@ -758,12 +758,11 @@ NC4_del_att(int ncid, int varid, const char *name)
    NC *nc;
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
-   NC_ATT_INFO_T *att, *natt;
+   NC_ATT_INFO_T *att;
    NC_VAR_INFO_T *var;
    NC_listmap* attlist = NULL; /* NC_INDEX<NC_ATT_INFO_T*> */
    hid_t locid = 0, datasetid = 0;
    int retval = NC_NOERR;
-   int i;
 
    if (!name)
       return NC_EINVAL;

@@ -89,7 +89,7 @@ main(int argc, char **argv)
 	int format, ndims, nvars, ngatts, xdimid, ndims_grp, dimids_grp[3],
 	    unlimids[1], d_grp, nunlim, nvars_grp, varids_grp[3], v_grp,
 	    varid, varndims, vardims[3], varnatts, vartype, dimids[3], is_recvar,
-	    vdims[3], id, ntypes, numgrps;
+	    id, ntypes, numgrps;
 	size_t dimsize, len;
 	char dimname[20], varname[20];
 	if ( nc_inq_format(ncid, &format)) ERR;
@@ -147,7 +147,6 @@ main(int argc, char **argv)
 	    }
 	    for (id = 0; id < varndims; id++) {
 		if( nc_inq_dimlen(ncid, vardims[id], &len) ) ERR;
-		vdims[id] = len;
 	    }
 	    if (varid == 0) {
 		/* read Time variable */

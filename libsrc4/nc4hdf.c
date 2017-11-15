@@ -85,7 +85,7 @@ rec_reattach_scales(NC_GRP_INFO_T *grp, int dimid, hid_t dimscaleid)
 {
   NC_VAR_INFO_T *var;
   NC_GRP_INFO_T *child_grp;
-  int d, i;
+  int d;
   int retval;
   size_t iter;
 
@@ -130,7 +130,7 @@ rec_detach_scales(NC_GRP_INFO_T *grp, int dimid, hid_t dimscaleid)
 {
   NC_VAR_INFO_T *var;
   NC_GRP_INFO_T *child_grp;
-  int d, i;
+  int d;
   int retval;
   size_t iter;
 
@@ -1995,7 +1995,7 @@ attach_dimscales(NC_GRP_INFO_T *grp)
 {
   NC_VAR_INFO_T *var;
   NC_DIM_INFO_T *dim1;
-  int d, i;
+  int d;
   int retval = NC_NOERR;
   size_t iter;
 
@@ -2301,7 +2301,6 @@ static int
 write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
 {
   int retval;
-  int i;
 
   /* If there's no dimscale dataset for this dim, create one,
    * and mark that it should be hidden from netCDF as a
@@ -2369,7 +2368,6 @@ write_dim(NC_DIM_INFO_T *dim, NC_GRP_INFO_T *grp, nc_bool_t write_dimid)
   if (dim->extended)
     {
       NC_VAR_INFO_T *v1 = NULL;
-      size_t iter;
 
       assert(dim->unlimited);
       /* If this is a dimension without a variable, then update
@@ -2426,7 +2424,6 @@ nc4_rec_detect_need_to_preserve_dimids(NC_GRP_INFO_T *grp, nc_bool_t *bad_coord_
   NC_GRP_INFO_T *child_grp;
   int last_dimid = -1;
   int retval;
-  int i;
   size_t iter;
 
   /* Iterate over variables in this group */
@@ -3573,7 +3570,6 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
   NC_VAR_INFO_T *var;
   NC_DIM_INFO_T *dim;
   int retval = NC_NOERR;
-  int i;
   size_t iter;
   hsize_t *h5dimlen = NULL, *h5dimlenmax = NULL;
 
@@ -3658,16 +3654,16 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
                   if (!(h5dimlenmax = malloc(var->ndims * sizeof(hsize_t))))
                     {
 		      retval = NC_ENOMEM;
-		      goto fail;
+		      goto done;
                     }
                   if ((dataset_ndims = H5Sget_simple_extent_dims(spaceid, h5dimlen,
                                                                  h5dimlenmax)) < 0) {
 		      retval = NC_EHDFERR;
-		      goto fail;
+		      goto done;
                   }
                   if (dataset_ndims != var->ndims) {
 		      retval = NC_EHDFERR;
-		      goto fail;
+		      goto done;
                   }
                 }
               else
@@ -3675,14 +3671,14 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
                   /* Make sure it's scalar. */
                   if (H5Sget_simple_extent_type(spaceid) != H5S_SCALAR) {
 		      retval = NC_EHDFERR;
-		      goto fail;
+		      goto done;
 		  }
                 }
 
               /* Release the space object. */
               if (H5Sclose(spaceid) < 0) {
 		      retval = NC_EHDFERR;
-		      goto fail;
+		      goto done;
               }
 
               /* Create a phony dimension for each dimension in the
@@ -3707,13 +3703,9 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
 
                       LOG((3, "%s: creating phony dim for var %s", __func__, var->name));
                       if ((retval = nc4_dim_new(phony_dim_name, &dim)))
-			goto fail;
+			goto done;
                       if ((retval = nc4_dim_list_add(grp, dim)))
-			goto fail;
-                      if (!(dim->name = strdup(phony_dim_name))) {
-			retval = NC_ENOMEM;
-			goto fail;
-                      }
+			goto done;
                       dim->len = h5dimlen[d];
                       if (h5dimlenmax[d] == H5S_UNLIMITED)
                         dim->unlimited = NC_TRUE;
@@ -3726,14 +3718,14 @@ nc4_rec_match_dimscales(NC_GRP_INFO_T *grp)
 
               /* Free the memory we malloced. */
               free(h5dimlen);
+	      h5dimlen = NULL;
               free(h5dimlenmax);
+	      h5dimlenmax = NULL;
             }
         }
     }
 
-  return retval;
-
-fail:
+done:
   if(h5dimlen) free(h5dimlen);
   if(h5dimlenmax) free(h5dimlenmax);
   return retval;

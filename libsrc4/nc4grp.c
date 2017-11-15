@@ -139,7 +139,6 @@ NC4_inq_ncid(int ncid, const char *name, int *grp_ncid)
    NC_HDF5_FILE_INFO_T *h5;
    char norm_name[NC_MAX_NAME + 1];
    int retval;
-   size_t index;
 
    LOG((2, "nc_inq_ncid: ncid 0x%x name %s", ncid, name));
    

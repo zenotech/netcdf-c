@@ -147,7 +147,6 @@ NC4_inq_dimid(int ncid, const char *name, int *idp)
    char norm_name[NC_MAX_NAME + 1];
    int finished = 0;
    int retval;
-   uint32_t shash;
    
    LOG((2, "%s: ncid 0x%x name %s", __func__, ncid, name));
 

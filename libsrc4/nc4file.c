@@ -53,7 +53,6 @@ att_read_var_callbk(hid_t loc_id, const char *att_name, const H5A_info_t *ainfo,
   int retval = NC_NOERR;
   NC_ATT_INFO_T *att;
   att_iter_info *att_info = (att_iter_info *)att_data;
-  const char** reserved;
   const NC_reservedatt* ra = NULL;
 
   /* Should we ignore this attribute? */
@@ -1565,14 +1564,6 @@ read_var(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
 
       strcpy(var->hdf5_name, obj_name);
    }
-   else
-   {
-      /* Allocate space for the name. */
-      if (!(var->name = malloc((strlen(obj_name) + 1) * sizeof(char))))
-         BAIL(NC_ENOMEM);
-
-      strcpy(var->name, obj_name);
-   }
 
    /* Find out what filters are applied to this HDF5 dataset,
     * fletcher32, deflate, and/or shuffle. All other filters are
@@ -1780,7 +1771,6 @@ read_grp_atts(NC_GRP_INFO_T *grp)
    NC_ATT_INFO_T *att;
    NC_TYPE_INFO_T *type;
    char obj_name[NC_MAX_HDF5_NAME + 1];
-   int max_len;
    int retval = NC_NOERR;
    int readonly = 0;
 
@@ -1810,15 +1800,12 @@ read_grp_atts(NC_GRP_INFO_T *grp)
          /* Add an att struct at the end of the list, and then go to it. */
          if ((retval = nc4_att_new(obj_name, &att)))
             BAIL(retval);
-         if ((retval = nc4_att_list_add(&grp->att, att)))
+         if ((retval = nc4_att_list_add(&grp->att, att))) {
+            nc4_att_list_del(&grp->att, att);
             BAIL(retval);
+	}
 
 	 /* Add the info about this attribute. */
-	 max_len = strlen(obj_name) > NC_MAX_NAME ? NC_MAX_NAME : strlen(obj_name);
-	 if (!(att->name = malloc((max_len + 1) * sizeof(char))))
-	    BAIL(NC_ENOMEM);
-         strncpy(att->name, obj_name, max_len);
-         att->name[max_len] = 0;
          retval = read_hdf5_att(grp, attid, att);
          if(retval == NC_EBADTYPID) {
                if((retval = nc4_att_list_del(&grp->att, att)))
@@ -2011,7 +1998,7 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
     hid_t pid = 0;
     unsigned crt_order_flags = 0;
     H5_index_t iter_index;
-    int i, j, retval = NC_NOERR; /* everything worked! */
+    int retval = NC_NOERR; /* everything worked! */
 
     assert(grp && grp->name);
     LOG((3, "%s: grp->name %s", __func__, grp->name));
@@ -2717,7 +2704,9 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 {
    int res;
    int is_hdf5_file = 0;
+#ifdef USE_HDF4
    int is_hdf4_file = 0;
+#endif
 #ifdef USE_PARALLEL4
    NC_MPI_INFO mpidfalt = {MPI_COMM_WORLD, MPI_INFO_NULL};
 #endif
@@ -2761,8 +2750,10 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
    /* Figure out if this is a hdf4 or hdf5 file. */
    if(nc_file->model == NC_FORMATX_NC4)
 	is_hdf5_file = 1;
+#ifdef USE_HDF4
    else if(nc_file->model == NC_FORMATX_NC_HDF4)
 	is_hdf4_file = 1;
+#endif
    /* Depending on the type of file, open it. */
    nc_file->int_ncid = nc_file->ext_ncid;
    if (is_hdf5_file)
@@ -2863,10 +2854,9 @@ NC4__enddef(int ncid, size_t h_minfree, size_t v_align,
  * netcdf-4 files, if the user forgets. */
 static int NC4_enddef(int ncid)
 {
-  NC *nc;
+   NC *nc;
    NC_HDF5_FILE_INFO_T* nc4_info;
    NC_GRP_INFO_T *grp;
-   int i;
 
    LOG((1, "%s: ncid 0x%x", __func__, ncid));
 
@@ -3136,7 +3126,6 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
    NC_HDF5_FILE_INFO_T *h5;
    NC_GRP_INFO_T *grp;
    NC_DIM_INFO_T *dim;
-   NC_ATT_INFO_T *att;
    int retval;
 
    LOG((2, "%s: ncid 0x%x", __func__, ncid));

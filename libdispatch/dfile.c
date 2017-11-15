@@ -24,10 +24,7 @@ Research/Unidata. See COPYRIGHT file for more info.
 #include "netcdf_mem.h"
 #include "ncwinpath.h"
 
-/* If Defined, then use only stdio for all magic number io;
-   otherwise use stdio or mpio as required.
- */
-#define USE_STDIO
+#undef DEBUG
 
 /**
 Sort info for open/read/close of
@@ -48,7 +45,9 @@ struct MagicFile {
 static int openmagic(struct MagicFile* file);
 static int readmagic(struct MagicFile* file, long pos, char* magic);
 static int closemagic(struct MagicFile* file);
+#ifdef DEBUG
 static void printmagic(const char* tag, char* magic,struct MagicFile*);
+#endif
 
 extern int NC_initialized;
 extern int NC_finalized;
@@ -170,9 +169,7 @@ NC_check_file_type(const char *path, int flags, void *parameters,
     int status = NC_NOERR;
 
     int diskless = ((flags & NC_DISKLESS) == NC_DISKLESS);
-#ifdef USE_STDIO
-    int use_parallel = 0;
-#else
+#ifdef USE_PARALLEL
     int use_parallel = ((flags & NC_MPIIO) == NC_MPIIO);
 #endif
     int inmemory = (diskless && ((flags & NC_INMEMORY) == NC_INMEMORY));
@@ -2181,6 +2178,7 @@ done:
     return status;
 }
 
+#ifdef DEBUG
 static void
 printmagic(const char* tag, char* magic, struct MagicFile* f)
 {
@@ -2201,3 +2199,4 @@ printmagic(const char* tag, char* magic, struct MagicFile* f)
     fprintf(stderr,"\n");
     fflush(stderr);
 }
+#endif

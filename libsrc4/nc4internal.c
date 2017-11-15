@@ -390,7 +390,6 @@ nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dimp,
 int
 nc4_find_var(NC_GRP_INFO_T *grp, const char *name, NC_VAR_INFO_T **varp)
 {
-  int i;
   size_t iter;
   NC_VAR_INFO_T* var = NULL;
 
@@ -529,7 +528,6 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
    NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
    int retval;
-   int i;
    size_t iter;
 
    assert(grp && len);
@@ -675,8 +673,6 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
    NC_TYPE_INFO_T *type;
    NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
-   uint32_t hash;
-   int i;
 
    /* Any types of this name? */
    type = NC_listmap_get(&grp->type,name);
@@ -695,12 +691,28 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
    return NC_NOERR;
 }
 
+/* Create a name such that it is guaranteed to be no longer than NC_MAX_NAME */
+static char*
+dupname(const char* name)
+{
+    size_t len;
+    char* maxname;
+    if(name == NULL) return NULL;
+    len = strlen(name);
+    if(len > NC_MAX_NAME) len = NC_MAX_NAME;
+    maxname = malloc(len+1);
+    if(maxname == NULL) return NULL;
+    memcpy(maxname,name,len);
+    maxname[len] = '\0'; 
+    return maxname;     
+}
+
+
 /* Return a pointer to the new var. */
 int
 nc4_var_new(const char* name, int ndims, NC_VAR_INFO_T **var)
 {
    NC_VAR_INFO_T *new_var;
-   int i;
 
    /* Allocate storage for new variable. */
    if (!(new_var = calloc(1, sizeof(NC_VAR_INFO_T))))
@@ -712,7 +724,11 @@ nc4_var_new(const char* name, int ndims, NC_VAR_INFO_T **var)
    new_var->chunk_cache_preemption = nc4_chunk_cache_preemption;
 
    /* Init other fields */
-   new_var->name = nulldup(name);
+   if((new_var->name = dupname(name)) == NULL) {
+	free(new_var);
+	return NC_ENOMEM;
+   }
+
    new_var->ndims = ndims;
 
    if(!NC_listmap_init(&new_var->att,0))
@@ -817,7 +833,10 @@ nc4_dim_new(const char* name, NC_DIM_INFO_T **dim)
    if (!(new_dim = calloc(1, sizeof(NC_DIM_INFO_T))))
       return NC_ENOMEM;
 
-   new_dim->name = nulldup(name);
+   if((new_dim->name = dupname(name)) == NULL) {
+	free(new_dim);
+	return NC_ENOMEM;
+   }
    new_dim->dimid = 0; /* let someone else assign this */
 
    /* Set the dim pointer */
@@ -870,11 +889,11 @@ nc4_att_new(const char* name, NC_ATT_INFO_T **attp)
    if (!(new_att = calloc(1, sizeof(NC_ATT_INFO_T))))
       return NC_ENOMEM;
 
-   if (!(new_att->name = strdup(name)))
-   {
-      free(new_att);
-      return NC_ENOMEM;
+   if((new_att->name = dupname(name)) == NULL) {
+	free(new_att);
+	return NC_ENOMEM;
    }
+
    *attp = new_att;
    return NC_NOERR;
 }
@@ -945,12 +964,13 @@ nc4_grp_new(NC_GRP_INFO_T* parent_grp, char* name, NC_GRP_INFO_T** grpp)
    if (!(new_grp = calloc(1, sizeof(NC_GRP_INFO_T))))
       return NC_ENOMEM;
 
-   new_grp->parent = parent_grp;
-   if (!(new_grp->name = strdup(name)))
-   {
-      free(new_grp);
-      return NC_ENOMEM;
+   if((new_grp->name = dupname(name)) == NULL) {
+	free(new_grp);
+	return NC_ENOMEM;
    }
+
+   new_grp->parent = parent_grp;
+
    if(!NC_listmap_init(&new_grp->vars.value,0)) return NC_ENOMEM;
    if(!NC_listmap_init(&new_grp->children,0)) return NC_ENOMEM;
    if(!NC_listmap_init(&new_grp->dim,0)) return NC_ENOMEM;
@@ -965,13 +985,12 @@ nc4_grp_new(NC_GRP_INFO_T* parent_grp, char* name, NC_GRP_INFO_T** grpp)
 int
 nc4_rec_grp_del(NC_GRP_INFO_T *grp)
 {
-   NC_GRP_INFO_T *g, *c;
+   NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
-   NC_ATT_INFO_T *a, *att;
-   NC_DIM_INFO_T *d, *dim;
-   NC_TYPE_INFO_T *type, *t;
+   NC_ATT_INFO_T *att;
+   NC_DIM_INFO_T *dim;
+   NC_TYPE_INFO_T *type;
    int retval;
-   int i;
    size_t iter;
 
    assert(grp);
@@ -993,6 +1012,7 @@ nc4_rec_grp_del(NC_GRP_INFO_T *grp)
       if ((retval = nc4_att_free(att)))
 	 return retval;
    }
+   NC_listmap_clear(&grp->att);
 
    /* Delete all vars. */
    for(iter=0;NC_listmap_next(&grp->vars.value,iter,(void**)&var);iter++) {
@@ -1067,15 +1087,19 @@ int
 nc4_type_new(nc_type typeclass, size_t size, const char *name, NC_TYPE_INFO_T **typep)
 {
    NC_TYPE_INFO_T *new_type;
+
    /* Allocate memory for the type */
    if (!(new_type = calloc(1, sizeof(NC_TYPE_INFO_T))))
       return NC_ENOMEM;
 
+   if((new_type->name = dupname(name)) == NULL) {
+	free(new_type);
+	return NC_ENOMEM;
+   }
+
    /* Remember info about this type. */
    new_type->nc_type_class = typeclass;
    new_type->size = size;
-   if (!(new_type->name = strdup(name)))
-      return NC_ENOMEM;
    switch (typeclass) {
    case NC_ENUM: if((new_type->u.e.members = nclistnew()) == NULL) return NC_ENOMEM;
    case NC_COMPOUND: if((new_type->u.c.fields = nclistnew()) == NULL) return NC_ENOMEM;
@@ -1090,7 +1114,6 @@ nc4_type_new(nc_type typeclass, size_t size, const char *name, NC_TYPE_INFO_T **
 int
 nc4_type_list_add(NC_GRP_INFO_T* grp, NC_TYPE_INFO_T *new_type)
 {
-   NC_listmap* list;
    NC_HDF5_FILE_INFO_T* h5 = grp->nc4_info;
 
    new_type->nc_typeid = nclistlength(h5->alltypes); 
@@ -1121,12 +1144,11 @@ nc4_field_new(const char *name,
    if (!(field = calloc(1, sizeof(NC_FIELD_INFO_T))))
       return NC_ENOMEM;
 
-   /* Store the information about this field. */
-   if (!(field->name = strdup(name)))
-   {
-      free(field);
-      return NC_ENOMEM;
+   if((field->name = dupname(name)) == NULL) {
+	free(field);
+	return NC_ENOMEM;
    }
+
    field->hdf_typeid = field_hdf_typeid;
    field->native_hdf_typeid = native_typeid;
    field->nc_typeid = xtype;
@@ -1187,12 +1209,14 @@ nc4_enum_member_new(size_t size, const char *name, const void *value, NC_ENUM_ME
    /* Allocate storage for this field information. */
    if (!(member = calloc(1, sizeof(NC_ENUM_MEMBER_INFO_T))))
       return NC_ENOMEM;
-   if (!(member->value = malloc(size))) {
-      free(member);
-      return NC_ENOMEM;
+
+   if((member->name = dupname(name)) == NULL) {
+	free(member);
+	return NC_ENOMEM;
    }
-   if (!(member->name = strdup(name))) {
-      free(member->value);
+
+   if (!(member->value = malloc(size))) {
+      free(member->name);
       free(member);
       return NC_ENOMEM;
    }

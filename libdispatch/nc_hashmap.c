@@ -56,13 +56,11 @@ rehash(NC_hashmap* hm)
     hm->count = 0;
 
     while(size > 0) {
-	NC_hentry* oldentry;
 	--size;
-	oldentry = &oldtable[size];
         if(oldtable[size].flags == ACTIVE) {
-            void* index = oldtable[size].data;
+            void* data = oldtable[size].data;
 	    char* key = oldtable[size].key;
-            NC_hashmapadd(hm, index, key);
+            NC_hashmapadd(hm, data, key);
 #ifdef VERIFY
 	    { void* data;
             ASSERT(NC_hashmapget(hm, key, &data) == 1);
@@ -96,7 +94,6 @@ locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int 
     /* Search table using linear probing */
     for (i = 0; i < hash->size; i++) {
         NC_hentry entry = hash->table[index];
-        void* pos = entry.data;
         if(entry.flags & ACTIVE) {
             if(entry.hashkey == hashkey
                && strncmp(key,entry.key,keylen)==0) {
@@ -263,7 +260,6 @@ findPrimeGreaterThan(size_t val)
       v = (unsigned int)val;
 
       for(;;) {
-	int cmp = 0;
 	if(L >= R) break;
             int m = (L + R) / 2;
 	/* is this an acceptable prime? */
@@ -1943,7 +1939,7 @@ printhstring(NC_string* s)
     ss[255] = '\0';
     if(n == 0 || n > 256)
 	strcpy(ss,"<undefined>");
-    fprintf(stderr,"%lx %ld |%s|\n",s,n,ss);
+    fprintf(stderr,"%lx %ld |%s|\n",(unsigned  long)s,(unsigned long)n,ss);
     fflush(stderr);
 }
 
@@ -1952,7 +1948,7 @@ printhashmap(NC_hashmap* hm)
 {
     size_t i;
     if(hm == NULL) {fprintf(stderr,"NULL"); fflush(stderr); return;}
-    fprintf(stderr,"{size=%ld count=%ld table=0x%lx}\n",hm->size,hm->count,(void*)hm->table);
+    fprintf(stderr,"{size=%ld count=%ld table=0x%lx}\n",hm->size,hm->count,(unsigned long)((uintptr_t)hm->table));
     if(hm->size > 4000) {
 	fprintf(stderr,"MALFORMED\n");
 	return;
@@ -1960,7 +1956,7 @@ printhashmap(NC_hashmap* hm)
     for(i=0;i<hm->size;i++) {
 	NC_hentry e = hm->table[i];
 	if(e.flags == ACTIVE && e.key == NULL) {
-	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%p key=NULL\n",i,e.hashkey,e.data);
+	    fprintf(stderr,"[%ld] flags=ACTIVE hashkey=%ld data=%p key=NULL\n",(unsigned long)i,e.hashkey,e.data);
 	} else if(e.flags == ACTIVE && e.key != NULL) {
 	    char nm[64];
 	    int elided = 0;
@@ -1968,12 +1964,12 @@ printhashmap(NC_hashmap* hm)
 	    if(len > 63) {elided = 1; len = 63;}
 	    memcpy(nm,e.key,len);
 	    nm[63] = '\0';
-	    fprintf(stderr,"[%d] flags=ACTIVE hashkey=%ld data=%p key=0x%lx |%s|%s\n",
-			i, e.hashkey,e.data,nm,e.key,(elided?"...":""));
+	    fprintf(stderr,"[%ld] flags=ACTIVE hashkey=%ld data=%p key=0x%lx |%s|%s\n",
+			(unsigned long)i, e.hashkey, e.data,(unsigned long)((uintptr_t)nm),e.key,(elided?"...":""));
 	} else if(e.flags == DELETED) {
-	    fprintf(stderr,"[%d] flags=DELETED hashkey=%ld\n",i,e.hashkey);
+	    fprintf(stderr,"[%ld] flags=DELETED hashkey=%ld\n",(unsigned long)i,e.hashkey);
 	} else {/*empty*/
-	    fprintf(stderr,"[%d] flags=EMPTY\n",i);
+	    fprintf(stderr,"[%ld] flags=EMPTY\n",(unsigned long)i);
 	}
     }
     fflush(stderr);

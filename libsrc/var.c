@@ -359,11 +359,10 @@ NC_hvarid
 int
 NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
 {
-	int hash_var_id;
+	uintptr_t hash_var_id;
 	char *name;
 	int stat;
 	void* data;
-	uintptr_t intdata;
 
 	assert(ncap != NULL);
 
@@ -379,7 +378,7 @@ NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
 	if(NC_hashmapget(ncap->hashmap, name, &data) == 0)
 	    return -1;
 	free(name);
-	hash_var_id = (int)data;
+	hash_var_id = (uintptr_t)data;
 	if (hash_var_id >= 0) {
 	  if (varpp != NULL)
 	    *varpp = ncap->value[hash_var_id];

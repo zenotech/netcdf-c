@@ -704,7 +704,9 @@ putNCvx_$1_$2(NC3_INFO* ncp, const NC_var *varp,
 	size_t remaining = varp->xsz * nelems;
 	int status = NC_NOERR;
 	void *xp;
+#ifdef ERANGE_FILL
         void *fillp=NULL;
+#endif
 
 	if(nelems == 0)
 		return NC_NOERR;
@@ -726,7 +728,11 @@ putNCvx_$1_$2(NC3_INFO* ncp, const NC_var *varp,
 		if(lstatus != NC_NOERR)
 			return lstatus;
 
+#ifdef ERANGE_FILL
 		lstatus = ncx_putn_$1_$2(&xp, nput, value ifelse(`$1',`char',,`,fillp'));
+#else
+		lstatus = ncx_putn_$1_$2(&xp, nput, value ifelse(`$1',`char',,`,NULL'));
+#endif
 		if(lstatus != NC_NOERR && status == NC_NOERR)
 		{
 			/* not fatal to the loop */
