@@ -62,9 +62,9 @@ rehash(NC_hashmap* hm)
 	    char* key = oldtable[size].key;
             NC_hashmapadd(hm, data, key);
 #ifdef VERIFY
-	    { void* data;
-            ASSERT(NC_hashmapget(hm, key, &data) == 1);
-	    ASSERT(data == index);
+	    { void* data2;
+            ASSERT(NC_hashmapget(hm, key, &data2) == 1);
+	    ASSERT(data == data2);
 	    }
 #endif
         }

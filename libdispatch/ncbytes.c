@@ -110,7 +110,7 @@ ncbytesappend(NCbytes* bb, char elem)
 {
   if(bb == NULL) return ncbytesfail();
   /* We need space for the char + null */
-  ncbytessetalloc(bb,bb->length+1);
+  ncbytessetalloc(bb,bb->length+2);
   bb->content[bb->length] = (char)(elem & 0xFF);
   bb->length++;
   bb->content[bb->length] = '\0';
