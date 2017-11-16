@@ -36,7 +36,3 @@ before_install:
 script:
 
     - docker run --rm -it -h "$CURHOST" -e USEDASH=FALSE -e RUNF=OFF -e RUNCXX=OFF -e RUNP=OFF -e RUNNCO=OFF -e USECMAKE=$USECMAKE -e USEAC=$USEAC -e DISTCHECK=$DISTCHECK -e COPTS="$COPTS" -e AC_OPTS="$AC_OPTS" -e CTEST_OUTPUT_ON_FAILURE=1 -v $(pwd):/netcdf-c $DOCKIMG
-
-after_failure:
-    - echo `pwd`
-    - if test -f ./Testing/Temporary/LastTest.log ; then cat ./Testing/Temporary/LastTest.log ; fi
