@@ -52,8 +52,10 @@ static void printmagic(const char* tag, char* magic,struct MagicFile*);
 extern int NC_initialized;
 extern int NC_finalized;
 
+#ifdef USE_NETCDF4
 /* To be consistent with H5Fis_hdf5, use the complete HDF5 magic number */
 static char HDF5_SIGNATURE[MAGIC_NUMBER_LEN] = "\211HDF\r\n\032\n";
+#endif
 
 /** \defgroup datasets NetCDF File and Data I/O
 

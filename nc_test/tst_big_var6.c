@@ -49,7 +49,7 @@ test_big_var(const char *testfile)
     size_t start[NUMDIMS] = {0, 0, 0, 0};
     size_t count[NUMDIMS] = {1, 1, 1, DIM3};
     short data[DIM3];
-    int i, j, k;
+    int j;
     int nerrs = 0;
 
     /* Create a file with one big 4D variable. */
@@ -85,8 +85,8 @@ test_big_var(const char *testfile)
     if (nc_get_vara_short(ncid, varid, start, count, &data[0])) ERR;
     for (j = 0; j < DIM3; j++) {
 	if (data[j] != FIRST_VAL ) {
-	    printf("error on start[0..2]: %d,%d,%d  j: %d, expected %d got %d\n",
-		   start[0], start[1], start[2], j, FIRST_VAL, data[j]);
+	    printf("error on start[0..2]: %ld,%ld,%ld  j: %d, expected %d got %d\n",
+		   (unsigned long)start[0], (unsigned long)start[1], (unsigned long)start[2], j, FIRST_VAL, data[j]);
 	    ERR;
 	    if(nerrs++ > 1)
 	      return nerrs;

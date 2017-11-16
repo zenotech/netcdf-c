@@ -36,7 +36,7 @@ main(int argc, char **argv) {
    int  stat;			/* return status */
    char file_name[NC_MAX_NAME + 1];
    int  ncid;			/* netCDF id */
-   int rec, i, j, k;
+   int rec, i, j;
    int x[] = {42, 21};
 
    /* dimension ids */

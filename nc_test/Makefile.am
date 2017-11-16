@@ -72,6 +72,9 @@ check_PROGRAMS += tst_diskless tst_diskless3 tst_diskless4 tst_diskless5
 if USE_NETCDF4
 check_PROGRAMS += tst_diskless2
 endif
+if LARGE_FILE_TESTS
+check_PROGRAMS += tst_diskless3 tst_diskless4 tst_diskless5
+endif
 endif
 
 TESTS = $(TESTPROGRAMS)

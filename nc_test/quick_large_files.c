@@ -8,12 +8,12 @@
 
  $Id: quick_large_files.c,v 1.18 2008/06/05 15:10:16 ed Exp $
 */
-#include <config.h>
-#include <nc_tests.h>
-#include "err_macros.h"
-#include <netcdf.h>
+#include "config.h"
 #include <stdio.h>
 #include <string.h>
+#include "nc_tests.h"
+#include "err_macros.h"
+#include "netcdf.h"
 
 #define NUMDIMS 1
 #define NUMVARS 2
@@ -569,5 +569,7 @@ main(int argc, char **argv)
     /* Delete the huge data file we created. */
     (void) remove(file_name);
 
+    SUMMARIZE_ERR;
+    FINAL_RESULTS;
     return 0;
 }
