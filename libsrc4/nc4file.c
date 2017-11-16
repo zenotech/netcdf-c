@@ -2706,7 +2706,7 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
    int is_hdf5_file = 0;
 #ifdef USE_HDF4
    int is_hdf4_file = 0;
-#endif
+#endif /* USE_HDF4 */
 #ifdef USE_PARALLEL4
    NC_MPI_INFO mpidfalt = {MPI_COMM_WORLD, MPI_INFO_NULL};
 #endif
@@ -2753,7 +2753,7 @@ NC4_open(const char *path, int mode, int basepe, size_t *chunksizehintp,
 #ifdef USE_HDF4
    else if(nc_file->model == NC_FORMATX_NC_HDF4)
 	is_hdf4_file = 1;
-#endif
+#endif /* USE_HDF4 */
    /* Depending on the type of file, open it. */
    nc_file->int_ncid = nc_file->ext_ncid;
    if (is_hdf5_file)

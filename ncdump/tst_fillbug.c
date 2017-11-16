@@ -1,3 +1,8 @@
+/* 
+This is part of the netCDF package. Copyright 2017 University
+Corporation for Atmospheric Research/Unidata. See COPYRIGHT file for
+conditions of use. See www.unidata.ucar.edu for more info.
+*/
 #include <nc_tests.h>
 #include "err_macros.h"
 #include <stdio.h>
@@ -89,7 +94,7 @@ main(int argc, char **argv)
 	int format, ndims, nvars, ngatts, xdimid, ndims_grp, dimids_grp[3],
 	    unlimids[1], d_grp, nunlim, nvars_grp, varids_grp[3], v_grp,
 	    varid, varndims, vardims[3], varnatts, vartype, dimids[3], is_recvar,
-	    id, ntypes, numgrps;
+            id, ntypes, numgrps;
 	size_t dimsize, len;
 	char dimname[20], varname[20];
 	if ( nc_inq_format(ncid, &format)) ERR;
