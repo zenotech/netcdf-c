@@ -102,4 +102,4 @@ IF(TEST_PARALLEL4)
   add_sh_test(nc_test4 run_par_test)
 ENDIF()
 
-ADD_SUBDIRECTORY(filter_test)
+ADD_SUBDIRECTORY(plugins)

@@ -7,14 +7,6 @@ BZIP2SRC= blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c b
 PLUGINSRC=H5Zbzip2.c
 PLUGINHDRS=h5bzip2.h
 
-BZIP2OBJ=${BZIP2SRC:%.o=%.c}
-
-if ISCYGWIN
-LIBNAME=cygbzip2.dll
-else
-LIBNAME=libbzip2.so
-endif
-
 EXTRA_DIST=${PLUGINSRC} ${BZIP2SRC} ${PLUGINHDRS} ${BZIP2HDRS} \
 		H5Ztemplate.c H5Zmisc.c
 

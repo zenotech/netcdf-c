@@ -69,7 +69,7 @@ else
 NCLIB="${NCLIB}/build/liblib"
 G="-GUnix Makefiles"
 cmake "${G}" $FLAGS ..
-#make all
+make all
 #make test
 fi
 exit

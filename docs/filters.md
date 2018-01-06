@@ -334,22 +334,22 @@ out the filter id and the parameters (the -s flag).
 
 Test Case {#TestCase}
 -------
-Within the netcdf-c source tree, the directory __netcdf-c/nc_test4/filter_test__ contains
-a test case for testing dynamic filter writing and reading
-using bzip2. The test case is fragile and is only known to work for Linux
-and Cygwin using automake. To avoid spurious failures, it must be explicitly
-enabled using the --enable-filter-test option for ./configure.
-The bzip2 filter plugin is created as a built source.
-Note that compiling the plugin is most likely to fail when executed on an untested or
-non-standard platform.
+Within the netcdf-c source tree, the directory
+__netcdf-c/nc_test4 contains a test case for
+testing dynamic filter writing and reading using
+bzip2. It is disabled if --enable-shared is not
+set or if --enable-netcdf-4 is not set. The test
+case is only known to work for Linux and
+Cygwin. Currently the test is only available
+under automake.
 
 Example {#Example}
 -------
 A slightly simplified version of the filter testcase is also
 available as an example within the netcdf-c source tree
-directory __netcdf-c/examples/C/filter_test__.
-It contains a test case to demonstrate
-dynamic filter writing and reading.
+directory __netcdf-c/examples/C. The test is called __test_filter.c__
+and it is executed as part of the __run_examples4.sh__ shell script.
+The test case demonstrates dynamic filter writing and reading.
 
 Appendix A. Byte Swap Code {#AppendixA}
 ==========
