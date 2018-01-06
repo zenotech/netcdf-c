@@ -5,6 +5,10 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 
 set -e
 
+# Try to locate the shared libraries
+set -x
+find plugins -type f
+
 # Which test cases to exercise
 API=1
 NG=1
