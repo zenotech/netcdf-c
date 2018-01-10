@@ -580,7 +580,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
     ELSE(MSVC)
       FIND_PACKAGE(HDF5 COMPONENTS C HL REQUIRED)
     ENDIF(MSVC)
-
+ 
     ##
     # Next, check the HDF5 version. This will inform which
     # HDF5 variables we need to munge.
@@ -654,7 +654,7 @@ IF(USE_HDF5 OR ENABLE_NETCDF_4)
   ENDIF(HDF5_C_LIBRARY AND HDF5_HL_LIBRARY AND HDF5_INCLUDE_DIR)
 
   # There is a missing case in the above code so default it
-  IF("${HDF5_C_LIBRARY_hdf5}" STREQUAL "" )
+  IF(NOT HDF5_C_LIBRARY_HDF5 OR "${HDF5_C_LIBRARY_hdf5}" STREQUAL "" )
     SET(HDF5_C_LIBRARY_hdf5 "${HDF5_C_LIBRARY}")
   ENDIF()
 
