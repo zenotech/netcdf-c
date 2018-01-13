@@ -26,7 +26,7 @@ else
 CFG="Release"
 fi
 
-if test "x$VS" != x ; then
+if test "x$VS" != x -a "x$INSTALL" != x ; then
 FLAGS="-DCMAKE_PREFIX_PATH=c:/tools/nccmake"
 fi
 FLAGS="$FLAGS -DCMAKE_INSTALL_PREFIX=/tmp/netcdf"
@@ -56,14 +56,13 @@ NCLIB=`pwd`
 
 if test "x$VS" != x ; then
 # Visual Studio
-#CFG="RelWithDebInfo"
 CFG="Release"
 NCLIB="${NCLIB}/liblib/$CFG"
 export PATH="${NCLIB}:${PATH}"
-#G="-G "Visual Studio 15"
-cmake "$G" $FLAGS ..
+#G=
+cmake "$G" -DCMAKE_BUILD_TYPE=${CFG} $FLAGS ..
 cmake --build . --config ${CFG}
-#cmake --build . --config ${CFG} --target RUN_TESTS
+cmake --build . --config ${CFG} --target RUN_TESTS
 else
 # GCC
 NCLIB="${NCLIB}/build/liblib"

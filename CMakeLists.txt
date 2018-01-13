@@ -1107,9 +1107,14 @@ IF(ENABLE_PARALLEL_TESTS AND USE_PARALLEL)
 ENDIF()
 
 # Enable special filter test; experimental when using cmake.
-OPTION(ENABLE_FILTER_TEST "Enable special filter test. Ignored if netCDF4 is not enabled" OFF)
-IF(USE_NETCDF4)
-  SET(ENABLE_FILTER_TEST OFF CACHE BOOL "")
+OPTION(ENABLE_FILTER_TESTING "Enable filter testing. Ignored if shared libraries or netCDF4 are not enabled" ON)
+IF(NOT ENABLE_NETCDF4)
+  MESSAGE(WARNING "ENABLE_FILTER_TESTING requires netCDF-4. Disabling.")
+  SET(ENABLE_FILTER_TESTING OFF CACHE BOOL "")
+ENDIF()
+IF(NOT BUILD_SHARED_LIBS)
+  MESSAGE(WARNING "ENABLE_FILTER_TESTING requires shared libraries. Disabling.")
+  SET(ENABLE_FILTER_TESTING OFF CACHE BOOL "")
 ENDIF()
 
 # Determine whether or not to generate documentation.
@@ -1961,6 +1966,15 @@ FILE(COPY ${netCDF_SOURCE_DIR}/include/netcdf_meta.h
 SET(EXTRA_DIST ${EXTRA_DIST} ${CMAKE_SOURCE_DIR}/test_common.in)
 SET(TOPSRCDIR "${CMAKE_SOURCE_DIR}")
 SET(TOPBUILDDIR "${CMAKE_BINARY_DIR}")
+SET(ISCMAKE "1")
+IF (MSVC)
+  # Construct a proper form of the build type e.g. Debug or Release
+  STRING(SUBSTRING ${CMAKE_BUILD_TYPE} 0 1 STMP0)
+  STRING(SUBSTRING ${CMAKE_BUILD_TYPE} 1 -1 STMP1)
+  string(TOUPPER ${STMP0} STMP0)
+  string(TOLOWER ${STMP1} STMP1)
+  SET(VSCFG "${STMP0}${STMP1}")
+ENDIF()
 configure_file(${CMAKE_SOURCE_DIR}/test_common.in ${CMAKE_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
 
 ####

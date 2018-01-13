@@ -6,8 +6,12 @@
 #include <hdf5.h>
 /* Older versions of the hdf library may define H5PL_type_t here */
 #include <H5PLextern.h>
-#include "h5bzip2.h"
 
+#ifndef DLL_EXPORT
+#define DLL_EXPORT
+#endif
+
+#include "h5bzip2.h"
 
 const H5Z_class2_t H5Z_BZIP2[1] = {{
     H5Z_CLASS_T_VERS,       /* H5Z_class_t version */
@@ -32,11 +36,6 @@ H5PLget_plugin_info(void)
 {
     return H5Z_BZIP2;
 }
-
-size_t H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
-		     const unsigned int cd_values[], size_t nbytes,
-		     size_t *buf_size, void **buf);
-
 
 size_t H5Z_filter_bzip2(unsigned int flags, size_t cd_nelmts,
                      const unsigned int cd_values[], size_t nbytes,

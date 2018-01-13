@@ -7,6 +7,10 @@
 /* Older versions of the hdf library may define H5PL_type_t here */
 #include <H5PLextern.h>
 
+#ifndef DLL_EXPORT
+#define DLL_EXPORT
+#endif
+
 #include "h5misc.h"
 
 #undef DEBUG 
@@ -57,7 +61,6 @@ H5Z_filter_test(unsigned int flags, size_t cd_nelmts,
                      const unsigned int cd_values[], size_t nbytes,
                      size_t *buf_size, void **buf)
 {
-    int ret;
     void* newbuf;
     unsigned int testcase = 0;
 
@@ -101,10 +104,10 @@ paramcheck(size_t nparams, const unsigned int* params)
     size_t i;
     /* Test endianness of this machine */
     const unsigned char b[4] = {0x0,0x0,0x0,0x1}; /* value 1 in big-endian*/
-    int endianness = (1 == *(unsigned int*)b); /* 1=>big 0=>little*/
+    int bigendian = (1 == *(unsigned int*)b); /* 1=>big 0=>little*/
 
     if(nparams != 14) {
-	fprintf(stderr,"Too few parameters: need=16 sent=%ld\n",nparams);
+	fprintf(stderr,"Too few parameters: need=16 sent=%ld\n",(unsigned long)nparams);
 	return 0;
     }       
 
@@ -135,9 +138,14 @@ paramcheck(size_t nparams, const unsigned int* params)
         case 8: {/*double*/
             double x = *(double*)&params[i];
             i++; /* takes two parameters */
-            if(endianness == 1)
+            if(bigendian)
 		byteswap8((unsigned char*)&x);
-            if(12345678.12345678d != x) {
+#ifdef _MSC_VER
+#define DBLVAL 12345678.12345678
+#else
+#define DBLVAL 12345678.12345678d
+#endif
+	    if(DBLVAL != x) {
                 mismatch(i,"double");
                 return 0;
             }
@@ -145,7 +153,7 @@ paramcheck(size_t nparams, const unsigned int* params)
         case 10: {/*signed long long*/
             signed long long x = *(signed long long*)&params[i];
             i++; /* takes two parameters */
-            if(endianness == 1)
+            if(bigendian)
 		byteswap8((unsigned char*)&x);
             if(-9223372036854775807L != x) {
                 mismatch(i,"signed long long");
@@ -155,7 +163,7 @@ paramcheck(size_t nparams, const unsigned int* params)
         case 12: {/*unsigned long long*/
             unsigned long long x = *(unsigned long long*)&params[i];
             i++; /* takes two parameters */
-            if(endianness == 1)
+            if(bigendian)
 		byteswap8((unsigned char*)&x);
             if(18446744073709551615UL != x) {
                 mismatch(i,"unsigned long long");
@@ -173,7 +181,7 @@ paramcheck(size_t nparams, const unsigned int* params)
 #ifdef DEBUG
     {
 	size_t i;
-	fprintf(stderr,"endianness=%d nparams=%d params=\n",endianness,nparams);
+	fprintf(stderr,"bigendian=%d nparams=%d params=\n",bigendian,nparams);
 	for(i=0;i<nparams;i++) {
 	    fprintf(stderr,"[%d] %ud %d %f\n", (unsigned int)i, params[i],(signed int)params[i],*(float*)&params[i]);
 	}
@@ -204,6 +212,6 @@ byteswap8(unsigned char* mem)
 static void
 mismatch(size_t i, const char* which)
 {
-    fprintf(stderr,"mismatch: [%ld] %s\n",i,which);
+    fprintf(stderr,"mismatch: [%ld] %s\n",(unsigned long)i,which);
     fflush(stderr);
 }

@@ -21,7 +21,6 @@ IF(BUILD_UTILITIES)
   build_bin_test(test_filter)
   build_bin_test(test_filter_misc)
   ADD_SH_TEST(nc_test4 tst_filter)
-  ADD_SH_TEST(nc_test4 tst_filter_misc)
 ENDIF(BUILD_UTILITIES)
 
 ##
@@ -105,4 +104,4 @@ IF(TEST_PARALLEL4)
   add_sh_test(nc_test4 run_par_test)
 ENDIF()
 
-ADD_SUBDIRECTORY(plugins)
+ADD_SUBDIRECTORY(hdf5plugins)

@@ -21,9 +21,9 @@ if USE_NETCDF4
 check_PROGRAMS += simple_nc4_wr simple_nc4_rd simple_xy_nc4_wr	\
 simple_xy_nc4_rd 
 if ENABLE_FILTER_TESTING
-check_PROGRAMS += test_filter
-TESTS += run_filter.sh
+check_PROGRAMS += filter_example
 endif
+
 endif #USE_NETCDF4
 
 if USE_PNETCDF
@@ -54,7 +54,7 @@ endif # USE_NETCDF4
 CLEANFILES = *.nc 
 
 EXTRA_DIST = run_valgrind_tests.sh run_nc4_valgrind_tests.sh	\
-CMakeLists.txt run_examples.sh run_examples4.sh run_filter.sh
+CMakeLists.txt run_examples.sh run_examples4.sh
 
 SUBDIRS = plugins
 

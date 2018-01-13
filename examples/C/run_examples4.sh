@@ -16,9 +16,9 @@ echo "*** running simple_xy_nc4 examples..."
 ${execdir}/simple_xy_nc4_wr
 ${execdir}/simple_xy_nc4_rd
 
-if test -f ${execdir}/test_filter${ext} ; then
+
+if test -f ${execdir}/filter_example${ext} ; then
 echo "*** running test_filter example..."
-echo "ISCYGWIN=${ISCYGWIN}"
 if test "x$ISCYGWIN" != x ; then
 PLUGIN=cygbzip2.dll
 else

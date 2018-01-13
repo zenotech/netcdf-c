@@ -10,7 +10,7 @@ Example program for write then read of a variable using bzip2 compression.
 
 This is an example which 
 creates a file with a variable that is compressed using bzip2.
-Then it read that file and verifies that it returned the correct
+Then it reads that file and verifies that it returned the correct
 uncompressed data.
 
 The meta-data (.cdl) for the created file is as follows:
@@ -43,6 +43,7 @@ data:
 #include <string.h>
 #include <stdlib.h>
 
+#include <hdf5.h>
 #include "netcdf.h"
 
 /* The HDF assigned id for bzip compression */
@@ -73,11 +74,9 @@ static int nerrs = 0;
 
 static int ncid, varid;
 static int dimids[NDIMS];
-static size_t odom[NDIMS];
 static float* array = NULL;
 static float* expected = NULL;
 static unsigned int filterid = 0;
-static size_t nparams = 0;
 static unsigned int* params = NULL;
 
 /* Forward */
@@ -165,8 +164,6 @@ Create the file, write it, then re-read for comparison.
 static int
 test_bzip2(void)
 {
-    int ok = 1;
-    unsigned int param = BZIP2_LEVEL;
     int i;
     unsigned int level = BZIP2_LEVEL;
     unsigned int id=0;
@@ -210,7 +207,7 @@ test_bzip2(void)
 	return NC_EFILTER;
     }
     /* Show the level */
-    printf("show parameters for bzip2: level=%ld\n",level);
+    printf("show parameters for bzip2: level=%u\n",level);
     /* Show chunking */ 
     printf("show chunks:");
     for(i=0;i<actualdims;i++)
@@ -301,6 +298,7 @@ init(int argc, char** argv)
 int
 main(int argc, char **argv)
 {
+    H5Eprint(stderr);
     init(argc,argv);
     if(test_bzip2() != NC_NOERR) ERRR;
     exit(nerrs > 0?1:0);

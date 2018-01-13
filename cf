@@ -21,7 +21,8 @@ fi
 
 CFLAGS=""
 #CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wconversion ${CFLAGS}"
-CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wno-char-subscripts -Wno-pointer-sign -Wno-format ${CFLAGS}"
+#CFLAGS="-Wall -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-parameter -Wno-char-subscripts -Wno-pointer-sign -Wno-format ${CFLAGS}"
+CFLAGS="-Wall -Wno-unused-parameter -Wno-char-subscripts -Wno-pointer-sign ${CFLAGS}"
 #CFLAGS="-Wall ${CFLAGS}"
 #CFLAGS="-Wconversion"
 

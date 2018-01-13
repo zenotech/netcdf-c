@@ -1446,6 +1446,9 @@ cd $srcdir
 abs_top_srcdir=`pwd`
 cd $abs_top_builddir
 
+# test_common.sh setup
+AC_SUBST([ISCMAKE], [])
+
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 #rm -f ${abs_top_builddir}/test_common.sh
 #sed -e "s|@TOPSRCDIR@|${abs_top_srcdir}|" -e "s|@TOPBUILDDIR@|${abs_top_builddir}|" <${abs_top_srcdir}/test_common.in >${abs_top_builddir}/test_common.sh
@@ -1484,7 +1487,7 @@ AC_CONFIG_FILES([Makefile
                  docs/images/Makefile
                  nctest/Makefile
                  nc_test4/Makefile
-                 nc_test4/plugins/Makefile
+                 nc_test4/hdf5plugins/Makefile
                  nc_test/Makefile
                  ncdap_test/Makefile
                  ncdap_test/testdata3/Makefile

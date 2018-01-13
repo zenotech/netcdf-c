@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <hdf5.h>
 #include "netcdf.h"
 
 #define TEST_ID 32768
@@ -18,25 +19,15 @@
 
 #define NBASELINE 14
 
-static const unsigned int baseline[NBASELINE] = {
-1,   /* 0 testcase # */
--17, /* 1 signed int*/
-23,  /* 2 unsigned int*/
--25, /* 3 signed int*/
-27,  /* 4 unsigned int*/
-77,  /* 5 signed int*/
-93,  /* 65 unsigned int*/
-1145389056U, /* 7 float*/
-697067329, 2723935171,    /* 8-9 double*/
-128, 16777216,            /* 10-11 signed long long*/
-4294967295, 4294967295,   /* 12-13 unsigned long long*/
-};
+static unsigned int baseline[NBASELINE];
 
 #define MAXDIMS 8
 
 #define DEFAULTACTUALDIMS 4
 #define DEFAULTDIMSIZE 4
 #define DEFAULTCHUNKSIZE 4
+
+#define TESTFILE "testmisc.nc"
 
 static size_t dimsize = DEFAULTDIMSIZE;
 static size_t chunksize = DEFAULTCHUNKSIZE;
@@ -99,12 +90,6 @@ report(const char* msg, int lineno)
 #define CHECK(x) check(x,__LINE__)
 #define REPORT(x) report(x,__LINE__)
 
-static char*
-filenamefor(void)
-{
-    return strdup("testmisc.nc");
-}
-
 static int
 verifychunks(void)
 {
@@ -130,10 +115,9 @@ static int
 create(void)
 {
     int i;
-    char* testfile = filenamefor();
 
     /* Create a file with one big variable. */
-    CHECK(nc_create(testfile, NC_NETCDF4|NC_CLOBBER, &ncid));
+    CHECK(nc_create(TESTFILE, NC_NETCDF4|NC_CLOBBER, &ncid));
     CHECK(nc_set_fill(ncid, NC_NOFILL, NULL));
     for(i=0;i<actualdims;i++) {
         char dimname[1024];
@@ -147,7 +131,6 @@ create(void)
 static void
 setvarfilter(void)
 {
-    size_t i;
     CHECK(nc_def_var_filter(ncid,varid,TEST_ID,NBASELINE,baseline));
     verifyparams();
 }
@@ -155,7 +138,7 @@ setvarfilter(void)
 static void
 verifyparams(void)
 {
-    size_t i;
+    int i;
     CHECK(nc_inq_var_filter(ncid,varid,&filterid,&nparams,params));
     if(filterid != TEST_ID) REPORT("id mismatch");
     if(nparams != NBASELINE) REPORT("nparams mismatch");
@@ -166,13 +149,12 @@ verifyparams(void)
 }
 
 static int
-open(void)
+openfile(void)
 {
-    char* testfile = filenamefor();
     unsigned int* params;
 
     /* Open the file and check it. */
-    CHECK(nc_open(testfile, NC_NOWRITE, &ncid));
+    CHECK(nc_open(TESTFILE, NC_NOWRITE, &ncid));
     CHECK(nc_inq_varid(ncid, "var", &varid));
 
     /* Check the compression algorithm */
@@ -210,7 +192,6 @@ open(void)
 static int
 setchunking(void)
 {
-    int i;
     int store;
 
     store = NC_CHUNKED;
@@ -293,12 +274,82 @@ showparameters(void)
     printf("\n");
 }
 
+static void
+byteswap8(unsigned char* mem)
+{
+    unsigned char c;
+    c = mem[0];
+    mem[0] = mem[7];
+    mem[7] = c;
+    c = mem[1];
+    mem[1] = mem[6];
+    mem[6] = c;
+    c = mem[2];
+    mem[2] = mem[5];
+    mem[5] = c;
+    c = mem[3];
+    mem[3] = mem[4];
+    mem[4] = c;
+}
+
+static void
+insert(int index, void* src, size_t size)
+{
+    void* dst = &baseline[index];
+    memcpy(dst,src,size);
+}
+
+static void
+buildbaseline(unsigned int testcasenumber)
+{
+    unsigned int val4;
+    unsigned long long val8;
+    float float4;
+    double float8;
+
+    baseline[0] = testcasenumber;
+    switch (testcasenumber) {
+    case 1:
+	val4 = (unsigned int)-17; 
+        insert(1,&val4,sizeof(val4)); /* 1 signed int*/
+	val4 = (unsigned int)23; 
+        insert(2,&val4,sizeof(val4)); /* 2 unsigned int*/
+	val4 = (unsigned int)-25; 
+        insert(3,&val4,sizeof(val4)); /* 3 signed int*/
+	val4 = (unsigned int)27; 
+        insert(4,&val4,sizeof(val4)); /* 4 unsigned int*/
+	val4 = (unsigned int)77; 
+        insert(5,&val4,sizeof(val4)); /* 5 signed int*/
+	val4 = (unsigned int)93;
+        insert(6,&val4,sizeof(val4)); /* 6 unsigned int*/
+	float4 = 789.0f;
+        insert(7,&float4,sizeof(float4)); /* 7 float */
+#ifdef _MSC_VER
+#define DBLVAL 12345678.12345678
+#else
+#define DBLVAL 12345678.12345678d
+#endif
+	float8 = DBLVAL;
+        insert(8,&float8,sizeof(float8)); /* 8 double */
+	val8 = -9223372036854775807L;
+        insert(10,&val8,sizeof(val8)); /* 10 signed long long */
+	val8 = 18446744073709551615UL;
+        insert(12,&val8,sizeof(val8)); /* 12 unsigned long long */
+	break;
+    default:
+	fprintf(stderr,"Unknown testcase number: %d\n",testcasenumber);
+	abort();
+    }
+}
+
 static int
 test_test1(void)
 {
     int ok = 1;
 
     reset();
+
+    buildbaseline(1);
 
     printf("test1: compression.\n");
     create();
@@ -315,7 +366,7 @@ test_test1(void)
 
     printf("test1: decompression.\n");
     reset();
-    open();
+    openfile();
     CHECK(nc_get_var_float(ncid, varid, array));
     ok = compare();
     CHECK(nc_close(ncid));
@@ -407,6 +458,7 @@ init(int argc, char** argv)
 int
 main(int argc, char **argv)
 {
+    H5Eprint(stderr);
     init(argc,argv);
     if(!test_test1()) ERRR;
     exit(nerrs > 0?1:0);
