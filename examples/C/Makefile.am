@@ -66,3 +66,5 @@ BUILT_SOURCES = findplugin.sh
 findplugin.sh:
 	cp ${top_builddir}/nc_test4/findplugin.sh ${builddir}
 endif
+
+DISTCLEANFILES = findplugin.sh

@@ -141,7 +141,7 @@ compare(void)
 {
     int errs = 0;
     int i;
-    printf("data comparison: |array|=%d\n",actualproduct);
+    printf("data comparison: |array|=%ld\n",(unsigned long)actualproduct);
     for(i=0;i<actualproduct;i++) {
 	if(expected[i] != array[i]) {
 	    printf("mismatch: array[%d]=%f expected[%d]=%f\n",
