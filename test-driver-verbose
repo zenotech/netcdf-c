@@ -1,7 +1,7 @@
 #! /bin/sh
 # test-driver - basic testsuite driver script.
 
-scriptversion=2018-01-14.21; # UTC
+scriptversion=2018-01-14.22; # UTC
 
 # Copyright (C) 2011-2017 Free Software Foundation, Inc.
 #
@@ -107,8 +107,6 @@ trap "st=143; $do_exit" 15
 "$@" >$log_file 2>&1
 estatus=$?
 
-# Report outcome to console.
-echo "${col}${res}${std}: $test_name"
 #if test "x$estatus" != x0 ; then
 set -x
 cat $log_file >/dev/tty0
@@ -137,6 +135,9 @@ esac
 # file, without the need of also peaking into the corresponding '.trs'
 # file (automake bug#11814).
 echo "$res $test_name (exit status: $estatus)" >>$log_file
+
+# Report outcome to console.
+echo "${col}${res}${std}: $test_name"
 
 # Register the test result, and other relevant metadata.
 echo ":test-result: $res" > $trs_file
