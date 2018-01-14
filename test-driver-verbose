@@ -107,6 +107,16 @@ trap "st=143; $do_exit" 15
 "$@" >$log_file 2>&1
 estatus=$?
 
+# Report outcome to console.
+echo "${col}${res}${std}: $test_name"
+#if test "x$estatus" != x0 ; then
+set -x
+cat $log_file >/dev/tty0
+cat $log_file >/dev/console
+cat $log_file
+set +x
+#fi
+
 if test $enable_hard_errors = no && test $estatus -eq 99; then
   tweaked_estatus=1
 else
@@ -127,17 +137,6 @@ esac
 # file, without the need of also peaking into the corresponding '.trs'
 # file (automake bug#11814).
 echo "$res $test_name (exit status: $estatus)" >>$log_file
-
-# Report outcome to console.
-echo "${col}${res}${std}: $test_name"
-if test "x$test_name" = "xtst_filter" || test "x$test_name" = "xtst_filter.sh" ; then
-echo "case 1"
-cat $log_file >>/dev/tty0
-echo "case 2"
-cat $log_file >>/dev/console
-echo "case 3"
-cat $log_file
-fi
 
 # Register the test result, and other relevant metadata.
 echo ":test-result: $res" > $trs_file
