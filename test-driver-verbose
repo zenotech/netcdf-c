@@ -130,7 +130,14 @@ echo "$res $test_name (exit status: $estatus)" >>$log_file
 
 # Report outcome to console.
 echo "${col}${res}${std}: $test_name"
-if test "x$test_name" = xtst_filter ; then cat $log_file >>/dev/tty0; fi
+if test "x$test_name" = "xtst_filter" || test "x$test_name" = "xtst_filter.sh" ; then
+echo "case 1"
+cat $log_file >>/dev/tty0
+echo "case 2"
+cat $log_file >>/dev/console
+echo "case 3"
+cat $log_file
+fi
 
 # Register the test result, and other relevant metadata.
 echo ":test-result: $res" > $trs_file
