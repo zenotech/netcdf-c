@@ -810,7 +810,7 @@ INPUT = \
     @abs_top_srcdir@/examples/C/simple_nc4_rd.c \
     @abs_top_srcdir@/examples/C/simple_xy_nc4_wr.c \
     @abs_top_srcdir@/examples/C/simple_xy_nc4_rd.c \
-    @abs_top_srcdir@/examples/C/test_filter.c
+    @abs_top_srcdir@/examples/C/filter_example.c
 
 
 # This tag can be used to specify the character encoding of the source files

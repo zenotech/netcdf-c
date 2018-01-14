@@ -275,24 +275,6 @@ showparameters(void)
 }
 
 static void
-byteswap8(unsigned char* mem)
-{
-    unsigned char c;
-    c = mem[0];
-    mem[0] = mem[7];
-    mem[7] = c;
-    c = mem[1];
-    mem[1] = mem[6];
-    mem[6] = c;
-    c = mem[2];
-    mem[2] = mem[5];
-    mem[5] = c;
-    c = mem[3];
-    mem[3] = mem[4];
-    mem[4] = c;
-}
-
-static void
 insert(int index, void* src, size_t size)
 {
     void* dst = &baseline[index];

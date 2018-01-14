@@ -157,7 +157,8 @@ tst_put_vars_two_unlim_dim.c tst_empty_vlen_unlim.c                     \
 run_empty_vlen_test.sh ref_hdf5_compat1.nc ref_hdf5_compat2.nc          \
 ref_hdf5_compat3.nc tst_misc.sh tdset.h5 tst_hdf4_read_var.sh           \
 ref_contiguous.hdf4 ref_chunked.hdf4 tst_szip.sh ref_szip.h5 ref_szip.cdl \
-tst_filter.sh bzip2.cdl filtered.cdl unfiltered.cdl ref_bzip2.c
+tst_filter.sh bzip2.cdl filtered.cdl unfiltered.cdl ref_bzip2.c         \
+findplugin.in
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc   \
 bm_radar.nc bm_radar1.nc radar_3d_compression_test.txt                  \
@@ -173,13 +174,14 @@ tst_empty_vlen_lim.nc tst_parallel4_simplerw_coll.nc                    \
 tst_fill_attr_vanish.nc tst_rehash.nc testszip.nc test.h5               \
 szip_dump.cdl
 
+DISTCLEANFILES = findplugin.sh
+
 if USE_HDF4_FILE_TESTS
-DISTCLEANFILES = AMSR_E_L2_Rain_V10_200905312326_A.hdf	\
+DISTCLEANFILES += AMSR_E_L2_Rain_V10_200905312326_A.hdf	\
 AMSR_E_L3_DailyLand_V06_20020619.hdf			\
 MYD29.A2009152.0000.005.2009153124331.hdf		\
 MYD29.A2002185.0000.005.2007160150627.hdf		\
 MOD29.A2000055.0005.005.2006267200024.hdf
-
 endif # HDF4_FILE_TESTS
 
 SUBDIRS=hdf5plugins

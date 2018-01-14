@@ -1,8 +1,5 @@
 #!/bin/sh
 
-export SETX=1
-set -x
-
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
@@ -15,6 +12,9 @@ NCP=1
 UNK=1
 NGC=1
 MISC=1
+
+# Load the findplugins function
+source ${builddir}/findplugin.sh
 
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
@@ -37,68 +37,20 @@ trimleft() {
 sed -e 's/[ 	]*\([^ 	].*\)/\1/' <$1 >$2
 }
 
-# So are we operating under CYGWIN? (test using uname)
-tcc_os=`uname | cut -d '_'  -f 1`
-if test "x$tcc_os" = xCYGWIN ; then ISCYGWIN=1; fi
+# Locate the plugin path and the library names; argument order is critical
+# Find bzip2 and capture
+findplugin bzip2
+BZIP2PATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
+# Find misc and capture
+findplugin misc
+MISCPATH="${HDF5_PLUGIN_PATH}/${HDF5_PLUGIN_LIB}"
 
-# Figure out the plugin file name
-# Test for visual studio before cygwin
-if test "x$ISMSVC" != x ; then
-  BZIP2LIB=bzip2.dll
-  MISCLIB=misc.dll
-elif test "x$ISCYGWIN" != x ; then
-  BZIP2LIB=cygbzip2.dll
-  MISCLIB=cygmisc.dll
-else
-  BZIP2LIB=libbzip2.so
-  MISCLIB=libmisc.so
-fi
-
-# Figure out the plugin path
-# Hopefully somewhere below this dir
-# This can probably be simplified
-HDF5_PLUGIN_PATH=
-PLUGINPATH="$WD/hdf5plugins"
-# Case 1: Cmake with Visual Studio
-if test "x$ISCMAKE" != x -a "x${ISMSVC}" != x ; then
-  # Case 1a: try the build type directory e.g. Release
-  if test -f "${PLUGINPATH}/$VSCFG/${BZIP2LIB}" ; then
-    HDF5_PLUGIN_PATH="${PLUGINPATH}/$VSCFG"
-  else # Case 1b Ignore the build type dir
-    if test -f "${PLUGINPATH}/${BZIP2LIB}" ; then
-      HDF5_PLUGIN_PATH="${PLUGINPATH}"
-    fi
-  fi
-else # Case 2: automake
-  # Case 2a: look in .libs
-  if test -f "${PLUGINPATH}/.libs/${BZIP2LIB}" ; then
-    HDF5_PLUGIN_PATH="${PLUGINPATH}/.libs"
-  fi # No case 2b
-fi
-
-# Did we find it?
-if test "x$HDF5_PLUGIN_PATH" = x ; then
-  # Not found, fail
-  echo "***Fail: Could not locate a usable HDF5_PLUGIN_PATH"
-  exit 1
-fi
-
-# If we are operating using both Visual Studio and Cygwin,
-# then we need to convert the HDF5_PLUGIN_PATH to windows format
-if test "x$ISMSVC" != x -a "x$ISCYGWIN" != x ; then
-HDF5_PLUGIN_PATH=`cygpath -wl $HDF5_PLUGIN_PATH`
-fi
-
-echo "final HDF5_PLUGIN_PATH=$HDF5_PLUGIN_PATH}"
+echo "final HDF5_PLUGIN_PATH=${HDF5_PLUGIN_PATH}"
 export HDF5_PLUGIN_PATH
 
 # Verify
-BZIP2PATH="${HDF5_PLUGIN_PATH}/${BZIP2LIB}"
-if ! test -f ${BZIP2PATH} ; then
-echo "Unable to locate ${BZIP2PATH}"
-exit 1
-fi
-
+if ! test -f ${BZIP2PATH} ; then echo "Unable to locate ${BZIP2PATH}"; exit 1; fi
+if ! test -f ${MISCPATH} ; then echo "Unable to locate ${MISCPATH}"; exit 1; fi
 
 # Execute the specified tests
 

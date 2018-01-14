@@ -1447,11 +1447,13 @@ abs_top_srcdir=`pwd`
 cd $abs_top_builddir
 
 # test_common.sh setup
-AC_SUBST([ISCMAKE], [])
-
 AC_CONFIG_FILES(test_common.sh:test_common.in)
 #rm -f ${abs_top_builddir}/test_common.sh
 #sed -e "s|@TOPSRCDIR@|${abs_top_srcdir}|" -e "s|@TOPBUILDDIR@|${abs_top_builddir}|" <${abs_top_srcdir}/test_common.in >${abs_top_builddir}/test_common.sh
+
+# nc_test4/findplugin.sh setup
+AC_SUBST([ISCMAKE], [])
+AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
 
 #####
 # End netcdf_meta.h definitions.
@@ -1474,7 +1476,7 @@ AC_CONFIG_FILES([Makefile
                  ncgen/Makefile
                  examples/Makefile
                  examples/C/Makefile
-                 examples/C/plugins/Makefile
+                 examples/C/hdf5plugins/Makefile
                  examples/CDL/Makefile
                  oc2/Makefile
                  libdap2/Makefile

@@ -2,6 +2,9 @@
   Copyright 2018, UCAR/Unidata
   See COPYRIGHT file for copying and redistribution conditions.
 */
+/*
+This file is the same as nc_test4/test_filter.c 
+*/
 
 /*! \file
 Example program for write then read of a variable using bzip2 compression.

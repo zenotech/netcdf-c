@@ -20,7 +20,9 @@ if USE_NETCDF4
 # These are the extra netCDF-4 examples. 
 check_PROGRAMS += simple_nc4_wr simple_nc4_rd simple_xy_nc4_wr	\
 simple_xy_nc4_rd 
+
 if ENABLE_FILTER_TESTING
+# filter_example.c should be same as nc_test4/test_filter.c
 check_PROGRAMS += filter_example
 endif
 
@@ -56,5 +58,11 @@ CLEANFILES = *.nc
 EXTRA_DIST = run_valgrind_tests.sh run_nc4_valgrind_tests.sh	\
 CMakeLists.txt run_examples.sh run_examples4.sh
 
-SUBDIRS = plugins
+# This subdir should be same as nc_test4/hdf5plugins
+SUBDIRS = hdf5plugins
 
+if ENABLE_FILTER_TESTING # => shared and netcdf-4
+BUILT_SOURCES = findplugin.sh
+findplugin.sh:
+	cp ${top_builddir}/nc_test4/findplugin.sh ${builddir}
+endif

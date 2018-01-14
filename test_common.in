@@ -1,15 +1,7 @@
-set -e
-
 TOPSRCDIR=@abs_top_srcdir@
 TOPBUILDDIR=@abs_top_builddir@
-ISCMAKE=@ISCMAKE@
 
-# Need VSCFG and ISMSVC in nc_test4/tst_filter.sh to compute plugin paths
-if test "x$ISCMAKE" != x ; then
-VSCFG="@VSCFG@"
-fi
-# Using Visual Studio iff the VS configuration is defined.
-if test "x$VSCFG" != x ; then ISMSVC=1 ; fi
+set -e
 
 # Figure out various locations in the src/build tree.
 # This is relatively fragile code and is essentially

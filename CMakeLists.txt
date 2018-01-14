@@ -1966,16 +1966,14 @@ FILE(COPY ${netCDF_SOURCE_DIR}/include/netcdf_meta.h
 SET(EXTRA_DIST ${EXTRA_DIST} ${CMAKE_SOURCE_DIR}/test_common.in)
 SET(TOPSRCDIR "${CMAKE_SOURCE_DIR}")
 SET(TOPBUILDDIR "${CMAKE_BINARY_DIR}")
-SET(ISCMAKE "1")
-IF (MSVC)
-  # Construct a proper form of the build type e.g. Debug or Release
-  STRING(SUBSTRING ${CMAKE_BUILD_TYPE} 0 1 STMP0)
-  STRING(SUBSTRING ${CMAKE_BUILD_TYPE} 1 -1 STMP1)
-  string(TOUPPER ${STMP0} STMP0)
-  string(TOLOWER ${STMP1} STMP1)
-  SET(VSCFG "${STMP0}${STMP1}")
-ENDIF()
 configure_file(${CMAKE_SOURCE_DIR}/test_common.in ${CMAKE_BINARY_DIR}/test_common.sh @ONLY NEWLINE_STYLE LF)
+
+#####
+# Build nc_test4/findplugin.sh
+#####
+SET(ISCMAKE "1")
+configure_file(${CMAKE_SOURCE_DIR}/nc_test4/findplugin.in ${CMAKE_BINARY_DIR}/nc_test4/findplugin.sh @ONLY NEWLINE_STYLE LF)
+
 
 ####
 # Export files

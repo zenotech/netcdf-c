@@ -6,7 +6,7 @@ NC4=1
 
 case "$1" in
 vs|VS) VS=1 ;;
-linux|nix) unset VS ;;
+linux|nix|l|x) unset VS ;;
 *) echo "Must specify env: vs|linux"; exit 1; ;;
 esac
 
@@ -70,6 +70,6 @@ NCLIB="${NCLIB}/build/liblib"
 #T="--trace-expand"
 cmake "${G}" $FLAGS ..
 make all
-#make test
+make test
 fi
 exit

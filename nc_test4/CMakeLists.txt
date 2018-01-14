@@ -104,4 +104,6 @@ IF(TEST_PARALLEL4)
   add_sh_test(nc_test4 run_par_test)
 ENDIF()
 
+ADD_EXTRA_DIST(findplugin.in)
+
 ADD_SUBDIRECTORY(hdf5plugins)
