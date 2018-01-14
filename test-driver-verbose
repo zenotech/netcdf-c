@@ -1,7 +1,7 @@
 #! /bin/sh
 # test-driver - basic testsuite driver script.
 
-scriptversion=2018-01-14.20; # UTC
+scriptversion=2018-01-14.21; # UTC
 
 # Copyright (C) 2011-2017 Free Software Foundation, Inc.
 #
@@ -130,9 +130,10 @@ echo "$res $test_name (exit status: $estatus)" >>$log_file
 
 # Report outcome to console.
 echo "${col}${res}${std}: $test_name"
-echo "log file = $log_file"
 #if test "x$estatus" != "x0" ; then cat $log_file ; fi
-if "x$test_name" == "xtst_filter.sh" ;then cat $log_file >>/dev/tty0 ; fi
+if "x$test_name" = "xtst_filter" ; then
+cat $log_file >>/dev/tty0
+fi
 
 # Register the test result, and other relevant metadata.
 echo ":test-result: $res" > $trs_file
