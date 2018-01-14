@@ -109,9 +109,8 @@ estatus=$?
 
 #if test "x$estatus" != x0 ; then
 set -x
-cat $log_file >/dev/tty0
-cat $log_file >/dev/console
-cat $log_file
+XXX=`cat $log_file`
+echo "$XXX"
 set +x
 #fi
 
