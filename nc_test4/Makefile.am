@@ -9,6 +9,7 @@
 include $(top_srcdir)/lib_flags.am
 
 # Un comment to use a more verbose test driver
+sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 
