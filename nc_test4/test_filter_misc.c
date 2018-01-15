@@ -175,7 +175,7 @@ openfile(void)
         printf("nparams  mismatch\n");
         for(nerrs=0,i=0;i<nparams;i++) {
             if(inqparams[i] != baseline[i]) {
-                printf("open: testparam mismatch: %d\n",i);
+                printf("open: testparam mismatch: %ld\n",(unsigned long)i);
 		nerrs++;
 	    }
 	}
@@ -225,7 +225,7 @@ static int
 compare(void)
 {
     int errs = 0;
-    fprintf(stderr,"data comparison: |array|=%d\n",actualproduct);
+    fprintf(stderr,"data comparison: |array|=%ld\n",(unsigned long)actualproduct);
     if(1)
     {
         int i;
@@ -270,7 +270,7 @@ showparameters(void)
     }
     printf("\n");
     for(i=0;i<actualdims;i++)
-        printf("%s%d",(i==0?" chunks=":","),chunks[i]);
+        printf("%s%ld",(i==0?" chunks=":","),(unsigned long)chunks[i]);
     printf("\n");
 }
 

@@ -75,8 +75,7 @@ AC_CONFIG_LINKS([nc_test4/ref_hdf5_compat3.nc:nc_test4/ref_hdf5_compat3.nc])
 AC_CONFIG_LINKS([nc_test4/ref_chunked.hdf4:nc_test4/ref_chunked.hdf4])
 AC_CONFIG_LINKS([nc_test4/ref_contiguous.hdf4:nc_test4/ref_contiguous.hdf4])
 
-# This call is required by automake.
-AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects parallel-tests])
+AM_INIT_AUTOMAKE([foreign dist-zip subdir-objects])
 
 # Check for the existence of this file before proceeding.
 AC_CONFIG_SRCDIR([include/netcdf.h])

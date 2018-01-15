@@ -9,8 +9,8 @@
 include $(top_srcdir)/lib_flags.am
 
 # Un comment to use a more verbose test driver
-#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 
 # Note which tests depend on other tests. necessary for make -j check
 TEST_EXTENSIONS = .sh
@@ -38,24 +38,24 @@ endif
 
 # Build test programs plus programs used in test scripts.
 check_PROGRAMS = $(NC4_TESTS) renamegroup tst_empty_vlen_unlim
-XTESTS = $(NC4_TESTS)
+TESTS = $(NC4_TESTS)
 
 # Add these if large file tests are turned on.
 if LARGE_FILE_TESTS
 check_PROGRAMS += tst_large tst_large2
-XTESTS += tst_large tst_large2
+TESTS += tst_large tst_large2
 endif
 
 if BUILD_UTILITIES
-XTESTS += run_grp_rename.sh tst_misc.sh
+TESTS += run_grp_rename.sh tst_misc.sh
 endif
 
-XTESTS += run_empty_vlen_test.sh
+TESTS += run_empty_vlen_test.sh
 
 # If the v2 API was built, add its test program.
 if BUILD_V2
 check_PROGRAMS += tst_v2
-XTESTS += tst_v2
+TESTS += tst_v2
 endif # BUILD_V2
 
 # If benchmarks were turned on, build and run a bunch more tests.
@@ -77,13 +77,13 @@ tst_knmi_SOURCES = tst_knmi.c tst_utils.c
 
 #WARNING: test_knmi depends on run_get_knmi_files.sh,
 # so they must appear in the appropriate order.
-XTESTS += tst_ar4_3d tst_create_files run_bm_test1.sh run_bm_elena.sh	\
+TESTS += tst_ar4_3d tst_create_files run_bm_test1.sh run_bm_elena.sh	\
 run_bm_test2.sh run_tst_chunks.sh tst_files2 tst_files3 tst_ar5		\
 tst_mem run_get_knmi_files.sh tst_knmi
 
 # This will run a parallel I/O benchmark for parallel builds.
 if TEST_PARALLEL4
-XTESTS += run_par_bm_test.sh
+TESTS += run_par_bm_test.sh
 endif # TEST_PARALLEL4
 
 benchmarks: check
@@ -100,13 +100,13 @@ check_PROGRAMS += tst_interops2 tst_chunk_hdf4 tst_h4_lendian
 
 if BUILD_UTILITIES
 # This test script depends on ncdump.
-XTESTS += tst_formatx_hdf4.sh
+TESTS += tst_formatx_hdf4.sh
 endif # BUILD_UTILITIES
 
-XTESTS += run_chunk_hdf4.sh tst_h4_lendian
+TESTS += run_chunk_hdf4.sh tst_h4_lendian
 if USE_HDF4_FILE_TESTS
 check_PROGRAMS += tst_interops3
-XTESTS += run_get_hdf4_files.sh tst_hdf4_read_var.sh
+TESTS += run_get_hdf4_files.sh tst_hdf4_read_var.sh
 
 tst_hdf4_read_var.log: tst_interops2.log
 
@@ -117,7 +117,7 @@ endif # USE_HDF4
 if USE_SZIP
 if BUILD_UTILITIES
 check_PROGRAMS += test_szip h5testszip
-XTESTS += tst_szip.sh
+TESTS += tst_szip.sh
 endif
 endif
 
@@ -125,16 +125,16 @@ endif
 if ENABLE_FILTER_TESTING
 if BUILD_UTILITIES
 check_PROGRAMS += test_filter test_filter_misc
-TESTS = tst_filter.sh
+TESTS += tst_filter.sh
 endif
 endif
 
 # This will run a bunch of the test programs with valgrind, the memory
 # checking tool. (Valgrind must be present for this to work.)
 if USE_VALGRIND_TESTS
-XTESTS += run_valgrind_tests.sh run_valgrind_tests2.sh
+TESTS += run_valgrind_tests.sh run_valgrind_tests2.sh
 if USE_HDF4
-XTESTS += run_hdf4_valgrind_tests.sh
+TESTS += run_hdf4_valgrind_tests.sh
 endif # USE_HDF4
 endif # USE_VALGRIND_TESTS
 
@@ -143,7 +143,7 @@ endif # USE_VALGRIND_TESTS
 if TEST_PARALLEL4
 check_PROGRAMS += tst_mpi_parallel tst_parallel tst_parallel3	\
 tst_parallel4 tst_nc4perf tst_mode tst_simplerw_coll_r
-XTESTS += run_par_test.sh
+TESTS += run_par_test.sh
 endif
 
 EXTRA_DIST = run_par_test.sh run_bm.sh run_bm_test1.sh                  \
