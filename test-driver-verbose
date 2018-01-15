@@ -116,7 +116,7 @@ else
   tweaked_estatus=$estatus
 fi
 
-if test estatus -ne 0 ; then
+if test $estatus -ne 0 ; then
 cat $log_file
 fi
 
