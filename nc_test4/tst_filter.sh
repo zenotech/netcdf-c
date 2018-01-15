@@ -16,7 +16,7 @@ NGC=1
 MISC=1
 
 # Load the findplugins function
-source ${builddir}/findplugin.sh
+source ${WD}/findplugin.sh
 
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent

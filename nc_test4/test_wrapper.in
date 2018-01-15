@@ -17,6 +17,7 @@ then this would not be necessary.
 
 #define CMD "./tst_filter.sh"
 #define TOPSRCDIR "@abs_top_srcdir@"
+#define TOPBUILDDIR "@abs_top_builddir@"
 
 int
 main(int argc, char** argv)
@@ -24,7 +25,7 @@ main(int argc, char** argv)
     int stat;
     char path[4096];
     
-    fprintf(stderr,"test_wrapper: TOPSRCDIR=%s\n",TOPSRCDIR);
+    fprintf(stderr,"test_wrapper: TOPSRCDIR=%s TOPBUILDDIR=%s\n",TOPSRCDIR,TOPBUILDDIR);
     strcpy(path,TOPSRCDIR);
     strcat(path,"/nc_test4/");
     strcat(path,CMD);
