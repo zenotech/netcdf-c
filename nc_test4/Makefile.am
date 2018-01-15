@@ -7,7 +7,6 @@
 
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
-AM_TESTS_FD_REDIRECT = 9>&2
 
 # Un comment to use a more verbose test driver
 #sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
