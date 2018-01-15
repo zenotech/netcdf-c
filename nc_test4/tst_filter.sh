@@ -4,6 +4,7 @@ if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -e
+set -x
 
 # Which test cases to exercise
 API=1
@@ -14,6 +15,8 @@ NGC=1
 MISC=1
 
 # Load the findplugins function
+find ${srcdir} -name findplugin.sh
+find ${builddir} -name findplugin.sh
 . ${srcdir}/findplugin.sh
 echo "findplugin.sh loaded"
 
