@@ -9,7 +9,7 @@
 include $(top_srcdir)/lib_flags.am
 
 # Un comment to use a more verbose test driver
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 
@@ -126,7 +126,8 @@ endif
 if ENABLE_FILTER_TESTING
 if BUILD_UTILITIES
 check_PROGRAMS += test_filter test_filter_misc
-TESTS += tst_filter.sh
+#TESTS += tst_filter.sh
+TESTS += test_wrapper
 endif
 endif
 
