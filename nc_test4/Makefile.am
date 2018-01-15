@@ -9,9 +9,8 @@
 include $(top_srcdir)/lib_flags.am
 
 # Un comment to use a more verbose test driver
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 
 # Note which tests depend on other tests. necessary for make -j check
 TEST_EXTENSIONS = .sh
@@ -127,7 +126,6 @@ if ENABLE_FILTER_TESTING
 if BUILD_UTILITIES
 check_PROGRAMS += test_filter test_filter_misc
 TESTS = tst_filter.sh
-#TESTS += test_wrapper
 endif
 endif
 
@@ -164,7 +162,7 @@ run_empty_vlen_test.sh ref_hdf5_compat1.nc ref_hdf5_compat2.nc          \
 ref_hdf5_compat3.nc tst_misc.sh tdset.h5 tst_hdf4_read_var.sh           \
 ref_contiguous.hdf4 ref_chunked.hdf4 tst_szip.sh ref_szip.h5 ref_szip.cdl \
 tst_filter.sh bzip2.cdl filtered.cdl unfiltered.cdl ref_bzip2.c         \
-findplugin.in test_wrapper.in
+findplugin.in
 
 CLEANFILES = tst_mpi_parallel.bin cdm_sea_soundings.nc bm_chunking.nc   \
 bm_radar.nc bm_radar1.nc radar_3d_compression_test.txt                  \

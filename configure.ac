@@ -1455,9 +1455,6 @@ AC_CONFIG_FILES(test_common.sh:test_common.in)
 AC_SUBST([ISCMAKE], [])
 AC_CONFIG_FILES(nc_test4/findplugin.sh:nc_test4/findplugin.in)
 
-# Travis script debugging
-AC_CONFIG_FILES(nc_test4/test_wrapper.c:nc_test4/test_wrapper.in)
-
 #####
 # End netcdf_meta.h definitions.
 #####
