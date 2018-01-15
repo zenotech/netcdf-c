@@ -15,8 +15,8 @@ UNK=1
 NGC=1
 MISC=1
 
-find ${TOPSRCDIR} -name 'findflugin*'
-find ${TOPBUILDDIR} -name 'findflugin*'
+find ${TOPSRCDIR} -name 'findplugin*'
+find ${TOPBUILDDIR} -name 'findplugin*'
 # Load the findplugins function
 source ${WD}/findplugin.sh
 
