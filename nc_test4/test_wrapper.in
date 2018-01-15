@@ -25,8 +25,8 @@ main(int argc, char** argv)
     char path[4096];
     
     fprintf(stderr,"test_wrapper: TOPSRCDIR=%s\n",TOPSRCDIR);
-    strcpy(path,topsrcdir);
-    strcat(path,"/");
+    strcpy(path,TOPSRCDIR);
+    strcat(path,"/nc_test4/");
     strcat(path,CMD);
     fprintf(stderr,"test_wrapper: path=%s\n",path);
     stat = system(path);
