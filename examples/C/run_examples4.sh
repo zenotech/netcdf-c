@@ -5,6 +5,8 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../../test_common.sh
 
+set -x
+
 echo "*** Running examples for netCDF-4."
 set -e
 
@@ -18,7 +20,7 @@ ${execdir}/simple_xy_nc4_rd
 
 if test -f ${builddir}/findplugin.sh ; then
 echo "*** running test_filter example..."
-source ${builddir}/findplugin.sh
+. ${srcdir}/findplugin.sh
 
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
