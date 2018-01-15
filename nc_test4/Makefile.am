@@ -7,11 +7,12 @@
 
 # Put together AM_CPPFLAGS and AM_LDFLAGS.
 include $(top_srcdir)/lib_flags.am
+AM_TESTS_FD_REDIRECT = 9>&2
 
 # Un comment to use a more verbose test driver
-sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#sh_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 
 # Note which tests depend on other tests. necessary for make -j check
 TEST_EXTENSIONS = .sh
