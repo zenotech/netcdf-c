@@ -1,10 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
 set -x
-
 set -e
 
 # Which test cases to exercise
@@ -15,9 +14,8 @@ UNK=1
 NGC=1
 MISC=1
 
-find ${srcdir} -name findplugin.sh
 # Load the findplugins function
-source ${srcdir}/findplugin.sh
+. ${srcdir}/findplugin.sh
 echo "findplugin.sh loaded"
 
 # Function to remove selected -s attributes from file;

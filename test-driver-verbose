@@ -1,7 +1,9 @@
 #! /bin/sh
 # test-driver - basic testsuite driver script.
 
-scriptversion=2018-01-15.04; # UTC
+DEBUGTEST="tst_filter.sh"
+
+scriptversion=2018-01-15.21; # UTC
 
 # Copyright (C) 2011-2017 Free Software Foundation, Inc.
 #
@@ -103,9 +105,15 @@ trap "st=130; $do_exit" 2
 trap "st=141; $do_exit" 13
 trap "st=143; $do_exit" 15
 
+set -x
+
 # Test script is run here.
+
 "$@" >$log_file 2>&1
 estatus=$?
+if test "x$test_name" = "x$DEBUGTEST" ; then
+cat $log_file
+fi
 
 if test $enable_hard_errors = no && test $estatus -eq 99; then
   tweaked_estatus=1
@@ -113,9 +121,7 @@ else
   tweaked_estatus=$estatus
 fi
 
-if test $estatus -ne 0 ; then
 cat $log_file
-fi
 
 case $tweaked_estatus:$expect_failure in
   0:yes) col=$red res=XPASS recheck=yes gcopy=yes;;
