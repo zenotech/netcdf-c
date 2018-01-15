@@ -15,9 +15,10 @@ UNK=1
 NGC=1
 MISC=1
 
-find ${srcdir} -name 'findplugin*'
+find ${srcdir} -name findplugin.sh
 # Load the findplugins function
 source ${srcdir}/findplugin.sh
+echo "findplugin.sh loaded"
 
 # Function to remove selected -s attributes from file;
 # These attributes might be platform dependent
