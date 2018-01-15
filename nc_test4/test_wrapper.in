@@ -15,10 +15,19 @@ then this would not be necessary.
 
 
 #define CMD "./tst_filter.sh"
+#define TOPSRCDIR "@abs_top_srcdir@"
 
 int
 main(int argc, char** argv)
 {
-    int stat = system(CMD);
+    int stat;
+    char path[4096];
+    
+    fprintf(stderr,"test_wrapper: TOPSRCDIR=%s\n",topsrcdir);
+    strcpy(path,topsrcdir);
+    strcat(path,"/");
+    strcat(path,CMD);
+    fprintf(stderr,"test_wrapper: path=%s\n",path);
+    stat = system(path);
     return WEXITSTATUS(stat);
 }

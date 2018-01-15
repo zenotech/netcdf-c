@@ -85,9 +85,6 @@ if test $# -eq 0; then
   usage_error "missing argument"
 fi
 
-echo "XXXX: test_name"
-
-
 if test $color_tests = yes; then
   # Keep this in sync with 'lib/am/check.am:$(am__tty_colors)'.
   red='[0;31m' # Red.
