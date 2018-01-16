@@ -20,12 +20,18 @@ findplugin() {
 
 FP_NAME="$1"
 
-# Obtain some values from ./configure
+# Figure out the compiler (some values from ./configure)
 FP_ISCMAKE=@ISCMAKE@
+FP_ISMSVC=@MSVC@
+
+# Are we operating under CYGWIN? (test using uname)
+FP_OS=`uname | cut -d '_'  -f 1`
+if test "x$FP_OS" = xCYGWIN ; then FP_ISCYGWIN=1; fi
+
 if test "x$FP_ISCMAKE" != x ; then
   FP_BUILDTYPE="@CMAKE_BUILD_TYPE@"
   if test "x$FP_BUILDTYPE" != x; then
-    # Properly case the name
+    # Camel-case the build type
     FP_C1=${FP_BUILDTYPE:0:1}
     FP_CN=${FP_BUILDTYPE:1}
     FP_C1=`echo -n "$FP_C1" | tr '[:lower:]' '[:upper:]'`
@@ -33,8 +39,6 @@ if test "x$FP_ISCMAKE" != x ; then
     FP_BUILDTYPE="${FP_C1}${FP_CN}"
   fi
 fi
-# Using Visual Studio iff the VS configuration is defined.
-if test "x$FP_BUILDTYPE" != x ; then FP_ISMSVC=1 ; fi
 
 FP_PLUGINS=`pwd`
 FP_PLUGINS="$FP_PLUGINS/hdf5plugins"
@@ -42,17 +46,13 @@ FP_PLUGINS="$FP_PLUGINS/hdf5plugins"
 FP_PLUGIN_LIB=
 FP_PLUGIN_PATH=
 
-# Are we operating under CYGWIN? (test using uname)
-FP_OS=`uname | cut -d '_'  -f 1`
-if test "x$FP_OS" = xCYGWIN ; then FP_ISCYGWIN=1; fi
-
 # Figure out the plugin file name
-# Test for visual studio before cygwin
+# Test for visual studio before cygwin since both might be true
 if test "x$FP_ISMSVC" != x ; then
   FP_PLUGIN_LIB="${FP_NAME}.dll"
 elif test "x$FP_ISCYGWIN" != x ; then
   FP_PLUGIN_LIB="cyg${FP_NAME}.dll"
-else
+else # Presumably some form on *nix; does this work for OS-X?
   FP_PLUGIN_LIB="lib${FP_NAME}.so"
 fi
 
