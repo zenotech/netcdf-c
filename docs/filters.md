@@ -353,6 +353,26 @@ The files __example/C/hdf5plugins/Makefile.am__
 and  __example/C/hdf5plugins/CMakeLists.txt__
 demonstrate how to build the hdf5 plugin for bzip2.
 
+Notes
+==========
+
+Supported Systems
+-----------------
+The current matrix of OS X build systems known to work is as follows.
+<table>
+<tr><th>Build System<th>Supported OS
+<tr><td>Automake<td>Linux, Cygwin
+<tr><td>Cmake<td>Linux, Cygwin, Visual Studio
+</table>
+
+Generic Plugin Build
+--------------------
+If you do not want to use Automake or Cmake, the following
+has been known to work.
+````
+gcc -g -O0 -shared -o libbzip2.so <plugin source files>  -L${HDF5LIBDIR} -lhdf5_hl -lhdf5 -L${ZLIBDIR} -lz
+````
+
 Appendix A. Byte Swap Code {#AppendixA}
 ==========
 Since in some cases, it is necessary for a filter to
