@@ -20,7 +20,7 @@ ${execdir}/simple_xy_nc4_rd
 
 if test -f ${builddir}/findplugin.sh ; then
 echo "*** running test_filter example..."
-. ${srcdir}/findplugin.sh
+. ${builddir}/findplugin.sh
 
 # Locate the plugin path and the library names; argument order is critical
 # Find bzip2 and capture
