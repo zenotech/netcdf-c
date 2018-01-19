@@ -6,8 +6,8 @@
 # Ed Hartnett
 
 # Un comment to use a more verbose test driver
-SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
-LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#SH_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
+#LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver-verbose
 
 LDADD = -lm
 AM_CPPFLAGS = -I$(top_srcdir)/include

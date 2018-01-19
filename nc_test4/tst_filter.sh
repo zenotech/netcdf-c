@@ -3,8 +3,8 @@
 if test "x$srcdir" = x ; then srcdir=`pwd`; fi
 . ../test_common.sh
 
-set -e
 set -x
+set -e
 
 # Which test cases to exercise
 API=1
@@ -102,6 +102,10 @@ echo "*** Testing dynamic filters using nccopy"
 rm -f ./unfiltered.nc ./filtered.nc ./filtered.dump ./tmp
 ${NCGEN} -4 -lb -o unfiltered.nc ${srcdir}/unfiltered.cdl
 ${NCCOPY} -F "/g/var,307,9,4" unfiltered.nc filtered.nc
+<<<<<<< HEAD
+=======
+${NCDUMP} -sh filtered.nc
+>>>>>>> plugins.dmh
 ${NCDUMP} -s filtered.nc > ./tmp
 # Remove irrelevant -s output
 sclean ./tmp ./filtered.dump
