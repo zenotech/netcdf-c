@@ -445,6 +445,7 @@ int
 main(int argc, char **argv)
 {
     H5Eprint(stderr);
+    nc_set_log_level(1);
     init(argc,argv);
     if(!test_test1()) ERRR;
     exit(nerrs > 0?1:0);

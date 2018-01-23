@@ -125,7 +125,7 @@ paramcheck(size_t nparams, const unsigned int* params)
 
     if(nparams != 14) {
 	fprintf(stderr,"Too few parameters: need=16 sent=%ld\n",(unsigned long)nparams);
-	return 0;
+	goto fail;
     }
 
     for(i=0;i<nparams;i++) {
@@ -138,37 +138,37 @@ paramcheck(size_t nparams, const unsigned int* params)
         case 1:
 	    ival = (-17) & 0xff;
 	    if(ival != (signed int)(params[i]))
-	    {mismatch(i,"signed byte"); return 0; };
+	    {mismatch(i,"signed byte"); goto fail; };
 	    break;
         case 2:
 	    ival = 23;
 	    if(ival != (unsigned int)(params[i]))
-	    {mismatch(i,"unsigned byte"); return 0; };
+	    {mismatch(i,"unsigned byte"); goto fail; };
 	    break;
         case 3:
-	    ival = (-25) && 0xffff;
+	    ival = (-25) & 0xffff;
 	    if(ival != (signed int)(params[i]))
-	    {mismatch(i,"signed short"); return 0; };
+	    {mismatch(i,"signed short"); goto fail; };
 	    break;
         case 4:
 	    ival = 27;
 	    if(ival != (unsigned int)(params[i]))
-	    {mismatch(i,"unsigned short"); return 0; };
+	    {mismatch(i,"unsigned short"); goto fail; };
 	    break;
         case 5:
 	    ival = 77;
 	    if(ival != (signed int)(params[i]))
-	    {mismatch(i,"signed int"); return 0; };
+	    {mismatch(i,"signed int"); goto fail; };
 	    break;
         case 6:
 	    ival = 93u;
 	    if(ival != (unsigned int)(params[i]))
-	    {mismatch(i,"unsigned int"); return 0; };
+	    {mismatch(i,"unsigned int"); goto fail; };
 	    break;
         case 7:
 	    fval = 789.0f;
 	    if(fval != *(float*)(&params[i]))
-	    {mismatch(i,"float"); return 0; };
+	    {mismatch(i,"float"); goto fail; };
 	    break;
         case 8: {/*double*/
             double x = *(double*)&params[i];
@@ -178,7 +178,7 @@ paramcheck(size_t nparams, const unsigned int* params)
 		byteswap8((unsigned char*)&x);
 	    if(dval != x) {
                 mismatch(i,"double");
-                return 0;
+                goto fail;
             }
             }; break;
         case 10: {/*signed long long*/
@@ -189,7 +189,7 @@ paramcheck(size_t nparams, const unsigned int* params)
 		byteswap8((unsigned char*)&x);
             if(lval != x) {
                 mismatch(i,"signed long long");
-                return 0;
+                goto fail;
             }
             }; break;
         case 12: {/*unsigned long long*/
@@ -200,13 +200,13 @@ paramcheck(size_t nparams, const unsigned int* params)
 		byteswap8((unsigned char*)&x);
             if(lval != x) {
                 mismatch(i,"unsigned long long");
-                return 0;
+                goto fail;
             }
             }; break;
 
         default:
             mismatch(i,"unexpected parameter");
-            return 0;
+            goto fail;
             break;
         }
     }
@@ -222,6 +222,8 @@ paramcheck(size_t nparams, const unsigned int* params)
     }
 #endif
     return 1;
+fail:
+    return 0;
 }
 
 static void

@@ -1970,7 +1970,8 @@ main(int argc, char**argv)
       break;
 	case 'F': /* optional filter spec for a specified variable */
 #ifdef USE_NETCDF4
-	    if(!parsefilterspec(optarg,&filterspec)) usage();
+	    if(parsefilterspec(optarg,&filterspec) != NC_NOERR)
+		usage();
 	    if(nfilterspecs >= (MAX_FILTER_SPECS-1))
 		error("too many -F filterspecs\n");
 	    filterspecs[nfilterspecs] = filterspec;
