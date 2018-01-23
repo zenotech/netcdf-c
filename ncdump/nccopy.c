@@ -24,7 +24,7 @@
 #include "nccomps.h"
 #include "ncfilter.h"
 
-#define DEBUGFILTER
+#undef DEBUGFILTER
 
 #ifdef _MSC_VER
 #include "XGetopt.h"
@@ -233,6 +233,7 @@ done:
 static int
 parsefilterspec(const char* optarg0, struct FilterSpec* spec)
 {
+    int stat = NC_NOERR;
     char* optarg = NULL;
     unsigned int* params = NULL;
     size_t nparams;
@@ -263,14 +264,14 @@ parsefilterspec(const char* optarg0, struct FilterSpec* spec)
     }
 
     /* Collect the id+parameters */
-    if(!NC_parsefilterspec(remainder,&id,&nparams,&params))
-	return 0;
-    if(spec != NULL) {
-        spec->filterid = id;
-        spec->nparams = nparams;
-        spec->params = params;
+    if((stat = NC_parsefilterspec(remainder,&id,&nparams,&params)) == NC_NOERR) {
+        if(spec != NULL) {
+            spec->filterid = id;
+            spec->nparams = nparams;
+            spec->params = params;
+	}
     }
-    return 1;
+    return stat;
 }
 
 
@@ -1997,6 +1998,7 @@ main(int argc, char**argv)
 	error("output would overwrite input");
     }
 
+#ifdef USE_NETCDF4
 #ifdef DEBUGFILTER
     { int i,j;
         for(i=0;i<nfilterspecs;i++) {
@@ -2011,7 +2013,8 @@ main(int argc, char**argv)
 	    fflush(stderr);
 	}
     }
-#endif
+#endif /*DEBUGFILTER*/
+#endif /*USE_NETCDF4*/
 
     if(copy(inputfile, outputfile) != NC_NOERR)
         exit(EXIT_FAILURE);

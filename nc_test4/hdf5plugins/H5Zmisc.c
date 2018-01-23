@@ -13,6 +13,12 @@
 
 #include "h5misc.h"
 
+#if defined  _MSC_VER || defined __APPLE__
+#define DBLVAL 12345678.12345678
+#else
+#define DBLVAL 12345678.12345678d
+#endif
+
 #undef DEBUG
 
 static int paramcheck(size_t nparams, const unsigned int* params);
@@ -25,8 +31,8 @@ const H5Z_class2_t H5Z_TEST[1] = {{
     1,                               /* encoder_present flag (set to true) */
     1,                               /* decoder_present flag (set to true) */
     "test",                          /* Filter name for debugging    */
-    NULL,                            /* The "can apply" callback     */
-    NULL,                            /* The "set local" callback     */
+    (H5Z_can_apply_func_t)H5Z_test_can_apply, /* The "can apply" callback  */
+    NULL,			     /* The "set local" callback  */
     (H5Z_func_t)H5Z_filter_test,     /* The actual filter function   */
 }};
 
@@ -41,6 +47,17 @@ const void*
 H5PLget_plugin_info(void)
 {
     return H5Z_TEST;
+}
+
+/* Make this explicit */
+/*
+ * The "can_apply" callback returns positive a valid combination, zero for an
+ * invalid combination and negative for an error.
+ */
+htri_t
+H5Z_test_can_apply(hid_t dcpl_id, hid_t type_id, hid_t space_id)
+{
+    return 1; /* Assume it can always apply */
 }
 
 /*
@@ -112,60 +129,76 @@ paramcheck(size_t nparams, const unsigned int* params)
     }
 
     for(i=0;i<nparams;i++) {
+	unsigned int ival;
+	unsigned long long lval;
+	float fval;
+	double dval;
         switch (i) {
         case 0: break; /* this is the testcase # */
-        case 1: if(((signed char)-17) != (signed int)(params[i]))
+        case 1:
+	    ival = (-17) & 0xff;
+	    if(ival != (signed int)(params[i]))
 	    {mismatch(i,"signed byte"); return 0; };
 	    break;
-        case 2: if(((unsigned char)23) != (unsigned int)(params[i]))
+        case 2:
+	    ival = 23;
+	    if(ival != (unsigned int)(params[i]))
 	    {mismatch(i,"unsigned byte"); return 0; };
 	    break;
-        case 3: if(((signed short)-25) != (signed int)(params[i]))
+        case 3:
+	    ival = (-25) && 0xffff;
+	    if(ival != (signed int)(params[i]))
 	    {mismatch(i,"signed short"); return 0; };
 	    break;
-        case 4: if(((unsigned short)27) != (unsigned int)(params[i]))
+        case 4:
+	    ival = 27;
+	    if(ival != (unsigned int)(params[i]))
 	    {mismatch(i,"unsigned short"); return 0; };
 	    break;
-        case 5: if(77 != (signed int)(params[i]))
+        case 5:
+	    ival = 77;
+	    if(ival != (signed int)(params[i]))
 	    {mismatch(i,"signed int"); return 0; };
 	    break;
-        case 6: if(93u != (unsigned int)(params[i]))
+        case 6:
+	    ival = 93u;
+	    if(ival != (unsigned int)(params[i]))
 	    {mismatch(i,"unsigned int"); return 0; };
 	    break;
-        case 7: if(789.0f != *(float*)(&params[i]))
+        case 7:
+	    fval = 789.0f;
+	    if(fval != *(float*)(&params[i]))
 	    {mismatch(i,"float"); return 0; };
 	    break;
         case 8: {/*double*/
             double x = *(double*)&params[i];
+	    dval = DBLVAL;
             i++; /* takes two parameters */
             if(bigendian)
 		byteswap8((unsigned char*)&x);
-#if defined  _MSC_VER || defined __APPLE__
-#define DBLVAL 12345678.12345678
-#else
-#define DBLVAL 12345678.12345678d
-#endif
-	    if(DBLVAL != x) {
+	    if(dval != x) {
                 mismatch(i,"double");
                 return 0;
             }
             }; break;
         case 10: {/*signed long long*/
             signed long long x = *(signed long long*)&params[i];
+	    lval = -9223372036854775807L;
             i++; /* takes two parameters */
             if(bigendian)
 		byteswap8((unsigned char*)&x);
-            if(-9223372036854775807L != x) {
+            if(lval != x) {
                 mismatch(i,"signed long long");
                 return 0;
             }
             }; break;
         case 12: {/*unsigned long long*/
             unsigned long long x = *(unsigned long long*)&params[i];
+	    lval = 18446744073709551615UL;
             i++; /* takes two parameters */
             if(bigendian)
 		byteswap8((unsigned char*)&x);
-            if(18446744073709551615UL != x) {
+            if(lval != x) {
                 mismatch(i,"unsigned long long");
                 return 0;
             }
