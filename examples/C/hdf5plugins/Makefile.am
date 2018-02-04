@@ -24,3 +24,5 @@ libbzip2_la_SOURCES = ${DLLSRC}
 libbzip2_la_LDFLAGS = -module -avoid-version -shared -export-dynamic -no-undefined
 
 endif #ENABLE_FILTER_TESTING
+
+EXTRA_DIST = CMakeLists.txt

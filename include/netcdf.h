@@ -154,7 +154,7 @@ Use this in mode flags for both nc_create() and nc_open(). */
 Use this in mode flags for both nc_create() and nc_open(). */
 #define NC_MPIPOSIX      0x4000 /**< \deprecated As of libhdf5 1.8.13. */
 
-#define NC_INMEMORY      0x8000  /**< Read from memory. Mode flag for nc_open() or nc_create(). */
+#define NC_INMEMORY      0x8000  /**< Read from memory. Mode flag for nc_open() or nc_create() => NC_DISKLESS */
 
 #define NC_PNETCDF       (NC_MPIIO) /**< Use parallel-netcdf library; alias for NC_MPIIO. */
 
@@ -254,11 +254,14 @@ These maximums are not used for netCDF-4/HDF5 files unless they were
 created with the ::NC_CLASSIC_MODEL flag.
 
 As a rule, NC_MAX_VAR_DIMS <= NC_MAX_DIMS.
+
+NOTE: The NC_MAX_DIMS, NC_MAX_ATTRS, and NC_MAX_VARS limits
+      are *not* enforced after version 4.5.0
 */
 /**@{*/
-#define NC_MAX_DIMS     1024
-#define NC_MAX_ATTRS    8192
-#define NC_MAX_VARS     8192
+#define NC_MAX_DIMS     1024 /* not enforced after 4.5.0 */
+#define NC_MAX_ATTRS    8192 /* not enforced after 4.5.0 */
+#define NC_MAX_VARS     8192 /* not enforced after 4.5.0 */
 #define NC_MAX_NAME     256
 #define NC_MAX_VAR_DIMS 1024 /**< max per variable dimensions */
 /**@}*/
@@ -455,7 +458,8 @@ by the desired type. */
 #define NC_EFILTER       (-132)    /**< Filter operation failed. */
 #define NC_ERCFILE       (-133)    /**< RC file failure */
 #define NC_ENULLPAD      (-134)    /**< Header Bytes not Null-Byte padded */
-#define NC4_LAST_ERROR   (-135)    /**< @internal All netCDF errors > this. */
+#define NC_EINMEMORY     (-135)    /**< In-memory file error */
+#define NC4_LAST_ERROR   (-136)    /**< @internal All netCDF errors > this. */
 
 /** @internal This is used in netCDF-4 files for dimensions without
  * coordinate vars. */
@@ -1826,7 +1830,7 @@ EXTERNL int ncerr;
 #define NC_VERBOSE      2  /**< For V2 API, be verbose on error. */
 
 /** V2 API error handling. Default is (NC_FATAL | NC_VERBOSE). */
-EXTERNL int ncopts;     
+EXTERNL int ncopts;
 
 EXTERNL void
 nc_advise(const char *cdf_routine_name, int err, const char *fmt,...);
@@ -1973,5 +1977,7 @@ nc_finalize();
 #ifndef NC_HAVE_INQ_FORMAT_EXTENDED
 #define NC_HAVE_INQ_FORMAT_EXTENDED /*!< inq_format_extended() support. */
 #endif
+
+#define NC_HAVE_META_H
 
 #endif /* _NETCDF_ */

@@ -169,9 +169,9 @@ NC_readfile(const char* filename, NCbytes* content)
     char part[1024];
 
 #ifdef _MSC_VER
-    stream = NCfopen(filename,"r");
-#else
     stream = NCfopen(filename,"rb");
+#else
+    stream = NCfopen(filename,"r");
 #endif
     if(stream == NULL) {ret=errno; goto done;}
     for(;;) {
@@ -209,7 +209,7 @@ NC_mktmp(const char* base)
     cvtpath = NCpathcvt(base);
     strncpy(tmp,cvtpath,sizeof(tmp));
     nullfree(cvtpath);
-	strncat(tmp, "XXXXXX", sizeof(tmp));
+	strncat(tmp, "XXXXXX", sizeof(tmp) - strlen(tmp) - 1);
 
 #ifdef HAVE_MKSTEMP
     /* Note Potential problem: old versions of this function
