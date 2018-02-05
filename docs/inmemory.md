@@ -141,6 +141,43 @@ same as the memory block as was provided when _nc_open_memio_ was called.
 If they differ, then that means the original block was free'd and the caller
 should not attempt to free it again.
 
+### The __nc_create_mem__ Function
+
+This function allows a user to create an in-memory file, write to it,
+and then retrieve the final memory using _nc_close_memio()_.
+The _initialsize_ argument to _nc_create_mem()_ tells the library
+how much initial memory to allocate. Technically, this is advisory only
+because it may be ignored by the underlying HDF5 library.
+It is used, however, for netcdf-3 files. 
+
+### The __nc_close_memio__ Function
+
+The ordinary _nc_close()_ function can be called to close an in-memory file.
+However, it is often desirable to obtain the final size and memory block
+for the in-memory file when that file has been modified.
+The _nc_close_memio()_ function provides a means to do this.
+Its second argument is a pointer to an _NC_memio_ object
+into which the final memory and size are stored. WARNING,
+the returned memory is owned by the caller and so the caller
+is responsible for calling _free()_ on that returned memory.
+
+### Support for Writing with NC_MEMIO_LOCKED
+
+When the NC_MEMIO_LOCKED flag is set in the _NC_memio_ object
+passed to _nc_open_memio()_, it is still possible to modify
+the opened in-memory file (using the NC_WRITE mode flag).
+
+The big problem is that any changes must fit into the memory provided
+by the caller via the _NC_memio_ object. This problem can be
+mitigated, however, by using the "trick" of overallocating
+the caller supplied memory. That is, if the original file is, say, 300 bytes,
+then it is possible to allocate, say, 65000 bytes and copy the original file
+into the first 300 bytes of the larger memory block. This will allow
+the netcdf-c library to add to the file up to that 65000 byte limit.
+In this way, it is possible to avoid memory reallocation while still
+allowing modifications to the file. You will still need to call
+_nc_close_memio()_ to obtain the size of the final, modified, file.
+
 ## Enabling MMAP File Access {#Enable_MMAP}
 
 Some operating systems provide a capability called MMAP.

@@ -333,7 +333,15 @@ typedef struct  NC_HDF5_FILE_INFO
    int sdid;
 #endif /* USE_HDF4 */
    struct NCFILEINFO* fileinfo;
-   NC_memio memio;
+   struct NC4_Memio {
+	NC_memio memio;
+	int locked; /* do not copy and do not release */
+	int persist; /* Should file be persisted out on close? */
+	int inmemory;
+	int diskless;
+	unsigned int flags; /* for H5LTopen_file_image */
+	int fapl;
+   } mem;
 } NC_HDF5_FILE_INFO_T;
 
 /* Defined in lookup3.c */
@@ -494,10 +502,5 @@ extern int NC4_buildpropinfo(struct NCPROPINFO* info,char** propdatap);
 extern int NC4_hdf5get_libversion(unsigned*,unsigned*,unsigned*);/*libsrc4/nc4hdf.c*/
 extern int NC4_hdf5get_superblock(struct NC_HDF5_FILE_INFO*, int*);/*libsrc4/nc4hdf.c*/
 extern int NC4_isnetcdf4(struct NC_HDF5_FILE_INFO*); /*libsrc4/nc4hdf.c*/
-
-/* From nc4mem.c */
-extern int NC4_open_image_file(NC_HDF5_FILE_INFO_T* h5, hid_t* hdfidp);
-extern int NC4_create_image_file(NC_HDF5_FILE_INFO_T* h5, hid_t* hdfidp);
-extern int NC4_extract_file_image(NC_HDF5_FILE_INFO_T* h5);
 
 #endif /* _NETCDF4_ */

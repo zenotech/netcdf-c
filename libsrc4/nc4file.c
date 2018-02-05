@@ -24,6 +24,11 @@
 
 extern int nc4_vararray_add(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var);
 
+/* From nc4mem.c */
+extern int NC4_open_image_file(NC_HDF5_FILE_INFO_T* h5);
+extern int NC4_create_image_file(NC_HDF5_FILE_INFO_T* h5);
+extern int NC4_extract_file_image(NC_HDF5_FILE_INFO_T* h5);
+
 /** @internal When we have open objects at file close, should
     we log them or print to stdout. Default is to log. */
 #define LOGOPEN 1
@@ -461,7 +466,7 @@ exit:
 static const int ILLEGAL_OPEN_FLAGS = (NC_MMAP|NC_64BIT_OFFSET);
 
 /** @internal These flags may not be set for create. */
-static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_INMEMORY|NC_64BIT_OFFSET|NC_CDF5);
+static const int ILLEGAL_CREATE_FLAGS = (NC_NOWRITE|NC_MMAP|NC_64BIT_OFFSET|NC_CDF5);
 
 extern void reportopenobjects(int log, hid_t);
 
@@ -874,17 +879,23 @@ nc4_create_file(const char *path, int cmode, void* parameters, NC *nc)
    NC_MPI_INFO* mpiinfo = NULL;
    int comm_duped = 0;          /* Whether the MPI Communicator was duplicated */
    int info_duped = 0;          /* Whether the MPI Info object was duplicated */
-#else /* !USE_PARALLEL4 */
-   int persist = 0; /* Should diskless try to persist its data into file?*/
-#endif
-   int inmemory = (cmode & NC_INMEMORY) == NC_INMEMORY;
-   NC_memio *meminfo = NULL;
+#endif /* !USE_PARALLEL4 */
 
    assert(nc && path);
    LOG((3, "%s: path %s mode 0x%x", __func__, path, cmode));
 
-   if(inmemory && parameters)
-	meminfo = (NC_memio*)parameters;
+   /* Add necessary structs to hold netcdf-4 file data. */
+   if ((retval = nc4_nc4f_list_add(nc, path, (NC_WRITE | cmode))))
+      BAIL(retval);
+
+   nc4_info = NC4_DATA(nc);
+   assert(nc4_info && nc4_info->root_grp);
+
+   nc4_info->mem.inmemory = (cmode & NC_INMEMORY) == NC_INMEMORY;
+   nc4_info->mem.diskless = (cmode & NC_DISKLESS) == NC_DISKLESS;
+
+   if(nc4_info->mem.inmemory && parameters)
+	nc4_info->mem.memio = *(NC_memio*)parameters;
 #ifdef USE_PARALLEL4
    else if(parameters) {
 	mpinfo = (NC_MPI_INFO *)parameters;
@@ -892,7 +903,7 @@ nc4_create_file(const char *path, int cmode, void* parameters, NC *nc)
 	info = mpiinfo->info;
    }
 #endif
-   if(cmode & NC_DISKLESS)
+   if(nc4_info->mem.diskless)
       flags = H5F_ACC_TRUNC;
    else if(cmode & NC_NOCLOBBER)
       flags = H5F_ACC_EXCL;
@@ -900,22 +911,16 @@ nc4_create_file(const char *path, int cmode, void* parameters, NC *nc)
       flags = H5F_ACC_TRUNC;
 
    /* If this file already exists, and NC_NOCLOBBER is specified,
-      return an error. */
-   if (cmode & NC_DISKLESS) {
-#ifndef USE_PARALLEL4
-      if(cmode & NC_WRITE)
-         persist = 1;
-#endif
+      return an error (unless diskless|inmemory) */
+   if (nc4_info->mem.diskless) {
+      if((cmode & NC_WRITE) && (cmode & NC_NOCLOBBER) == 0)
+         nc4_info->mem.persist = 1;
+   } else if (nc4_info->mem.inmemory) {
+	/* ok */
    } else if ((cmode & NC_NOCLOBBER) && (fp = fopen(path, "r"))) {
       fclose(fp);
       return NC_EEXIST;
    }
-
-   /* Add necessary structs to hold netcdf-4 file data. */
-   if ((retval = nc4_nc4f_list_add(nc, path, (NC_WRITE | cmode))))
-      BAIL(retval);
-   nc4_info = NC4_DATA(nc);
-   assert(nc4_info && nc4_info->root_grp);
 
    /* Need this access plist to control how HDF5 handles open objects
     * on file close. (Setting H5F_CLOSE_SEMI will cause H5Fclose to
@@ -970,7 +975,7 @@ nc4_create_file(const char *path, int cmode, void* parameters, NC *nc)
    }
 #else /* only set cache for non-parallel... */
    if(cmode & NC_DISKLESS) {
-      if (H5Pset_fapl_core(fapl_id, 4096, persist))
+      if (H5Pset_fapl_core(fapl_id, 4096, nc4_info->mem.persist))
          BAIL(NC_EDISKLESS);
    }
    if (H5Pset_cache(fapl_id, 0, nc4_chunk_cache_nelems, nc4_chunk_cache_size,
@@ -1009,10 +1014,9 @@ nc4_create_file(const char *path, int cmode, void* parameters, NC *nc)
    H5Pset_coll_metadata_write(fapl_id, 1);
 #endif
 
-   if(inmemory) {
-	nc4_info->memio.size = meminfo->size;
-	nc4_info->memio.memory = meminfo->memory;
-	if(nc4_info->memio.size == 0)
+   if(nc4_info->mem.inmemory) {
+#if 0
+	if(nc4_info->mem.memio.size == 0)
 	    nc4_info->memio.size = DEFAULT_CREATE_MEMSIZE; /* last ditch fix */
 	if(nc4_info->memio.memory == NULL) { /* last ditch fix */
 	    nc4_info->memio.memory = malloc(nc4_info->memio.size);
@@ -1020,7 +1024,8 @@ nc4_create_file(const char *path, int cmode, void* parameters, NC *nc)
 		BAIL(NC_ENOMEM);
 	}    
 	assert(nc4_info->memio.size > 0 && nc4_info->memio.memory != NULL);
-	retval = NC4_create_image_file(nc4_info,&nc4_info->hdfid);
+#endif
+	retval = NC4_create_image_file(nc4_info);
 	if(retval)
 	    BAIL(retval);
    } else if ((nc4_info->hdfid = H5Fcreate(path, flags, fcpl_id, fapl_id)) < 0)
@@ -2515,32 +2520,46 @@ static int
 nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
 {
    hid_t fapl_id = H5P_DEFAULT;
-   unsigned flags = (mode & NC_WRITE) ?
-      H5F_ACC_RDWR : H5F_ACC_RDONLY;
    int retval;
+   unsigned flags;
    NC_HDF5_FILE_INFO_T* nc4_info = NULL;
-   int inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
-   NC_memio* meminfo = NULL;
+
 #ifdef USE_PARALLEL4
    NC_MPI_INFO* mpiinfo = NULL;
    int comm_duped = 0; /* Whether the MPI Communicator was duplicated */
    int info_duped = 0; /* Whether the MPI Info object was duplicated */
 #endif
-   if(inmemory)
-       meminfo = (NC_memio*)parameters;
-#ifdef USE_PARALLEL4
-   else
-       mpiinfo = (NC_MPI_INFO*)parameters;
-#endif /* !USE_PARALLEL4 */
 
    LOG((3, "%s: path %s mode %d", __func__, path, mode));
    assert(path && nc);
+
+   flags = (mode & NC_WRITE) ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
 
    /* Add necessary structs to hold netcdf-4 file data. */
    if ((retval = nc4_nc4f_list_add(nc, path, mode)))
       BAIL(retval);
    nc4_info = NC4_DATA(nc);
    assert(nc4_info && nc4_info->root_grp);
+
+   nc4_info->mem.inmemory = ((mode & NC_INMEMORY) == NC_INMEMORY);
+   nc4_info->mem.diskless = ((mode & NC_DISKLESS) == NC_DISKLESS);
+   if(nc4_info->mem.inmemory) {
+       NC_memio* memparams = NULL;
+       if(parameters == NULL)
+	   BAIL(NC_EINMEMORY);
+       memparams = (NC_memio*)parameters;
+       nc4_info->mem.memio = *memparams; /* keep local copy */
+       /* As a safeguard, if !locked and NC_WRITE is set,
+          then we must take control of the incoming memory */
+       nc4_info->mem.locked = (nc4_info->mem.memio.flags & NC_MEMIO_LOCKED) == NC_MEMIO_LOCKED;
+       if(!nc4_info->mem.locked && ((mode & NC_WRITE) == NC_WRITE)) {
+	    memparams->memory = NULL;	    
+       }	
+#ifdef USE_PARALLEL4
+   } else {
+       mpiinfo = (NC_MPI_INFO*)parameters;
+#endif /* !USE_PARALLEL4 */
+   }
 
    /* Need this access plist to control how HDF5 handles open objects
     * on file close. (Setting H5F_CLOSE_SEMI will cause H5Fclose to
@@ -2609,13 +2628,11 @@ nc4_open_file(const char *path, int mode, void* parameters, NC *nc)
 #ifdef HDF5_HAS_COLL_METADATA_OPS
    H5Pset_all_coll_metadata_ops(fapl_id, 1 );
 #endif
-   if(inmemory) {
+   if(nc4_info->mem.inmemory) {
 	/* validate */
-	if(meminfo->size == 0 || meminfo->memory == NULL)
-	    BAIL(NC_EDISKLESS);
-	nc4_info->memio.size = meminfo->size;
-	nc4_info->memio.memory = meminfo->memory;
-	retval = NC4_open_image_file(nc4_info,&nc4_info->hdfid);
+	if(nc4_info->mem.memio.size == 0 || nc4_info->mem.memio.memory == NULL)
+	    BAIL(NC_INMEMORY);
+	retval = NC4_open_image_file(nc4_info);
 	if(retval)
          BAIL(NC_EHDFERR);
    } else if ((nc4_info->hdfid = H5Fopen(path, flags, fapl_id)) < 0)
@@ -3454,11 +3471,9 @@ NC4_close(int ncid, void* params)
    /* Call the nc4 close. */
    if ((retval = close_netcdf4_file(grp->nc4_info, 0, (inmemory?1:0))))
       return retval;
-   if(inmemory) {
+   if(inmemory && params != NULL) {
 	NC_memio* memio = (NC_memio*)params;
-	memio->size = h5->memio.size;
-	memio->memory = h5->memio.memory;
-	memio->flags = 0;
+	*memio = h5->mem.memio;
    }
 
    return NC_NOERR;
@@ -3609,4 +3624,3 @@ nc4_enddef_netcdf4_file(NC_HDF5_FILE_INFO_T *h5)
 
    return sync_netcdf4_file(h5);
 }
-
