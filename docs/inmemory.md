@@ -85,7 +85,7 @@ and also some relevant flags that define how to manage the memory.
 Current only one flag is defined -- _NC_MEMIO_LOCKED_.
 This tells the netcdf library that it should never try to
 _realloc()_ the memory nor to _free()_ the memory. Note
-that this does not mean that the memory might be modified, but
+that this does not mean that the memory cannot be modified, but
 only that the modifications will be within the confines of the provided
 memory. If doing such modifications is impossible without
 reallocating the memory, then the modification will fail.
@@ -100,8 +100,7 @@ int nc_create_mem(const char* path, int mode, size_t initialsize, int* ncidp);
 
 int nc_open_memio(const char* path, int mode, NC_memio* info, int* ncidp);
 
-/* Close memory file and return the final memory state */
-EXTERNL int nc_close_memio(int ncid, NC_memio* info);
+int nc_close_memio(int ncid, NC_memio* info);
 
 ````
 ### The __nc_open_mem__ Function
