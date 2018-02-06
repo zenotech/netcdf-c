@@ -371,12 +371,12 @@ verify_file(int ncid, int modified)
 
     /* Get all the dimids */
     tmp = 0;
-    CHECK(nc_inq_dimids(ncid,&tmp,dimid,1));
+    CHECK((nc_inq_dimids(ncid,&tmp,dimid,1)));
     if(tmp != NDIMS) CHECK(NC_EINVAL);
 
     /* Get all the varids */
     tmp = 0;
-    CHECK(nc_inq_varids(ncid,&tmp,varid));
+    CHECK((nc_inq_varids(ncid,&tmp,varid)));
     if(tmp != (NVARS+modified)) CHECK(NC_EINVAL);
 
     CHECK(nc_get_att_text(ncid, NC_GLOBAL, ATT0_NAME, att0_in));
