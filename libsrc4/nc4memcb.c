@@ -394,17 +394,23 @@ local_image_realloc(void *ptr, size_t size, H5FD_file_image_op_t file_image_op, 
             goto out;
 
 	/* Modified: 
-           If H5LT_FILE_IMAGE_DONT_RELEASE flag is set: two cases
            1. If the realloc new size is <= existing size,
 	      then pretend we did a realloc and return success.
-           2. Otherwise, realloc() is not allowed because reallocation
-              may change the address of the buffer. The
-              new address cannot be communicated to the application
-              to release it.
+              This avoids unneccessary heap operations.
+           2. If the H5LT_FILE_IMAGE_DONT_COPY or
+	      H5LT_FILE_IMAGE_DONT_RELEASE flag is set and the
+	      realloc new size is > existing size, then fail
+	      because the realloc() call may change the address
+	      of the buffer. The new address cannot be
+	      communicated to the application to release it.
+	   3. Otherwise, use realloc(). Note that this may have the
+              side effect of freeing the previous memory chunk.
         */
-        if (udata->flags & H5LT_FILE_IMAGE_DONT_RELEASE) {
-	    if(size > udata->vfd_image_size)
-                goto out; 
+	if(size <= udata->vfd_image_size) {
+	    /* Ok, pretend we did a realloc */
+	} else if((udata->flags & H5LT_FILE_IMAGE_DONT_RELEASE)
+		  || (udata->flags & H5LT_FILE_IMAGE_DONT_COPY)) {
+                goto out; /* realloc MAY violate these flags */
         } else {
 	    if (NULL == (udata->vfd_image_ptr = HDrealloc(ptr, size)))
                 goto out; 

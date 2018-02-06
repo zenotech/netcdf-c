@@ -41,8 +41,8 @@ if diff -wb ${FILE4}.cdl ${CREATE4}.cdl ; then
 fi
 
 # cleanup
-#rm -f ${FILE3}.nc ${FILE4}.nc ${CREATE3}.nc ${CREATE4}.nc
-#rm -f ${FILE3}.cdl ${FILE4}.cdl ${CREATE3}.cdl ${CREATE4}.cdl
+rm -f ${FILE3}.nc ${FILE4}.nc ${CREATE3}.nc ${CREATE4}.nc
+rm -f ${FILE3}.cdl ${FILE4}.cdl ${CREATE3}.cdl ${CREATE4}.cdl
 
 echo "PASS: all inmemory tests"
 

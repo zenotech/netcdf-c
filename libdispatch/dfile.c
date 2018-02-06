@@ -182,10 +182,10 @@ NC_check_file_type(const char *path, int flags, void *parameters,
     int status = NC_NOERR;
 
     int diskless = ((flags & NC_DISKLESS) == NC_DISKLESS);
+    int inmemory = (!diskless && ((flags & NC_INMEMORY) == NC_INMEMORY));
 #ifdef USE_PARALLEL
     int use_parallel = ((flags & NC_MPIIO) == NC_MPIIO);
 #endif /* USE_PARALLEL */
-    int inmemory = (diskless && ((flags & NC_INMEMORY) == NC_INMEMORY));
     struct MagicFile file;
 
    *model = 0;
@@ -195,7 +195,7 @@ NC_check_file_type(const char *path, int flags, void *parameters,
     file.path = path; /* do not free */
     file.parameters = parameters;
     if(inmemory && parameters == NULL)
-	{status = NC_EDISKLESS; goto done;}
+	{status = NC_EINMEMORY; goto done;}
     if(inmemory) {
         file.inmemory = inmemory;
 	goto next;
@@ -540,7 +540,7 @@ Create a netCDF file with the contents stored in memory.
 
 \param mode the mode flags; Note that this procedure uses a limited set of flags because it forcibly sets NC_INMEMORY.
 
-\param params controlling parameters: size, memory, flags; this is advisory only and may not be honored.
+\param initialsize (advisory) size to allocate for the created file
 
 \param ncidp Pointer to location where returned netCDF ID is to be
 stored.
@@ -1403,11 +1403,8 @@ then return a copy of the final memory contents of the dataset.
 
 \param ncid NetCDF ID, from a previous call to nc_open() or nc_create().
 
-\param sizep a pointer to a location into which the final valid memory
-size will be returned.
-
-\param memoryp a pointer to a location into which a copy of
-the final valid memory will be returned.
+\param memio a pointer to an NC_memio object into which the final valid memory
+size and memory will be returned.
 
 \returns ::NC_NOERR No error.
 

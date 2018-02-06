@@ -4,10 +4,6 @@ In-Memory Support in netCDF
 
 # In-Memory Support in netCDF {#inmemory}
 
-__Author__: Dennis Heimbigner<br>
-__Initial Version__: 2/3/2018<br>
-__Last Revised__: 2/3/2018
-
 [TOC]
 
 ## Introduction {#inmemory_intro}
@@ -190,7 +186,21 @@ of NC_DISKLESS but using the operating system's mmap capabilities.
 Currently, MMAP support is only available when using netcdf-3 or cdf5
 files.
 
-## References {#References}
+## Known Bugs {#Inmemory_Bugs}
+
+1. If you are modifying a locked memory chunk (using
+   NC_MEMIO_LOCKED) and are accessing it as a netcdf-4 file, and
+   you overrun the available space, then the HDF5 library will
+   fail with a segmentation fault.
+
+## References {#Inmemory_References}
 
 1. https://support.hdfgroup.org/HDF5/doc1.8/Advanced/FileImageOperations/HDF5FileImageOperations.pdf
+
+## Point of Contact
+
+__Author__: Dennis Heimbigner<br>
+__Email__: dmh at ucar dot edu
+__Initial Version__: 2/3/2018<br>
+__Last Revised__: 2/5/2018
 

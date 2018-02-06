@@ -560,6 +560,7 @@ sync_netcdf4_file(NC_HDF5_FILE_INFO_T *h5)
  *
  * @param h5 Pointer to HDF5 file info struct.
  * @param abort True if this is an abort.
+ * @param extractmem True if we need to extract and save final inmemory
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett
@@ -855,8 +856,7 @@ nc4typelen(nc_type type)
  *
  * @param path The file name of the new file.
  * @param cmode The creation mode flag.
- * @param comm MPI communicator (parallel IO only).
- * @param info MPI info (parallel IO only).
+ * @param parameters extra parameter info (like  MPI communicator)
  * @param nc Pointer to an instance of NC.
  *
  * @return ::NC_NOERR No error.
@@ -3441,6 +3441,7 @@ NC4_abort(int ncid)
  * @internal Close the netcdf file, writing any changes first. 
  *
  * @param ncid File and group ID.
+ * @param params any extra parameters in/out of close
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett
@@ -3483,6 +3484,8 @@ NC4_close(int ncid, void* params)
  * @internal Close an in-memory netcdf file, writing any changes first. 
  *
  * @param ncid File and group ID.
+ * @param sizep ptr into which the final size is stored
+ * @param memp ptr into which the final memory is stored
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett

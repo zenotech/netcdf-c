@@ -34,6 +34,8 @@ redistribution conditions.
 #define FILE4 "tst_inmemory4.nc"
 #define CREATE3 "tst_inmemory3_create.nc"
 #define CREATE4 "tst_inmemory4_create.nc"
+#define XFAIL "tst_xfail.nc"
+#define MISC "tst_misc.nc"
 
 #define CREATEFILE3 "tst_memcreate3.nc"
 #define CREATEFILE4 "tst_memcreate4.nc"
@@ -92,20 +94,47 @@ fail(int line) {
 #define ERR fail(__LINE__)
 #endif
 
+/* Store any error message */
+static char errmsg[4096];
+
 static int
-check(int stat, const char* file, int line)
+check(int stat, const char* file, int line, int xfail)
 {
+    int pass = ((!xfail && stat == NC_NOERR) || (xfail && stat != NC_NOERR));
     fflush(stdout);
-    fprintf(stderr, "Sorry! Unexpected result, %s, line: %d; status=%d %s\n",
-	file,line,stat,nc_strerror(stat));
+    if(!xfail) {
+        if(stat != NC_NOERR) {
+            fprintf(stderr,"***Fail: line: %d; status=%d %s\n",
+	            line,stat,nc_strerror(stat));
+        err++;
+        } 
+    } else { /*xfail*/
+        if(stat == NC_NOERR) {
+            fprintf(stderr,"***XFail Fail: line: %d; passed instead of failed\n",
+	            line);
+            err++;
+        } else {
+            fprintf(stderr,"\t***XFail: status=%d %s\n",
+	            stat,nc_strerror(stat));
+        } 
+	stat = NC_NOERR; /* because xfail */
+    }
     fflush(stderr);
-    err++;
     return stat;
 }
 
-#define CHECK(expr) {stat = (expr); if(stat) {return check(stat,__FILE__,__LINE__);}}
+#define CHECK(expr) {stat = check((expr),__FILE__,__LINE__,0); if(stat) return stat;}
+#define XCHECK(expr) {stat = check((expr),__FILE__,__LINE__,1); if(stat) return stat;}
+
+#define REPORT(xfail,expr) {if((xfail)) {XCHECK((expr));} else {CHECK((expr));}}
 
 /**************************************************/
+
+static void
+removefile(const char* path)
+{
+    unlink(path);
+}
 
 static int
 readfile(const char* path, NC_memio* memio)
@@ -296,19 +325,20 @@ modify_file(int ncid)
     int data[MAXDIMLEN];
 
     /* Get id of the unlimited dimension */
-    CHECK(nc_inq_dimid(ncid, DIM0_NAME, dimid));
+    if((stat=nc_inq_dimid(ncid, DIM0_NAME, dimid))) goto done;
     /* get current dim length */
-    CHECK(nc_inq_dimlen(ncid, dimid[0], &len));
+    if((stat=nc_inq_dimlen(ncid, dimid[0], &len))) goto done;
     /* open file for new meta-data */
-    CHECK(nc_redef(ncid));
+    if((stat=nc_redef(ncid))) goto done;
     /* Define a new variable */
-    CHECK(nc_def_var(ncid, VAR3_NAME, NC_INT, 1, dimid, &varid3));
+    if((stat=nc_def_var(ncid, VAR3_NAME, NC_INT, 1, dimid, &varid3))) goto done;
     /* close metadata */
-    CHECK(nc_enddef(ncid));
+    if((stat=nc_enddef(ncid))) goto done;
     /* Write data to new variable */
     for(i=0;i<len;i++)
 	data[i] = i;
-    CHECK(nc_put_var_int(ncid,varid3,data));
+    if((stat=nc_put_var_int(ncid,varid3,data))) goto done;
+done:
     return stat;    
 }
 
@@ -349,13 +379,13 @@ verify_file(int ncid, int modified)
     att0_in[sizeof(ATT0_TEXT)] = '\0';
     if (strcmp(att0_in, ATT0_TEXT)) CHECK(NC_EINVAL);
 
-    /* Check dimensions. */
+    /* CHECK dimensions. */
     CHECK(nc_inq_dim(ncid, dimid[0], name_in, &len_in));
     if (strcmp(name_in, DIM0_NAME)) CHECK(NC_EINVAL);
     CHECK(nc_inq_dim(ncid, dimid[1], name_in, &len_in));
     if (strcmp(name_in, DIM1_NAME) || len_in != DIM1_LEN) CHECK(NC_EINVAL);
 
-    /* Check variables. */
+    /* CHECK variables. */
     CHECK(nc_inq_var(ncid, varid[0], name_in, &type_in, &ndims_in, dimid_in, &natts_in));
     if (strcmp(name_in, VAR0_NAME) || type_in != NC_INT || ndims_in != NDIMS ||
     dimid_in[0] != 0 || dimid_in[1] != 1 || natts_in != 0) CHECK(NC_EINVAL);
@@ -409,27 +439,27 @@ test_open(const char* path, NC_memio* filedata, int mode)
 
     finaldata = calloc(1,sizeof(NC_memio));
 
-    printf("\n***Test open 1: nc_open_mem(): read-only\n");
+    fprintf(stderr,"\n\t***Test open 1: nc_open_mem(): read-only\n");
     CHECK(duplicatememory(filedata,&duplicate,0));
     CHECK(nc_open_mem(path, xmode, duplicate.size, duplicate.memory, &ncid));
     CHECK(verify_file(ncid,!MODIFIED));
     CHECK(nc_close(ncid));
     free(duplicate.memory);
 
-    printf("\n***Test open 2: nc_open_memio(): read-only\n");
+    fprintf(stderr,"\n\t***Test open 2: nc_open_memio(): read-only\n");
     CHECK(duplicatememory(filedata,&duplicate,0));
     duplicate.flags = NC_MEMIO_LOCKED;
     CHECK(nc_open_memio(path, xmode, &duplicate, &ncid))
     CHECK(verify_file(ncid,!MODIFIED));
     CHECK(nc_close_memio(ncid,finaldata));
     /* Published returned finaldata  */
-    printf("finaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
+    fprintf(stderr,"\tfinaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
     /* Verify that finaldata is same */
     if(finaldata->size != duplicate.size) CHECK(NC_EINVAL);
     if(finaldata->memory != duplicate.memory) CHECK(NC_EINVAL);
     free(finaldata->memory);
 
-    printf("\n***Test open 3: nc_open_memio(): read-write, copy\n");
+    fprintf(stderr,"\n\t***Test open 3: nc_open_memio(): read-write, copy\n");
     xmode |= NC_WRITE; /* allow file to be modified */
     CHECK(duplicatememory(filedata,&duplicate,0));
     CHECK(nc_open_memio(path, xmode, &duplicate, &ncid))
@@ -438,13 +468,13 @@ test_open(const char* path, NC_memio* filedata, int mode)
     CHECK(verify_file(ncid,MODIFIED));
     CHECK(nc_close_memio(ncid,finaldata));
     /* Published returned finaldata  */
-    printf("finaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
+    fprintf(stderr,"\tfinaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
     /* Verify that finaldata is same */
     if(finaldata->size < filedata->size) CHECK(NC_EINVAL);
     /* As a safeguard, the memory in duplicate should have been set to NULL*/
     free(finaldata->memory);
 
-    printf("\n***Test open 4: nc_open_memio(): read-write, locked, extra space\n");
+    fprintf(stderr,"\n\t***Test open 4: nc_open_memio(): read-write, locked, extra space\n");
     /* Store the filedata in a memory chunk that leaves room for modification */
     CHECK(duplicatememory(filedata,&duplicate,LARGE_SPACE));
     /* Lock the duplicate memory */
@@ -456,7 +486,7 @@ test_open(const char* path, NC_memio* filedata, int mode)
     CHECK(verify_file(ncid,MODIFIED));
     CHECK(nc_close_memio(ncid,finaldata));
     /* Published returned finaldata  */
-    printf("finaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
+    fprintf(stderr,"\tfinaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
     /* Check returned finaldata  */
     if(finaldata->size != duplicate.size) CHECK(NC_EINVAL);
     if(finaldata->memory != duplicate.memory) CHECK(NC_EINVAL);
@@ -473,7 +503,7 @@ test_create(const char* path, int mode)
     int ncid;
     int xmode = mode;
 
-    printf("\n***Test create 1: nc_create_memio(): no initialsize\n");
+    fprintf(stderr,"\n\t***Test create 1: nc_create_memio(): no initialsize\n");
     CHECK(nc_create_mem(path, xmode, 0, &ncid))
     /* create file metadata */
     CHECK(define_metadata(ncid));
@@ -481,21 +511,81 @@ test_create(const char* path, int mode)
     finaldata = calloc(1,sizeof(NC_memio));
     CHECK(nc_close_memio(ncid,finaldata));
     /* Published returned finaldata  */
-    printf("finaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
+    fprintf(stderr,"\tfinaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
     free(finaldata->memory);
 
-    printf("\n***Test create 2: nc_create_memio(): initialsize; save file\n");
-    CHECK(nc_create_mem(path, xmode, 1<<17, &ncid))
+    fprintf(stderr,"\n\t***Test create 2: nc_create_memio(): initialsize; save file\n");
+    CHECK(nc_create_mem(path, xmode, LARGE_SPACE, &ncid))
     /* create file metadata */
     CHECK(define_metadata(ncid));
     CHECK(verify_file(ncid,!MODIFIED));
     finaldata = calloc(1,sizeof(NC_memio));
     CHECK(nc_close_memio(ncid,finaldata));
     /* Published returned finaldata */
-    printf("finaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
+    fprintf(stderr,"\tfinaldata: size=%lld memory=%p\n",(unsigned long long)finaldata->size,finaldata->memory);
     /* Write out the final data as a .nc file */
     CHECK(writefile(path,finaldata));
     free(finaldata->memory);
+    return stat;
+}
+
+static int
+test_misc(const char* path, int mode, NC_memio* filedata)
+{
+    int stat = NC_NOERR;
+    int ncid;
+    int xmode = mode;
+    NC_memio duplicate;
+
+    fprintf(stderr,"\n\t***Test misc 1: use nc_close on created inmemory file\n");
+    CHECK(nc_create_mem(MISC, xmode, 0, &ncid))
+    CHECK(nc_close(ncid));
+    removefile(MISC);
+
+    fprintf(stderr,"\n\t***Test misc 2: use nc_close on opened inmemory file\n");
+    CHECK(duplicatememory(filedata,&duplicate,0));
+    CHECK(nc_open_memio(path, xmode, &duplicate, &ncid))
+    CHECK(verify_file(ncid,!MODIFIED));
+    CHECK(nc_close(ncid));
+    removefile(MISC);
+
+    return stat;
+}
+
+/* Test various edge conditions to ensure they fail correctly */
+static int
+test_xfail(const char* path, int mode, NC_memio* filedata)
+{
+    int stat = NC_NOERR;
+    NC_memio duplicate;
+    int ncid;
+    int xmode = mode; /* modified mode */
+
+    fprintf(stderr,"\n\t***Test xfail 1: nc_open_mem(): write to read-only\n");
+    CHECK(duplicatememory(filedata,&duplicate,0));
+    CHECK(nc_open_mem(XFAIL, xmode, duplicate.size, duplicate.memory, &ncid));
+    XCHECK(nc_redef(ncid));
+    CHECK(nc_abort(ncid));
+    free(duplicate.memory);
+
+    fprintf(stderr,"\n\t***Test xfail 2: nc_open_memio(): modify without overallocating\n");
+    if((mode & NC_NETCDF4)) {
+        fprintf(stderr,"\tSuppressed because of HDF5 library bug\n");
+    } else {
+      /* With HDF5 1.8.20, and possibly other versions,
+         this tests causes a seg fault in the HDF5 Library.
+         So until it is fixed, just leave well enough alone */
+	NC_memio* finaldata = NULL;
+	finaldata = calloc(1,sizeof(NC_memio));
+	CHECK(duplicatememory(filedata,&duplicate,0));
+	duplicate.flags = NC_MEMIO_LOCKED;
+	xmode |= NC_WRITE;
+	CHECK(nc_open_memio(XFAIL, xmode, &duplicate, &ncid))
+	XCHECK(modify_file(ncid));    
+	CHECK(nc_abort(ncid));
+	free(finaldata->memory);
+    }
+
     return stat;
 }
 
@@ -511,17 +601,21 @@ main(int argc, char **argv)
     nc_set_log_level(0);
     H5Eprint(stderr);
 
-    printf("\n*** Testing the inmemory API: netcdf-3.\n");
+    fprintf(stderr,"\n*** Testing the inmemory API: netcdf-3.\n");
     CHECK(create_reference_file(FILE3,NC_NETCDF3,&filedata3)); /* netcdf-3 */
     CHECK(test_open(FILE3,&filedata3,NC_NETCDF3));
     CHECK(test_create(CREATE3,NC_NETCDF3));
+    CHECK(test_misc(FILE3, NC_NETCDF3, &filedata3));
+    CHECK(test_xfail(FILE3, NC_NETCDF3, &filedata3));
     memiofree(&filedata3);
 
 #ifdef USE_NETCDF4
-    printf("\n*** Testing the inmemory API: netcdf-4.\n");
+    fprintf(stderr,"\n*** Testing the inmemory API: netcdf-4.\n");
     CHECK(create_reference_file(FILE4,NC_NETCDF4,&filedata4));
     CHECK(test_open(FILE4,&filedata4,NC_NETCDF4));
     CHECK(test_create(CREATE4,NC_NETCDF4));
+    CHECK(test_misc(FILE4,NC_NETCDF4, &filedata4));
+    CHECK(test_xfail(FILE4, NC_NETCDF4, &filedata4));
     memiofree(&filedata4);
 #endif
 
