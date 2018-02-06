@@ -599,7 +599,7 @@ main(int argc, char **argv)
     NC_memio filedata4;
 
     nc_set_log_level(0);
-    H5Eprint(stderr);
+    H5Eprint2(H5E_DEFAULT,stderr);
 
     fprintf(stderr,"\n*** Testing the inmemory API: netcdf-3.\n");
     CHECK(create_reference_file(FILE3,NC_NETCDF3,&filedata3)); /* netcdf-3 */
