@@ -14,13 +14,13 @@ redistribution conditions.
 #include <unistd.h>
 #endif
 
-#include <hdf5.h>
-
 #include "netcdf.h"
 #include "netcdf_mem.h"
 #include "ncbytes.h"
 #include "nc_tests.h"
 #include "err_macros.h"
+
+#include <hdf5.h>
 
 #ifdef USE_NETCDF4
 extern int H5Eprint1(FILE * stream);
