@@ -22,6 +22,10 @@ redistribution conditions.
 #include "nc_tests.h"
 #include "err_macros.h"
 
+#ifdef USE_NETCDF4
+extern int H5Eprint1(FILE * stream);
+#endif
+
 #define FLAGS4 (NC_INMEMORY|NC_NETCDF4|NC_CLOBBER)
 #define FLAGS3 (NC_INMEMORY|NCCLOBBER)
 
@@ -599,7 +603,10 @@ main(int argc, char **argv)
     NC_memio filedata4;
 
     nc_set_log_level(0);
-    H5Eprint2(H5E_DEFAULT,stderr);
+
+#ifdef USE_NETCDF4
+    H5Eprint1(stderr);
+#endif
 
     fprintf(stderr,"\n*** Testing the inmemory API: netcdf-3.\n");
     CHECK(create_reference_file(FILE3,NC_NETCDF3,&filedata3)); /* netcdf-3 */
