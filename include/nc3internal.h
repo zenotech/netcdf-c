@@ -24,7 +24,6 @@
 
 /* Always needed */
 #include "nc.h"
-#include "nchashmap.h"
 
 #ifndef NC_ARRAY_GROWBY
 #define NC_ARRAY_GROWBY 4
@@ -55,6 +54,25 @@ typedef enum {
 	NC_VARIABLE =	11,
 	NC_ATTRIBUTE =	12
 } NCtype;
+
+#ifndef NEWHASHMAP /* temporary hack until new hash is complete */
+/*! Hashmap-related structs.
+  NOTE: 'data' is the dimid or varid which is non-negative.
+  we store the dimid+1 so a valid entry will have
+  data > 0
+*/
+typedef struct {
+  long data;
+  int flags;
+  unsigned long key;
+} hEntry;
+
+typedef struct s_hashmap {
+  hEntry* table;
+  unsigned long size;
+  unsigned long count;
+} NC_hashmap;
+#endif
 
 /*
  * NC dimension structure
@@ -110,7 +128,7 @@ typedef struct {
 	NC_string *name;
 	nc_type type;		/* the discriminant */
 	size_t nelems;		/* length of the array */
-	void *xvalue;		/* the actual data, in external representation*/
+	void *xvalue;		/* the actual data, in external representation */
  	/* end xdr */
 } NC_attr;
 

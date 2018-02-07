@@ -26,6 +26,7 @@
 #define CONTENTS_3 "Lots 0f pe0ple!"  /* same len as CONTENTS */
 #define VAR_NAME "Earth"
 
+#if 0 /* already defined in nc4internal/nc4file */
 /**
  * @internal Define the names of attributes to ignore added by the
  * HDF5 dimension scale; these attached to variables. They cannot be
@@ -66,6 +67,7 @@ const char* NC_RESERVED_SPECIAL_LIST[] = {
    NULL
 };
 
+#endif
 
 int
 main(int argc, char **argv)

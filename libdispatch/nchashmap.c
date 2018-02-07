@@ -3,6 +3,8 @@ Copyright (c) 1998-2017 University Corporation for Atmospheric Research/Unidata
 See LICENSE.txt for license information.
 */
 
+#define NEWHASHMAP
+
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,8 +14,9 @@ See LICENSE.txt for license information.
 #include <stdint.h>
 #endif
 #include "nc.h"
-#include "nc3internal.h"
+
 #include "nchashmap.h"
+#include "nc3internal.h"
 
 #define VERIFY 
 
