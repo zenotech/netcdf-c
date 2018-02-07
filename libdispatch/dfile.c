@@ -55,6 +55,7 @@ static void printmagic(const char* tag, char* magic,struct MagicFile*);
 
 extern int NC_initialized; /**< True when dispatch table is initialized. */
 
+#ifdef USE_NETCDF4
 /** @internal Magic number for HDF5 files. To be consistent with
  * H5Fis_hdf5, use the complete HDF5 magic number */
 static char HDF5_SIGNATURE[MAGIC_NUMBER_LEN] = "\211HDF\r\n\032\n";

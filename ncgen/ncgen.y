@@ -16,6 +16,7 @@ static char SccsId[] = "$Id: ncgen.y,v 1.42 2010/05/18 21:32:46 dmh Exp $";
 #include        "ncoffsets.h"
 #include        "ncgeny.h"
 #include        "ncgen.h"
+#include        "ncfilter.h"
 
 /* Following are in ncdump (for now)*/
 /* Need some (unused) definitions to get it to compile */
@@ -1450,14 +1451,13 @@ specialname(int tag)
 Parse a filter spec string and store it in special
 */
 static int
-parsefilterflag(const char* sdata0, Specialdata* special)
+parsefilterflag(const char* sdata, Specialdata* special)
 {
     int stat = NC_NOERR;
 
-    if(sdata0 == NULL || strlen(sdata0) == 0) goto fail;
-    sdata = strdup(sdata0);
+    if(sdata == NULL || strlen(sdata) == 0) return NC_EINVAL;
 
-    stat = NC_parsefilterspec(sdata0, &special->_FilterID, &special->nparams, &special->_FilterParams);
+    stat = NC_parsefilterspec(sdata, &special->_FilterID, &special->nparams, &special->_FilterParams);
     if(stat)
         derror("Malformed filter spec: %s",sdata);
     return stat;
