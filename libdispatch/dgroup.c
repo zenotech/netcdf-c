@@ -174,12 +174,41 @@ int nc_inq_grp_full_ncid(int ncid, const char *full_name, int *grp_ncid)
     return ncp->dispatch->inq_grp_full_ncid(ncid,full_name,grp_ncid);
 }
 
-/*
-Note: because they are now defined for e.g. netcdf-3
-as well as netcdf-4, the following were moved.
-nc_inq_dimids => ddim.c
-nc_inq_varids => dvarinq.c
+
+/*! Get a list of varids associated with a group given a group ID.
+
+  @param[in] ncid    The ncid of the group in question.
+  @param[out] nvars  Pointer to memory to hold the number of variables in the group in question.
+  @param[out] varids Pointer to memory to hold the variable ids contained by the group in question.
+
+  @returns Error code or ::NC_NOERR for no error.
+
 */
+int nc_inq_varids(int ncid, int *nvars, int *varids)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+    if(stat != NC_NOERR) return stat;
+    return ncp->dispatch->inq_varids(ncid,nvars,varids);
+}
+
+/*! Retrieve a list of dimension ids associated with a group.
+
+  @param[in] ncid    The ncid of the group in question.
+  @param[out] ndims  Pointer to memory to contain the number of dimids associated with the group.
+  @param[out] dimids Pointer to memory to contain the number of dimensions associated with the group.
+  @param[in] include_parents If non-zero, parent groups are also traversed.
+
+  @returns Error code or ::NC_NOERR for no error.
+
+ */
+int nc_inq_dimids(int ncid, int *ndims, int *dimids, int include_parents)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+    if(stat != NC_NOERR) return stat;
+    return ncp->dispatch->inq_dimids(ncid,ndims,dimids,include_parents);
+}
 
 /*! Retrieve a list of types associated with a group
 

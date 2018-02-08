@@ -820,21 +820,4 @@ NC_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
       idp,nparamsp,params);
 }
 
-/*! Get a list of varids associated with a group given a group ID.
-
-  @param[in] ncid    The ncid of the group in question.
-  @param[out] nvars  Pointer to memory to hold the number of variables in the group in question.
-  @param[out] varids Pointer to memory to hold the variable ids contained by the group in question.
-
-  @returns Error code or ::NC_NOERR for no error.
-
-*/
-int nc_inq_varids(int ncid, int *nvars, int *varids)
-{
-    NC* ncp;
-    int stat = NC_check_id(ncid,&ncp);
-    if(stat != NC_NOERR) return stat;
-    return ncp->dispatch->inq_varids(ncid,nvars,varids);
-}
-
 /*! \} */  /* End of named group ...*/
