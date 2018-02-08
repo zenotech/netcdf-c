@@ -465,6 +465,25 @@ nc_inq_dimlen(int ncid, int dimid, size_t *lenp)
     return ncp->dispatch->inq_dim(ncid,dimid,NULL,lenp);
 }
 
+/*! Retrieve a list of dimension ids associated with an ncid.
+
+  @param[in] ncid    The ncid in question.
+  @param[out] ndims  Pointer to memory to contain the number of dimids associated with the group/file.
+  @param[out] dimids Pointer to memory to contain the number of dimensions associated with the group/file.
+  @param[in] include_parents If non-zero, parent groups are also traversed.
+
+  @returns Error code or ::NC_NOERR for no error.
+
+ */
+int
+nc_inq_dimids(int ncid, int *ndims, int *dimids, int include_parents)
+{
+    NC* ncp;
+    int stat = NC_check_id(ncid,&ncp);
+    if(stat != NC_NOERR) return stat;
+    return ncp->dispatch->inq_dimids(ncid,ndims,dimids,include_parents);
+}
+
 /*! \} */  /* End of named group ...*/
 
 /*! \} */ /* End of defgroup. */
