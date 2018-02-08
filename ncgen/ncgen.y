@@ -16,7 +16,9 @@ static char SccsId[] = "$Id: ncgen.y,v 1.42 2010/05/18 21:32:46 dmh Exp $";
 #include        "ncoffsets.h"
 #include        "ncgeny.h"
 #include        "ncgen.h"
+#ifdef USE_NETCDF4
 #include        "ncfilter.h"
+#endif
 
 /* Following are in ncdump (for now)*/
 /* Need some (unused) definitions to get it to compile */

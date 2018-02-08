@@ -1,5 +1,10 @@
-#ifndef HASHMAP_H_INCLUDED
-#define HASHMAP_H_INCLUDED
+/*********************************************************************
+ *   Copyright 1993, UCAR/Unidata
+ *   See netcdf/COPYRIGHT file for copying and redistribution conditions.
+ *   $Header$
+ *********************************************************************/
+#ifndef NCHASHMAP_H
+#define NCHASHMAP_H
 
 /*
 Data is presumed to be an index into some other table
@@ -61,4 +66,5 @@ extern size_t NC_hashmapcount(NC_hashmap*);
 /** Reclaims the hashmap structure. */
 extern int NC_hashmapfree(NC_hashmap*);
 
-#endif
+#endif /*NCHASHMAP_H*/
+
