@@ -18,6 +18,9 @@ See LICENSE.txt for license information.
 #include "nchashmap.h"
 #include "nc3internal.h"
 
+/* Prototype for the crc32 function */
+extern unsigned int NC_crc32(unsigned int crc, const unsigned char* buf, unsigned int len);
+
 #define VERIFY 
 
 #ifdef VERIFY
@@ -25,6 +28,8 @@ See LICENSE.txt for license information.
 #else
 #define ASSERT(x)
 #endif
+
+#define SEED 37
 
 /* See lookup3.c */
 extern unsigned int hash_fast(const void* key, size_t length);
@@ -59,17 +64,12 @@ rehash(NC_hashmap* hm)
     hm->count = 0;
 
     while(size > 0) {
-	--size;
-        if(oldtable[size].flags == ACTIVE) {
-            void* data = oldtable[size].data;
-	    char* key = oldtable[size].key;
-            NC_hashmapadd(hm, data, key);
-#ifdef VERIFY
-	    { void* data2;
-            ASSERT(NC_hashmapget(hm, key, &data2) == 1);
-	    ASSERT(data == data2);
-	    }
-#endif
+        NC_hentry* h = &oldtable[--size];
+        if(h->flags == ACTIVE) {
+            uintptr_t data = h->data;
+	    void* key = (void*)h->key; 
+	    size_t keysize = h->keysize;
+            NC_hashmapadd(hm, data, key, keysize);
         }
     }
     free(oldtable);
@@ -79,32 +79,34 @@ rehash(NC_hashmap* hm)
 /* Locate where given object is or should be placed in indexp.
    if fail to find spot return 0 else 1.
    If deletok then a deleted slot is ok to return;
-   If hashkeyp is non-null, then return hashkey
    return invariant: return == 0 || *indexp is defined 
  */
 static int
-locate(NC_hashmap* hash, const char* key, size_t* indexp, size_t* hashkeyp, int deletedok)
+locate(NC_hashmap* hash, unsigned int hashkey, void* key, size_t keysize, size_t* indexp, int deletedok)
 {
     size_t i;
-    size_t keylen = strlen(key);
-    size_t hashkey = hash_fast(key, keylen);
-    size_t index = hashkey % hash->size;
+    size_t index;
     size_t step = 1; /* simple linear probe */
     int deletefound = 0;
     size_t deletedindex = 0; /* first deleted entry encountered */
 
-    if(hashkeyp) *hashkeyp = hashkey;
+    /* Compute starting point */
+    index = (size_t)(hashkey % hash->size);
+
     /* Search table using linear probing */
     for (i = 0; i < hash->size; i++) {
-        NC_hentry entry = hash->table[index];
-        if(entry.flags & ACTIVE) {
-            if(entry.hashkey == hashkey
-               && strncmp(key,entry.key,keylen)==0) {
-		if(indexp) *indexp = index;
-		return 1;
+        NC_hentry* entry = &hash->table[index];
+        if(entry->flags & ACTIVE) {
+	    if(indexp) *indexp = index; /* assume a match */
+            if(entry->hashkey == hashkey && entry->keysize == keysize) {
+		/* Check content */
+		if(entry->iscontent && memcmp((void*)&entry->data,key,keysize)==0)
+		    return 1;
+		else if(memcmp((void*)entry->data,key,keysize)==0)
+		    return 1;
             }
 	    /* Keep looking */
-	} else if(entry.flags & DELETED) {
+	} else if(entry->flags & DELETED) {
 	    if(!deletefound) {/* save this position */
 	        deletefound = 1;
 		deletedindex = index;
@@ -143,14 +145,19 @@ NC_hashmapnew(size_t startsize)
 }
 
 int
-NC_hashmapadd(NC_hashmap* hash, void* data, const char* key)
+NC_hashmapadd(NC_hashmap* hash, uintptr_t data, void* key, size_t keysize)
 {
+    unsigned int hashkey;
+
+    if(key == NULL || keysize == 0)
+	return 0;
+    hashkey = NC_crc32(0,(unsigned char*)key,(unsigned int)keysize);
+
     if(hash->size*3/4 <= hash->count)
 	rehash(hash);
-
     for(;;) {
-	size_t index, hashkey;
-	if(!locate(hash,key,&index,&hashkey,1)) {
+	size_t index;
+	if(!locate(hash,hashkey,key,keysize,&index,1)) {
 	    rehash(hash);
 	    continue; /* try on larger table */
 	}
@@ -163,7 +170,12 @@ NC_hashmapadd(NC_hashmap* hash, void* data, const char* key)
 	    entry->flags = ACTIVE;
 	    entry->data = data;
 	    entry->hashkey = hashkey;
-	    entry->key = (char*)key;
+	    entry->keysize = keysize;
+	    if(keysize < sizeof(uintptr_t)) {/* store a copy */
+		memcpy((void*)entry->key,key,keysize);
+	    } else {
+		entry->key = (uintptr_t)key;
+	    }
 	    ++hash->count;
 	    return 1;
 	}
@@ -172,35 +184,48 @@ NC_hashmapadd(NC_hashmap* hash, void* data, const char* key)
 }
 
 int
-NC_hashmapremove(NC_hashmap* hash, const char* key, void** datap)
+NC_hashmapremove(NC_hashmap* hash, void* key, size_t keysize, uintptr_t* datap)
 {
+    unsigned int hashkey;
     size_t index;
-    NC_hentry entry;
-    if(!locate(hash,key,&index,NULL,0))
-	return 0; /* not present */
-    entry = hash->table[index];
+    NC_hentry* h;
 
-    if(entry.flags & ACTIVE) { /* matching entry found */
-	hash->table[index].flags = DELETED; /* also turn off ACTIVE */
-	hash->table[index].key = NULL;
+    if(key == NULL || keysize == 0)
+	return 0;
+
+    hashkey = NC_crc32(0,(unsigned char*)key,(unsigned int)keysize);
+    if(!locate(hash,hashkey,key,keysize,&index,0))
+	return 0; /* not present */
+    h = &hash->table[index];
+    if(h->flags & ACTIVE) { /* matching entry found */
+	h->flags = DELETED; /* also turn off ACTIVE */
+	h->key = (uintptr_t)NULL;
+	h->keysize = 0;
 	--hash->count;
-	if(datap) *datap = hash->table[index].data;
+	if(datap) *datap = h->data;
 	return 1;
     } else /* !ACTIVE && !DELETED => not in table*/
 	return 0;
 }
 
 int
-NC_hashmapget(NC_hashmap* hash, const char* key, void** datap)
+NC_hashmapget(NC_hashmap* hash, void* key, size_t keysize, uintptr_t* datap)
 {
+    unsigned int hashkey;
+    if(key == NULL || keysize == 0)
+	return 0;
+    hashkey = NC_crc32(0,(unsigned char*)key,(unsigned int)keysize);
     if(hash->count) {
         size_t index;
-        NC_hentry entry;
-        if(!locate(hash,key,&index,NULL,0))
+        NC_hentry* h;
+        if(!locate(hash,hashkey,key,keysize,&index,0))
 	    return 0; /* not present */
-	entry = hash->table[index];
-	if(entry.flags & ACTIVE) {
-	    if(datap) *datap = entry.data;
+	h = &hash->table[index];
+	if(h->flags & ACTIVE) {
+	    if(datap) *datap = h->data;
+#ifdef VERIFY64
+	    assert((keysize == h->keysize && memcmp(h->key,key,keysize) != 0));
+#endif
 	    return 1;
         } else /* Not found */
 	    return 0;
@@ -212,17 +237,22 @@ NC_hashmapget(NC_hashmap* hash, const char* key, void** datap)
     Return 1 if found, 0 otherwise
 */
 int
-NC_hashmapsetdata(NC_hashmap* hash, const char* key, void* newdata)
+NC_hashmapsetdata(NC_hashmap* hash, void* key, size_t keysize, uintptr_t newdata)
 {
     size_t index;
-    NC_hentry* entry;
-    if(hash == NULL || hash->count == 0 || key == NULL)
+    NC_hentry* h;
+    unsigned int hashkey;
+
+    if(key == NULL || keysize == 0)
+	return 0;
+    hashkey = NC_crc32(0,(unsigned char*)key,(unsigned int)keysize);
+    if(hash == NULL || hash->count == 0)
 	return 0; /* no such entry */
-    if(!locate(hash,key,&index,NULL,0))
+    if(!locate(hash,hashkey,key,keysize,&index,0))
         return 0; /* not present */
-    entry = &hash->table[index];
-    assert((entry->flags & ACTIVE) == ACTIVE);
-    entry->data = newdata;
+    h = &hash->table[index];
+    assert((h->flags & ACTIVE) == ACTIVE);
+    h->data = newdata;
     return 1;    
 }
 
@@ -1959,18 +1989,9 @@ printhashmap(NC_hashmap* hm)
     }
     for(i=0;i<hm->size;i++) {
 	NC_hentry e = hm->table[i];
-	if(e.flags == ACTIVE && e.key == NULL) {
-	    fprintf(stderr,"[%ld] flags=ACTIVE hashkey=%lu data=%p key=NULL\n",
-		(unsigned long)i,(unsigned long)e.hashkey,e.data);
-	} else if(e.flags == ACTIVE && e.key != NULL) {
-	    char nm[64];
-	    int elided = 0;
-	    size_t len = strlen(e.key);
-	    if(len > 63) {elided = 1; len = 63;}
-	    memcpy(nm,e.key,len);
-	    nm[63] = '\0';
-	    fprintf(stderr,"[%ld] flags=ACTIVE hashkey=%lu data=%p key=0x%lx |%s|%s\n",
-			(unsigned long)i, (unsigned long)e.hashkey, e.data,(unsigned long)((uintptr_t)nm),e.key,(elided?"...":""));
+	if(e.flags == ACTIVE) {
+	    fprintf(stderr,"[%ld] flags=ACTIVE hashkey=%lu data=%p\n",
+		(unsigned long)i,(unsigned long)e.hashkey,(void*)e.data);
 	} else if(e.flags == DELETED) {
 	    fprintf(stderr,"[%ld] flags=DELETED hashkey=%lu\n",
 		(unsigned long)i,(unsigned long)e.hashkey);
@@ -1980,3 +2001,14 @@ printhashmap(NC_hashmap* hm)
     }
     fflush(stderr);
 }
+
+#if 0
+static unsigned int
+NC_hashmapkey(void* data, size_t size)
+{
+    if(data == NULL || size == 0)
+	return 0;
+    return NC_crc32(0,(unsigned char*)key,(unsigned int)keysize);
+}
+#endif
+

@@ -31,7 +31,8 @@
 int
 NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
 {
-   NC_GRP_INFO_T *grp;
+   NC_GRP_INFO_T *parent_grp;
+   NC_GRP_INFO_T *subgrp;
    NC_HDF5_FILE_INFO_T *h5;
    char norm_name[NC_MAX_NAME + 1];
    int retval;
@@ -39,7 +40,7 @@ NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
    LOG((2, "%s: parent_ncid 0x%x name %s", __func__, parent_ncid, name));
 
    /* Find info for this file and group, and set pointer to each. */
-   if ((retval = nc4_find_grp_h5(parent_ncid, &grp, &h5)))
+   if ((retval = nc4_find_grp_h5(parent_ncid, &parent_grp, &h5)))
       return retval;
    assert(h5);
 
@@ -48,7 +49,7 @@ NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
       return retval;
 
    /* Check that this name is not in use as a var, grp, or type. */
-   if ((retval = nc4_check_dup_name(grp, norm_name)))
+   if ((retval = nc4_check_dup_name(parent_grp, norm_name)))
       return retval;
 
    /* No groups in netcdf-3! */
@@ -63,13 +64,12 @@ NC4_def_grp(int parent_ncid, const char *name, int *new_ncid)
    /* Update internal lists to reflect new group. The actual HDF5
     * group creation will be done when metadata is written by a
     * sync. */
-   if ((retval = nc4_grp_list_add(&(grp->children), h5->next_nc_grpid, 
-				  grp, grp->nc4_info->controller, norm_name, NULL)))
+   if ((retval = nc4_grp_new(parent_grp, norm_name, &subgrp)))
+      return retval;
+   if ((retval = nc4_grp_list_add(h5, subgrp)))
       return retval;
    if (new_ncid)
-      *new_ncid = grp->nc4_info->controller->ext_ncid | h5->next_nc_grpid;
-   h5->next_nc_grpid++;
-   
+      *new_ncid = parent_grp->nc4_info->controller->ext_ncid | subgrp->nc_grpid;
    return NC_NOERR;
 }
 
@@ -189,14 +189,13 @@ NC4_inq_ncid(int ncid, const char *name, int *grp_ncid)
       return retval;
 
    /* Look through groups for one of this name. */
-   for (g = grp->children; g; g = g->l.next)
-      if (!strcmp(norm_name, g->name)) /* found it! */
-      {
+   g = (NC_GRP_INFO_T*)NC_listmap_get(&grp->children,norm_name);
+   if(g != NULL) {
 	 if (grp_ncid)
 	    *grp_ncid = grp->nc4_info->controller->ext_ncid | g->nc_grpid;
 	 return NC_NOERR;
-      }
-   
+   }
+
    /* If we got here, we didn't find the named group. */
    return NC_ENOGRP;
 }
@@ -220,6 +219,7 @@ NC4_inq_grps(int ncid, int *numgrps, int *ncids)
    NC_HDF5_FILE_INFO_T *h5;
    int num = 0;
    int retval;
+   size_t iter;
 
    LOG((2, "nc_inq_grps: ncid 0x%x", ncid));
 
@@ -228,8 +228,8 @@ NC4_inq_grps(int ncid, int *numgrps, int *ncids)
       return retval;
    assert(h5);
 
-   /* Count the number of groups in this group. */
-   for (g = grp->children; g; g = g->l.next)
+   /* Count the number of groups in this group and record the ncids for them */
+   for(iter=0;NC_listmap_next(&grp->children,iter,(NC_OBJ**)&g);iter++)
    {
       if (ncids)
       {
@@ -480,7 +480,7 @@ NC4_inq_varids(int ncid, int *nvars, int *varids)
    NC_VAR_INFO_T *var;
    int num_vars = 0;
    int retval;
-   int i;
+   size_t iter;
 
    LOG((2, "nc_inq_varids: ncid 0x%x", ncid));
 
@@ -491,12 +491,11 @@ NC4_inq_varids(int ncid, int *nvars, int *varids)
 
    /* This is a netCDF-4 group. Round up them doggies and count
     * 'em. The list is in correct (i.e. creation) order. */
-   for (i=0; i < grp->vars.nelems; i++)
+   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
    {
-      var = grp->vars.value[i];
       if (!var) continue;
       if (varids)
-         varids[num_vars] = var->varid;
+         varids[num_vars] = var->hdr.id;
       num_vars++;
    }
 
@@ -519,7 +518,8 @@ NC4_inq_varids(int ncid, int *nvars, int *varids)
  * @return a - b
  * @author Ed Hartnett
 */
-int int_cmp(const void *a, const void *b)
+int
+int_cmp(const void *a, const void *b)
 {
    const int *ia = (const int *)a; 
    const int *ib = (const int *)b;
@@ -559,28 +559,28 @@ NC4_inq_dimids(int ncid, int *ndims, int *dimids, int include_parents)
    assert(h5);
 
    /* First count them. */
-   for (dim = grp->dim; dim; dim = dim->l.next)
-      num++;
-   if (include_parents)
-      for (g = grp->parent; g; g = g->parent)
-         for (dim = g->dim; dim; dim = dim->l.next)
-            num++;
-   
+   num = NC_listmap_size(&grp->dim); /* Count # in this group */
+   if (include_parents) {
+	 for (g = grp->parent; g; g = g->parent)
+	    num += NC_listmap_size(&g->dim); /* Count # in parent group */
+   }
    /* If the user wants the dimension ids, get them. */
    if (dimids)
    {
+      size_t iter;
       int n = 0;
       
       /* Get dimension ids from this group. */
-      for (dim = grp->dim; dim; dim = dim->l.next)
-         dimids[n++] = dim->dimid;
+      for(iter=0;NC_listmap_next(&grp->dim,iter,(NC_OBJ**)&dim);iter++)
+          dimids[n++] = dim->hdr.id;
       
       /* Get dimension ids from parent groups. */
-      if (include_parents)
-         for (g = grp->parent; g; g = g->parent)
-            for (dim = g->dim; dim; dim = dim->l.next)
-               dimids[n++] = dim->dimid;
-      
+      if (include_parents) {
+         for (g = grp->parent; g; g = g->parent) {
+	    for(iter=0;NC_listmap_next(&g->dim,iter,(NC_OBJ**)&dim);iter++)
+               dimids[n++] = dim->hdr.id;
+	 }
+      }      
       qsort(dimids, num, sizeof(int), int_cmp);
    }
 

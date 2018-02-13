@@ -230,7 +230,7 @@ free_NC_vararrayV(NC_vararray *ncap)
 	if(ncap->nalloc == 0)
 		return;
 
-	NC_hashmapDelete(ncap->hashmap);
+	NC_hashmapfree(ncap->hashmap);
 	ncap->hashmap = NULL;
 
 	assert(ncap->value != NULL);
@@ -310,7 +310,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 		ncap->value = vp;
 		ncap->nalloc = NC_ARRAY_GROWBY;
 
-		ncap->hashmap = NC_hashmapCreate(0);
+		ncap->hashmap = NC_hashmapnew(0);
 	}
 	else if(ncap->nelems +1 > ncap->nalloc)
 	{
@@ -324,7 +324,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 
 	if(newelemp != NULL)
 	{
-		NC_hashmapAddVar(ncap, (long)ncap->nelems, newelemp->name->cp);
+		NC_hashmapadd(ncap->hashmap, (uintptr_t)ncap->nelems, newelemp->name->cp, newelemp->name->nchars);
 		ncap->value[ncap->nelems] = newelemp;
 		ncap->nelems++;
 	}
@@ -359,7 +359,8 @@ NC_hvarid
 int
 NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
 {
-	int hash_var_id;
+	uintptr_t hash_var_id;
+	uintptr_t data;
 	char *name;
 	int stat;
 
@@ -374,7 +375,9 @@ NC_findvar(const NC_vararray *ncap, const char *uname, NC_var **varpp)
         if(stat != NC_NOERR)
 	    return stat;
 
-	hash_var_id = (int)NC_hashmapGetVar(ncap, name);
+	if(NC_hashmapget(ncap->hashmap, name, strlen(name), &data) == 0)
+	    return -1;
+	hash_var_id = data;
 	free(name);
 	if (hash_var_id >= 0) {
 	  if (varpp != NULL)
@@ -737,6 +740,7 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 	int status;
 	NC *nc;
 	NC3_INFO* ncp;
+	uintptr_t intdata;
 	NC_var *varp;
 	NC_string *old, *newStr;
 	int other;
@@ -778,29 +782,36 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 	if(NC_indef(ncp))
 	{
 		/* Remove old name from hashmap; add new... */
-		NC_hashmapRemoveVar(&ncp->vars, old->cp);
-
+		NC_hashmapremove(ncp->vars.hashmap,old->cp,old->nchars,NULL);
 		newStr = new_NC_string(strlen(newname),newname);
 		free(newname);
 		if(newStr == NULL)
-			return(-1);
+		    return(-1);
 		varp->name = newStr;
-		NC_hashmapAddVar(&ncp->vars, varid, newStr->cp);
+		intdata = (uintptr_t)varid;
+		NC_hashmapadd(ncp->vars.hashmap, intdata, varp->name->cp, varp->name->nchars);
 		free_NC_string(old);
-
 		return NC_NOERR;
 	}
 
 	/* else, not in define mode */
+	/* If new name is longer than old, then complain,
+           but otherwise, no change (test is same as set_NC_string)*/
+	if(varp->name->nchars < strlen(newname)) {
+	    free(newname);
+	    return NC_ENOTINDEFINE;
+	}
 	/* Remove old name from hashmap; add new... */
-	NC_hashmapRemoveVar(&ncp->vars, old->cp);
+        NC_hashmapremove(ncp->vars.hashmap,old->cp,old->nchars,NULL);
 
 	status = set_NC_string(varp->name, newname);
 	free(newname);
+
 	if(status != NC_NOERR)
 		return status;
 
-	NC_hashmapAddVar(&ncp->vars, varid, varp->name->cp);
+	intdata = (uintptr_t)varid;
+	NC_hashmapadd(ncp->vars.hashmap, intdata, varp->name->cp, varp->name->nchars);
 
 	set_NC_hdirty(ncp);
 

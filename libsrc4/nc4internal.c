@@ -15,11 +15,18 @@
  *
  * @author Ed Hartnett
  */
+
+/* TODO: a bunch of the iteration based actions should
+be changeable if we have both name+id hash tables
+*/
+
+
 #include "config.h"
 #include "nc4internal.h"
 #include "nc.h" /* from libsrc */
 #include "ncdispatch.h" /* from libdispatch */
 #include "ncutf8.h"
+#include "nclistmap.h"
 #include "H5DSpublic.h"
 
 #undef DEBUGH5
@@ -109,10 +116,6 @@ nc4_check_name(const char *name, char *norm_name)
 
    assert(norm_name);
 
-   /* Check for NULL. */
-   if (!name)
-      return NC_EINVAL;
-
    /* Check the length. */
    if (strlen(name) > NC_MAX_NAME)
       return NC_EMAXNAME;
@@ -163,11 +166,11 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen
    *maxlen = 0;
 
    /* Find this var. */
-   if (varid < 0 || varid >= grp->vars.nelems)
-      return NC_ENOTVAR;
-   var = grp->vars.value[varid];
+   if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
+     return NC_ENOTVAR;
+   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
-   assert(var->varid == varid);
+   assert(var->hdr.id == varid);
 
    /* If the var hasn't been created yet, its size is 0. */
    if (!var->created)
@@ -177,7 +180,7 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen
    else
    {
       /* Get the number of records in the dataset. */
-      if ((retval = nc4_open_var_grp2(grp, var->varid, &datasetid)))
+      if ((retval = nc4_open_var_grp2(grp, var->hdr.id, &datasetid)))
          BAIL(retval);
       if ((spaceid = H5Dget_space(datasetid)) < 0)
          BAIL(NC_EHDFERR);
@@ -185,7 +188,7 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen
       /* If it's a scalar dataset, it has length one. */
       if (H5Sget_simple_extent_type(spaceid) == H5S_SCALAR)
       {
-         *maxlen = (var->dimids && var->dimids[0] == dimid) ? 1 : 0;
+         *maxlen = (var->dim.dimids && var->dim.dimids[0] == dimid) ? 1 : 0;
       }
       else
       {
@@ -193,7 +196,7 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen
             dim in the space. */
          if ((dataset_ndims = H5Sget_simple_extent_ndims(spaceid)) < 0)
             BAIL(NC_EHDFERR);
-         if (dataset_ndims != var->ndims)
+         if (dataset_ndims != var->dim.ndims)
             BAIL(NC_EHDFERR);
          if (!(h5dimlen = malloc(dataset_ndims * sizeof(hsize_t))))
             BAIL(NC_ENOMEM);
@@ -205,7 +208,7 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen
          LOG((5, "find_var_dim_max_length: varid %d len %d max: %d",
               varid, (int)h5dimlen[0], (int)h5dimlenmax[0]));
          for (d=0; d<dataset_ndims; d++) {
-            if (var->dimids[d] == dimid) {
+            if (var->dim.dimids[d] == dimid) {
                *maxlen = *maxlen > h5dimlen[d] ? *maxlen : h5dimlen[d];
             }
          }
@@ -235,6 +238,7 @@ int
 nc4_nc4f_list_add(NC *nc, const char *path, int mode)
 {
    NC_HDF5_FILE_INFO_T *h5;
+   int ret = NC_NOERR;
 
    assert(nc && !NC4_DATA(nc) && path);
 
@@ -248,15 +252,24 @@ nc4_nc4f_list_add(NC *nc, const char *path, int mode)
    /* Hang on to cmode, and note that we're in define mode. */
    h5->cmode = mode | NC_INDEF;
 
-   /* The next_typeid needs to be set beyond the end of our atomic
-    * types. */
-   h5->next_typeid = NC_FIRSTUSERTYPEID;
+   /* Establish the global type,dim, and group vectors */
+   h5->alldims = nclistnew();
+   h5->allgroups = nclistnew();
+   h5->allvars = nclistnew();
+   h5->alltypes = nclistnew();
+   { /* Add null entries for the atomic types */
+      int i;
+      for(i=0;i<NC_FIRSTUSERTYPEID;i++)
+	nclistpush(h5->alltypes,NULL);
+   }
 
    /* There's always at least one open group - the root
     * group. Allocate space for one group's worth of information. Set
     * its hdf id, name, and a pointer to it's file structure. */
-   return nc4_grp_list_add(&(h5->root_grp), h5->next_nc_grpid++,
-                           NULL, nc, NC_GROUP_NAME, NULL);
+   ret = nc4_grp_new(NULL, NC_GROUP_NAME, &h5->root_grp);
+   if(ret == NC_NOERR)
+     ret = nc4_grp_list_add(h5, h5->root_grp);
+   return ret;
 }
 
 /**
@@ -277,6 +290,7 @@ nc4_find_nc4_grp(int ncid, NC_GRP_INFO_T **grp)
 {
    NC_HDF5_FILE_INFO_T* h5;
    NC *f = nc4_find_nc_file(ncid,&h5);
+
    if(f == NULL) return NC_EBADID;
 
    /* No netcdf-3 files allowed! */
@@ -371,6 +385,8 @@ nc4_find_nc_grp_h5(int ncid, NC **nc, NC_GRP_INFO_T **grpp,
 
 /**
  * @internal Recursively hunt for a group id.
+ * @Note: if the goal is to find a specific grpid,
+ *        then we should be able to extract it from h5->all_grps
  *
  * @param start_grp Pointer to group where search should be started.
  * @param target_nc_grpid Group ID to be found.
@@ -390,11 +406,13 @@ nc4_rec_find_grp(NC_GRP_INFO_T *start_grp, int target_nc_grpid)
       return start_grp;
 
    /* Shake down the kids. */
-   if (start_grp->children)
-      for (g = start_grp->children; g; g = g->l.next)
+   if (NC_listmap_size(&start_grp->children) > 0) {
+      size_t giter;
+      for(giter=0;NC_listmap_next(&start_grp->children,giter,(NC_OBJ**)&g);giter++) {
          if ((res = nc4_rec_find_grp(g, target_nc_grpid)))
             return res;
-
+	 }
+   }
    /* Can't find it. Fate, why do you mock me? */
    return NULL;
 }
@@ -427,9 +445,9 @@ nc4_find_g_var_nc(NC *nc, int ncid, int varid,
       return NC_EBADID;
 
    /* Find the var info. */
-   if (varid < 0 || varid >= (*grp)->vars.nelems)
+   if (varid < 0 || varid >= NC_listmap_size(&((*grp)->vars)))
       return NC_ENOTVAR;
-   (*var) = (*grp)->vars.value[varid];
+   (*var) = (NC_VAR_INFO_T*)NC_listmap_iget(&((*grp)->vars),varid);
 
    return NC_NOERR;
 }
@@ -447,31 +465,38 @@ nc4_find_g_var_nc(NC *nc, int ncid, int varid,
  * @author Ed Hartnett
  */
 int
-nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dim,
-             NC_GRP_INFO_T **dim_grp)
+nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dimp,
+             NC_GRP_INFO_T **dim_grpp)
 {
    NC_GRP_INFO_T *g, *dg = NULL;
    int finished = 0;
+   NC_DIM_INFO_T* d;
+   NC_HDF5_FILE_INFO_T* h5;
 
-   assert(grp && dim);
+   assert(grp && dimp);
 
-   /* Find the dim info. */
-   for (g = grp; g && !finished; g = g->parent)
-      for ((*dim) = g->dim; (*dim); (*dim) = (*dim)->l.next)
-         if ((*dim)->dimid == dimid)
-         {
-            dg = g;
-            finished++;
-            break;
-         }
-
-   /* If we didn't find it, return an error. */
-   if (!(*dim))
+   /* Find the dim info via dimid */
+   h5 = grp->nc4_info;
+   d = nclistget(h5->alldims,dimid);
+   if(d == NULL)
       return NC_EBADDIM;
+   /* Now search grp and its parents looking for this dim by name */
+   dg = NULL;
+   for (g = grp; g && !finished; g = g->parent) {
+      NC_DIM_INFO_T* tmpd = (NC_DIM_INFO_T*)NC_listmap_get(&g->dim,d->hdr.name);
+      if(tmpd != NULL && tmpd->hdr.id == d->hdr.id) {
+	dg = g;
+	break;
+      }
+   }
+   /* If we didn't find it, return an error. */
+   if (dg == NULL)
+     return NC_EBADDIM;
 
+   if(dimp) *dimp = d;
    /* Give the caller the group the dimension is in. */
-   if (dim_grp)
-      *dim_grp = dg;
+   if (dim_grpp)
+      *dim_grpp = dg;
 
    return NC_NOERR;
 }
@@ -487,18 +512,21 @@ nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dim,
  * @author Ed Hartnett
  */
 int
-nc4_find_var(NC_GRP_INFO_T *grp, const char *name, NC_VAR_INFO_T **var)
+nc4_find_var(NC_GRP_INFO_T *grp, const char *name, NC_VAR_INFO_T **varp)
 {
-   int i;
+   size_t iter;
+   NC_VAR_INFO_T* var = NULL;
+
    assert(grp && var && name);
 
    /* Find the var info. */
-   *var = NULL;
-   for (i=0; i < grp->vars.nelems; i++)
+   /* TODO: why can we not directly find by name? */
+   *varp = NULL;
+   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
    {
-      if (0 == strcmp(name, grp->vars.value[i]->name))
+      if (0 == strcmp(name, var->hdr.name))
       {
-         *var = grp->vars.value[i];
+         *varp = var;
          break;
       }
    }
@@ -520,11 +548,12 @@ nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid)
    NC_GRP_INFO_T *g;
    NC_TYPE_INFO_T *type, *res;
    htri_t equal;
+   size_t iter;
 
    assert(start_grp);
 
    /* Does this group have the type we are searching for? */
-   for (type = start_grp->type; type; type = type->l.next)
+   for(iter=0;NC_listmap_next(&start_grp->type,iter,(NC_OBJ**)&type);iter++)
    {
       if ((equal = H5Tequal(type->native_hdf_typeid ? type->native_hdf_typeid : type->hdf_typeid, target_hdf_typeid)) < 0)
          return NULL;
@@ -533,11 +562,13 @@ nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid)
    }
 
    /* Shake down the kids. */
-   if (start_grp->children)
-      for (g = start_grp->children; g; g = g->l.next)
+   if (NC_listmap_size(&start_grp->children) > 0) {
+      size_t giter;
+      for(giter=0;NC_listmap_next(&start_grp->children,giter,(NC_OBJ**)&g);giter++) {
          if ((res = nc4_rec_find_hdf_type(g, target_hdf_typeid)))
             return res;
-
+      }
+   }
    /* Can't find it. Fate, why do you mock me? */
    return NULL;
 }
@@ -556,19 +587,23 @@ nc4_rec_find_named_type(NC_GRP_INFO_T *start_grp, char *name)
 {
    NC_GRP_INFO_T *g;
    NC_TYPE_INFO_T *type, *res;
+   size_t iter;
 
    assert(start_grp);
 
    /* Does this group have the type we are searching for? */
-   for (type = start_grp->type; type; type = type->l.next)
-      if (!strcmp(type->name, name))
+   for(iter=0;NC_listmap_next(&start_grp->type,iter,(NC_OBJ**)&type);iter++) {
+      if (!strcmp(type->hdr.name, name))
          return type;
+   }
 
    /* Search subgroups. */
-   if (start_grp->children)
-      for (g = start_grp->children; g; g = g->l.next)
+   if (NC_listmap_size(&start_grp->children) > 0) {
+      for(iter=0;NC_listmap_next(&start_grp->children,iter,(NC_OBJ**)&g);iter++) {
          if ((res = nc4_rec_find_named_type(g, name)))
             return res;
+      }
+   }
 
    /* Can't find it. Oh, woe is me! */
    return NULL;
@@ -584,23 +619,24 @@ nc4_rec_find_named_type(NC_GRP_INFO_T *start_grp, char *name)
  * @author Ed Hartnett
  */
 NC_TYPE_INFO_T *
-nc4_rec_find_nc_type(const NC_GRP_INFO_T *start_grp, nc_type target_nc_typeid)
+nc4_rec_find_nc_type(NC_GRP_INFO_T *start_grp, nc_type target_nc_typeid)
 {
    NC_TYPE_INFO_T *type;
+   size_t iter;
 
    assert(start_grp);
 
    /* Does this group have the type we are searching for? */
-   for (type = start_grp->type; type; type = type->l.next)
-      if (type->nc_typeid == target_nc_typeid)
-         return type;
+   type = (NC_TYPE_INFO_T*)NC_listmap_iget(&start_grp->type,target_nc_typeid);
+   if(type != NULL)
+	return type;
 
    /* Shake down the kids. */
-   if (start_grp->children)
+   if (NC_listmap_size(&start_grp->children) > 0)
    {
       NC_GRP_INFO_T *g;
 
-      for (g = start_grp->children; g; g = g->l.next)
+      for(iter=0;NC_listmap_next(&start_grp->children,iter,(NC_OBJ**)&g);iter++)
       {
          NC_TYPE_INFO_T *res;
 
@@ -661,27 +697,27 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
    NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
    int retval;
-   int i;
+   size_t iter;
 
    assert(grp && len);
    LOG((3, "nc4_find_dim_len: grp->name %s dimid %d", grp->name, dimid));
 
    /* If there are any groups, call this function recursively on
     * them. */
-   for (g = grp->children; g; g = g->l.next)
+   for(iter=0;NC_listmap_next(&grp->children,iter,(NC_OBJ**)&g);iter++) {
       if ((retval = nc4_find_dim_len(g, dimid, len)))
          return retval;
+   }
 
    /* For all variables in this group, find the ones that use this
     * dimension, and remember the max length. */
-   for (i=0; i < grp->vars.nelems; i++)
+   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
    {
       size_t mylen;
-      var = grp->vars.value[i];
       if (!var) continue;
 
       /* Find max length of dim in this variable... */
-      if ((retval = find_var_dim_max_length(grp, var->varid, dimid, &mylen)))
+      if ((retval = find_var_dim_max_length(grp, var->hdr.id, dimid, &mylen)))
          return retval;
 
       **len = **len > mylen ? **len : mylen;
@@ -706,10 +742,10 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
  */
 int
 nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
-                 NC_ATT_INFO_T **att)
+                 NC_ATT_INFO_T **attp)
 {
    NC_VAR_INFO_T *var;
-   NC_ATT_INFO_T *attlist = NULL;
+   NC_listmap *attlist = NULL;
 
    assert(grp && grp->name);
    LOG((4, "nc4_find_grp_att: grp->name %s varid %d name %s attnum %d",
@@ -717,27 +753,30 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
 
    /* Get either the global or a variable attribute list. */
    if (varid == NC_GLOBAL)
-      attlist = grp->att;
+      attlist = &grp->att;
    else
    {
-      if (varid < 0 || varid >= grp->vars.nelems)
-         return NC_ENOTVAR;
-      var = grp->vars.value[varid];
+      if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
+	return NC_ENOTVAR;
+      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
-      attlist = var->att;
-      assert(var->varid == varid);
+      attlist = &var->att;
+      assert(var->hdr.id == varid);
    }
 
    /* Now find the attribute by name or number. If a name is provided,
     * ignore the attnum. */
-   if(attlist)
-      for (*att = attlist; *att; *att = (*att)->l.next) {
-         if (name && (*att)->name && !strcmp((*att)->name, name))
+   if(attlist) {
+      size_t iter;
+      NC_ATT_INFO_T* att;
+      for(iter=0;NC_listmap_next(attlist,iter,(NC_OBJ**)&att);iter++) {
+         if(attp) *attp = att;
+         if (name && att->hdr.name && !strcmp(att->hdr.name, name))
             return NC_NOERR;
-         if (!name && (*att)->attnum == attnum)
+         if (!name && att->hdr.id == attnum)
             return NC_NOERR;
       }
-
+   }
    /* If we get here, we couldn't find the attribute. */
    return NC_ENOTATT;
 }
@@ -759,13 +798,15 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
  */
 int
 nc4_find_nc_att(int ncid, int varid, const char *name, int attnum,
-                NC_ATT_INFO_T **att)
+                NC_ATT_INFO_T **attp)
 {
-   NC_GRP_INFO_T *grp;
-   NC_HDF5_FILE_INFO_T *h5;
-   NC_VAR_INFO_T *var;
-   NC_ATT_INFO_T *attlist = NULL;
+   NC_GRP_INFO_T *grp = NULL;
+   NC_HDF5_FILE_INFO_T *h5 = NULL;
+   NC_VAR_INFO_T *var = NULL;
+   NC_ATT_INFO_T *att = NULL;
+   NC_listmap* attlist = NULL;
    int retval;
+   size_t iter;
 
    LOG((4, "nc4_find_nc_att: ncid 0x%x varid %d name %s attnum %d",
         ncid, varid, name, attnum));
@@ -777,23 +818,25 @@ nc4_find_nc_att(int ncid, int varid, const char *name, int attnum,
 
    /* Get either the global or a variable attribute list. */
    if (varid == NC_GLOBAL)
-      attlist = grp->att;
+      attlist = &grp->att;
    else
    {
-      if (varid < 0 || varid >= grp->vars.nelems)
-         return NC_ENOTVAR;
-      var = grp->vars.value[varid];
+      if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
+	return NC_ENOTVAR;
+      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
-      attlist = var->att;
-      assert(var->varid == varid);
+      attlist = &var->att;
+      assert(var->hdr.id == varid);
    }
 
    /* Now find the attribute by name or number. If a name is provided, ignore the attnum. */
-   for (*att = attlist; *att; *att = (*att)->l.next)
-      if ((name && !strcmp((*att)->name, name)) ||
-          (!name && (*att)->attnum == attnum))
+   for(iter=0;NC_listmap_next(attlist,iter,(NC_OBJ**)att);iter++) {
+      if ((name && !strcmp(att->hdr.name, name)) ||
+          (!name && att->hdr.id == attnum)) {
+	 if(attp) *attp = att;
          return NC_NOERR;
-
+      }
+   }
    /* If we get here, we couldn't find the attribute. */
    return NC_ENOTATT;
 }
@@ -825,88 +868,6 @@ nc4_find_nc_file(int ext_ncid, NC_HDF5_FILE_INFO_T** h5p)
 }
 
 /**
- * @internal Add object to the end of a list.
- *
- * @param list List
- * @param obj Pointer to object to add.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-static void
-obj_list_add(NC_LIST_NODE_T **list, NC_LIST_NODE_T *obj)
-{
-   /* Go to the end of the list and set the last one to point at object,
-    * or, if the list is empty, our new object becomes the list. */
-   if(*list)
-   {
-      NC_LIST_NODE_T *o;
-
-      for (o = *list; o; o = o->next)
-         if (!o->next)
-            break;
-      o->next = obj;
-      obj->prev = o;
-   }
-   else
-      *list = obj;
-}
-
-/**
- * @internal Remove object from a list.
- *
- * @param list List
- * @param obj Pointer to object to delete.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-static void
-obj_list_del(NC_LIST_NODE_T **list, NC_LIST_NODE_T *obj)
-{
-   /* Remove the var from the linked list. */
-   if(*list == obj)
-      *list = obj->next;
-   else
-      ((NC_LIST_NODE_T *)obj->prev)->next = obj->next;
-
-   if(obj->next)
-      ((NC_LIST_NODE_T *)obj->next)->prev = obj->prev;
-}
-
-/**
- * @internal Return a pointer to the new var.
- *
- * @param var Pointer to pointer that gets variable info struct.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_ENOMEM Out of memory.
- * @author Ed Hartnett
- */
-int
-nc4_var_add(NC_VAR_INFO_T **var)
-{
-   NC_VAR_INFO_T *new_var;
-
-   /* Allocate storage for new variable. */
-   if (!(new_var = calloc(1, sizeof(NC_VAR_INFO_T))))
-      return NC_ENOMEM;
-
-   /* These are the HDF5-1.8.4 defaults. */
-   new_var->chunk_cache_size = nc4_chunk_cache_size;
-   new_var->chunk_cache_nelems = nc4_chunk_cache_nelems;
-   new_var->chunk_cache_preemption = nc4_chunk_cache_preemption;
-
-   /* Set the var pointer, if one was given */
-   if (var)
-      *var = new_var;
-   else
-      free(new_var);
-
-   return NC_NOERR;
-}
-
-/**
  * @internal Add to the beginning of a dim list.
  *
  * @param list List of dimension info structs.
@@ -916,20 +877,79 @@ nc4_var_add(NC_VAR_INFO_T **var)
  * @author Ed Hartnett
  */
 int
-nc4_dim_list_add(NC_DIM_INFO_T **list, NC_DIM_INFO_T **dim)
+nc4_dim_list_add(NC_GRP_INFO_T* parent, NC_DIM_INFO_T *new_dim)
 {
-   NC_DIM_INFO_T *new_dim;
+   NC_HDF5_FILE_INFO_T* h5 = parent->nc4_info;
 
-   if (!(new_dim = calloc(1, sizeof(NC_DIM_INFO_T))))
+   new_dim->hdr.id = nc4_dim_nextid(h5);
+
+   /* Add object to lists */
+   nclistpush(h5->alldims, new_dim);
+   NC_listmap_add(&parent->dim, (NC_OBJ*)new_dim);
+
+   return NC_NOERR;
+}
+
+/* Create an instance of NC_ATT_INFO_T; value not set*/
+int
+nc4_att_new(const char* name, NC_ATT_INFO_T **attp)
+{
+   NC_ATT_INFO_T *new_att;
+
+   if (!(new_att = calloc(1, sizeof(NC_ATT_INFO_T))))
       return NC_ENOMEM;
 
-   /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)new_dim);
+   if((new_att->hdr.name = strdup(name)) == NULL) {
+	free(new_att);
+	return NC_ENOMEM;
+   }
 
-   /* Set the dim pointer, if one was given */
-   if (dim)
-      *dim = new_dim;
+   *attp = new_att;
+   return NC_NOERR;
+}
 
+/* Free an instance of NC_ATT_INFO_T */
+int
+nc4_att_free(NC_ATT_INFO_T *att)
+{
+   int i;
+
+   /* Free memory that was malloced to hold data for this
+    * attribute. */
+   if (att->data)
+      free(att->data);
+
+   /* Free the name. */
+   if (att->hdr.name)
+      free(att->hdr.name);
+
+   /* Close the HDF5 typeid. */
+   if (att->native_hdf_typeid && H5Tclose(att->native_hdf_typeid) < 0)
+      return NC_EHDFERR;
+
+   /* If this is a string array attribute, delete all members of the
+    * string array, then delete the array of pointers to strings. (The
+    * array was filled with pointers by HDF5 when the att was read,
+    * and memory for each string was allocated by HDF5. That's why I
+    * use free and not nc_free, because the netCDF library didn't
+    * allocate the memory that is being freed.) */
+   if (att->stdata)
+   {
+      for (i = 0; i < att->len; i++)
+         if(att->stdata[i])
+	    free(att->stdata[i]);
+      free(att->stdata);
+   }
+
+   /* If this att has vlen data, release it. */
+   if (att->vldata)
+   {
+      for (i = 0; i < att->len; i++)
+	 nc_free_vlen(&att->vldata[i]);
+      free(att->vldata);
+   }
+
+   free(att);
    return NC_NOERR;
 }
 
@@ -943,19 +963,12 @@ nc4_dim_list_add(NC_DIM_INFO_T **list, NC_DIM_INFO_T **dim)
  * @author Ed Hartnett
  */
 int
-nc4_att_list_add(NC_ATT_INFO_T **list, NC_ATT_INFO_T **att)
+nc4_att_list_add(NC_listmap* list, NC_ATT_INFO_T *new_att)
 {
-   NC_ATT_INFO_T *new_att;
-
-   if (!(new_att = calloc(1, sizeof(NC_ATT_INFO_T))))
-      return NC_ENOMEM;
+   new_att->hdr.id = NC_listmap_size(list);
 
    /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)new_att);
-
-   /* Set the attribute pointer, if one was given */
-   if (att)
-      *att = new_att;
+   NC_listmap_add(list, (NC_OBJ*)new_att);
 
    return NC_NOERR;
 }
@@ -975,34 +988,20 @@ nc4_att_list_add(NC_ATT_INFO_T **list, NC_ATT_INFO_T **att)
  * @author Ed Hartnett
  */
 int
-nc4_grp_list_add(NC_GRP_INFO_T **list, int new_nc_grpid,
-                 NC_GRP_INFO_T *parent_grp, NC *nc,
-                 char *name, NC_GRP_INFO_T **grp)
+nc4_grp_list_add(NC_HDF5_FILE_INFO_T* h5, NC_GRP_INFO_T *new_grp)
 {
-   NC_GRP_INFO_T *new_grp;
-
-   LOG((3, "%s: new_nc_grpid %d name %s ", __func__, new_nc_grpid, name));
-
-   /* Get the memory to store this groups info. */
-   if (!(new_grp = calloc(1, sizeof(NC_GRP_INFO_T))))
-      return NC_ENOMEM;
+   int new_nc_grpid = nclistlength(h5->allgroups);
+   LOG((3, "%s: new_nc_grpid %d name %s ", __func__, new_nc_grpid, new_grp->name));
+   NC_GRP_INFO_T* parent_grp = new_grp->parent;
 
    /* Fill in this group's information. */
-   new_grp->nc_grpid = new_nc_grpid;
-   new_grp->parent = parent_grp;
-   if (!(new_grp->name = strdup(name)))
-   {
-      free(new_grp);
-      return NC_ENOMEM;
-   }
-   new_grp->nc4_info = NC4_DATA(nc);
+   new_grp->nc4_info = h5;
 
-   /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)new_grp);
-
-   /* Set the group pointer, if one was given */
-   if (grp)
-      *grp = new_grp;
+   /* Add object to allgroups list and parent list*/
+   nclistpush(h5->allgroups, new_grp);
+   /* If grp is NULL, then we are creating the root group so no parent */
+   if(parent_grp != NULL)
+     NC_listmap_add(&parent_grp->children, (NC_OBJ*)new_grp);
 
    return NC_NOERR;
 }
@@ -1026,331 +1025,158 @@ nc4_check_dup_name(NC_GRP_INFO_T *grp, char *name)
    NC_TYPE_INFO_T *type;
    NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
-   uint32_t hash;
-   int i;
 
    /* Any types of this name? */
-   for (type = grp->type; type; type = type->l.next)
-      if (!strcmp(type->name, name))
+   type = (NC_TYPE_INFO_T*)NC_listmap_get(&grp->type,name);
+   if(type != NULL)
          return NC_ENAMEINUSE;
 
    /* Any child groups of this name? */
-   for (g = grp->children; g; g = g->l.next)
-      if (!strcmp(g->name, name))
-         return NC_ENAMEINUSE;
+   g = (NC_GRP_INFO_T*)NC_listmap_get(&grp->children,name);
+   if(g != NULL)
+	 return NC_ENAMEINUSE;
 
    /* Any variables of this name? */
-   hash =  hash_fast(name, strlen(name));
-   for (i=0; i < grp->vars.nelems; i++)
-   {
-      var = grp->vars.value[i];
-      if (!var) continue;
-      if (var->hash == hash && !strcmp(var->name, name))
-         return NC_ENAMEINUSE;
-   }
-   return NC_NOERR;
-}
-
-/**
- * @internal Add to the end of a type list.
- *
- * @param grp Pointer to group info struct.
- * @param size Size of type in bytes.
- * @param name Name of type.
- * @param type Pointer that gets pointer to new type info
- * struct. Ignored if NULL.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_ENOMEM Out of memory.
- * @author Ed Hartnett
- */
-int
-nc4_type_list_add(NC_GRP_INFO_T *grp, size_t size, const char *name,
-                  NC_TYPE_INFO_T **type)
-{
-   NC_TYPE_INFO_T *new_type;
-
-   /* Allocate memory for the type */
-   if (!(new_type = calloc(1, sizeof(NC_TYPE_INFO_T))))
-      return NC_ENOMEM;
-
-   /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)(&grp->type), (NC_LIST_NODE_T *)new_type);
-
-   /* Remember info about this type. */
-   new_type->nc_typeid = grp->nc4_info->next_typeid++;
-   new_type->size = size;
-   if (!(new_type->name = strdup(name)))
-      return NC_ENOMEM;
-
-   /* Increment the ref. count on the type */
-   new_type->rc++;
-
-   /* Return a pointer to the new type, if requested */
-   if (type)
-      *type = new_type;
+   var = (NC_VAR_INFO_T*)NC_listmap_get(&grp->vars,name);
+   if(var != NULL)
+	 return NC_ENAMEINUSE;
 
    return NC_NOERR;
 }
 
-/**
- * @internal Add to the end of a compound field list.
- *
- * @param list Pointer to pointer of list of field info structs.
- * @param fieldid The ID of this field.
- * @param name Name of the field.
- * @param offset Offset in bytes.
- * @param field_hdf_typeid The HDF5 type ID of the field.
- * @param native_typeid The HDF5 native type ID of the field.
- * @param xtype The netCDF type of the field.
- * @param ndims The number of dimensions of the field.
- * @param dim_sizesp An array of dim sizes for the field.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-int
-nc4_field_list_add(NC_FIELD_INFO_T **list, int fieldid, const char *name,
-                   size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
-                   nc_type xtype, int ndims, const int *dim_sizesp)
+/* Create a name such that it is guaranteed to be no longer than NC_MAX_NAME */
+static char*
+dupname(const char* name)
 {
-   NC_FIELD_INFO_T *field;
+    size_t len;
+    char* maxname;
+    if(name == NULL) return NULL;
+    len = strlen(name);
+    if(len > NC_MAX_NAME) len = NC_MAX_NAME;
+    maxname = malloc(len+1);
+    if(maxname == NULL) return NULL;
+    memcpy(maxname,name,len);
+    maxname[len] = '\0'; 
+    return maxname;     
+}
 
-   /* Name has already been checked and UTF8 normalized. */
-   if (!name)
-      return NC_EINVAL;
+/* Create and partially initialize new group object */
+int
+nc4_grp_new(NC_GRP_INFO_T* parent_grp, const char* name, NC_GRP_INFO_T **grpp)
+{
+   int stat = NC_NOERR;
+   NC_GRP_INFO_T *grp;
 
-   /* Allocate storage for this field information. */
-   if (!(field = calloc(1, sizeof(NC_FIELD_INFO_T))))
-      return NC_ENOMEM;
+   if (!(grp = calloc(1, sizeof(NC_GRP_INFO_T))))
+      {stat = NC_ENOMEM; goto done;}
 
-   /* Store the information about this field. */
-   field->fieldid = fieldid;
-   if (!(field->name = strdup(name)))
-   {
-      free(field);
-      return NC_ENOMEM;
+   grp->parent = parent_grp;
+
+   /* Fill in the index as best we can */
+   grp->hdr.sort = NCGRP;
+   grp->hdr.name = dupname(name);
+   if(grp->hdr.name == NULL)
+      {stat = NC_ENOMEM; goto done;}
+
+   if(!NC_listmap_init(&grp->vars,0)) {stat = NC_ENOMEM; goto done;}
+   if(!NC_listmap_init(&grp->children,0)) {stat = NC_ENOMEM; goto done;}
+   if(!NC_listmap_init(&grp->dim,0)) {stat = NC_ENOMEM; goto done;}
+   if(!NC_listmap_init(&grp->att,0)) {stat = NC_ENOMEM; goto done;}
+   if(!NC_listmap_init(&grp->type,0)) {stat = NC_ENOMEM; goto done;}
+
+   /* return result */
+   if(grpp) *grpp = grp;
+
+done:
+   if(stat != NC_NOERR) {
+      nc4_grp_free(grp);
    }
-   field->hdf_typeid = field_hdf_typeid;
-   field->native_hdf_typeid = native_typeid;
-   field->nc_typeid = xtype;
-   field->offset = offset;
-   field->ndims = ndims;
-   if (ndims)
-   {
-      int i;
+   return stat;
+}
 
-      if (!(field->dim_size = malloc(ndims * sizeof(int))))
-      {
-         free(field->name);
-         free(field);
-         return NC_ENOMEM;
-      }
-      for (i = 0; i < ndims; i++)
-         field->dim_size[i] = dim_sizesp[i];
-   }
-
-   /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)field);
-
+int
+nc4_grp_free(NC_GRP_INFO_T* grp)
+{
+   if(grp->hdr.name) free(grp->hdr.name);
+   NC_listmap_clear(&grp->vars);
+   NC_listmap_clear(&grp->children);
+   NC_listmap_clear(&grp->dim);
+   NC_listmap_clear(&grp->att);
+   NC_listmap_clear(&grp->type);
    return NC_NOERR;
 }
 
-/**
- * @internal Add a member to an enum type.
- *
- * @param list Pointer to pointer of list of enum member info structs.
- * @param size Size in bytes of new member.
- * @param name Name of the member.
- * @param value Value to associate with member.
- *
- * @return ::NC_NOERR No error.
- * @return ::NC_ENOMEM Out of memory.
- * @author Ed Hartnett
- */
+/* Return a pointer to the new var. */
 int
-nc4_enum_member_add(NC_ENUM_MEMBER_INFO_T **list, size_t size,
-                    const char *name, const void *value)
+nc4_var_new(const char* name, int ndims, NC_VAR_INFO_T **var)
 {
-   NC_ENUM_MEMBER_INFO_T *member;
+   NC_VAR_INFO_T *new_var;
 
-   /* Name has already been checked. */
-   assert(name && size > 0 && value);
-   LOG((4, "%s: size %d name %s", __func__, size, name));
+   /* Allocate storage for new variable. */
+   if (!(new_var = calloc(1, sizeof(NC_VAR_INFO_T))))
+      return NC_ENOMEM;
 
-   /* Allocate storage for this field information. */
-   if (!(member = calloc(1, sizeof(NC_ENUM_MEMBER_INFO_T))))
-      return NC_ENOMEM;
-   if (!(member->value = malloc(size))) {
-      free(member);
-      return NC_ENOMEM;
+   /* These are the HDF5-1.8.4 defaults. */
+   new_var->chunk_cache_size = nc4_chunk_cache_size;
+   new_var->chunk_cache_nelems = nc4_chunk_cache_nelems;
+   new_var->chunk_cache_preemption = nc4_chunk_cache_preemption;
+
+   new_var->dim.ndims = ndims;
+
+   if(!NC_listmap_init(&new_var->att,0))
+	return NC_ENOMEM;
+
+   /* Fill in the index as best we can */
+   new_var->hdr.sort = NCVAR;
+   new_var->hdr.name = dupname(name);
+   if(new_var->hdr.name == NULL) {
+	free(new_var);
+	return NC_ENOMEM;
    }
-   if (!(member->name = strdup(name))) {
-      free(member->value);
-      free(member);
-      return NC_ENOMEM;
-   }
 
-   /* Store the value for this member. */
-   memcpy(member->value, value, size);
-
-   /* Add object to list */
-   obj_list_add((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)member);
-
+   /* Set the var pointer, assume given */
+   *var = new_var;
    return NC_NOERR;
 }
 
-/**
- * @internal Delete a field from a field list, and nc_free the memory.
- *
- * @param list Pointer to pointer of list of field info structs.
- * @param field Pointer to field info of field to delete.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-static void
-field_list_del(NC_FIELD_INFO_T **list, NC_FIELD_INFO_T *field)
-{
-   /* Take this field out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)field);
-
-   /* Free some stuff. */
-   if (field->name)
-      free(field->name);
-   if (field->dim_size)
-      free(field->dim_size);
-
-   /* Nc_Free the memory. */
-   free(field);
-}
-
-/**
- * @internal Free allocated space for type information.
- *
- * @param type Pointer to type info struct.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
+/* Delete a var, and free the memory. */
 int
-nc4_type_free(NC_TYPE_INFO_T *type)
+nc4_var_free(NC_VAR_INFO_T *var)
 {
-   /* Decrement the ref. count on the type */
-   assert(type->rc);
-   type->rc--;
-
-   /* Release the type, if the ref. count drops to zero */
-   if (0 == type->rc)
-   {
-      /* Close any open user-defined HDF5 typeids. */
-      if (type->hdf_typeid && H5Tclose(type->hdf_typeid) < 0)
-         return NC_EHDFERR;
-      if (type->native_hdf_typeid && H5Tclose(type->native_hdf_typeid) < 0)
-         return NC_EHDFERR;
-
-      /* Free the name. */
-      if (type->name)
-         free(type->name);
-
-      /* Class-specific cleanup */
-      switch (type->nc_type_class)
-      {
-      case NC_COMPOUND:
-      {
-         NC_FIELD_INFO_T *field;
-
-         /* Delete all the fields in this type (there will be some if its a
-          * compound). */
-         field = type->u.c.field;
-         while (field)
-         {
-            NC_FIELD_INFO_T *f = field->l.next;
-
-            field_list_del(&type->u.c.field, field);
-            field = f;
-         }
-      }
-      break;
-
-      case NC_ENUM:
-      {
-         NC_ENUM_MEMBER_INFO_T *enum_member;
-
-         /* Delete all the enum_members, if any. */
-         enum_member = type->u.e.enum_member;
-         while (enum_member)
-         {
-            NC_ENUM_MEMBER_INFO_T *em = enum_member->l.next;
-
-            free(enum_member->value);
-            free(enum_member->name);
-            free(enum_member);
-            enum_member = em;
-         }
-
-         if (H5Tclose(type->u.e.base_hdf_typeid) < 0)
-            return NC_EHDFERR;
-      }
-      break;
-
-      case NC_VLEN:
-         if (H5Tclose(type->u.v.base_hdf_typeid) < 0)
-            return NC_EHDFERR;
-
-      default:
-         break;
-      }
-
-      /* Release the memory. */
-      free(type);
-   }
-
-   return NC_NOERR;
-}
-
-/**
- * @internal  Delete a var, and free the memory.
- *
- * @param var Pointer to the var info struct of var to delete.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-int
-nc4_var_del(NC_VAR_INFO_T *var)
-{
-   NC_ATT_INFO_T *a, *att;
+   NC_ATT_INFO_T *att;
    int ret;
+   size_t iter;
 
    if(var == NULL)
-      return NC_NOERR;
+     return NC_NOERR;
 
    /* First delete all the attributes attached to this var. */
-   att = var->att;
-   while (att)
+   for(iter=0;NC_listmap_next(&var->att,iter,(NC_OBJ**)&att);iter++)
    {
-      a = att->l.next;
-      if ((ret = nc4_att_list_del(&var->att, att)))
-         return ret;
-      att = a;
+      if ((ret = nc4_att_free(att)))
+	 return ret;
    }
+   NC_listmap_clear(&var->att);
 
    /* Free some things that may be allocated. */
    if (var->chunksizes)
-   {free(var->chunksizes);var->chunksizes = NULL;}
+     {free(var->chunksizes);var->chunksizes = NULL;}
 
    if (var->hdf5_name)
-   {free(var->hdf5_name); var->hdf5_name = NULL;}
+     {free(var->hdf5_name); var->hdf5_name = NULL;}
 
-   if (var->name)
-   {free(var->name); var->name = NULL;}
+   if (var->hdr.name)
+     {free(var->hdr.name); var->hdr.name = NULL;}
 
-   if (var->dimids)
-   {free(var->dimids); var->dimids = NULL;}
+   if (var->dim.dimids)
+     {free(var->dim.dimids); var->dim.dimids = NULL;}
 
-   if (var->dim)
-   {free(var->dim); var->dim = NULL;}
+   if (var->dim.dims)
+     {free(var->dim.dims); var->dim.dims = NULL;}
+
+   /* Release any filter stuff */
+   if(var->params)
+     {free(var->params); var->params = NULL;}	
 
    /* Delete any fill value allocation. This must be done before the
     * type_info is freed. */
@@ -1376,7 +1202,7 @@ nc4_var_del(NC_VAR_INFO_T *var)
       int retval;
 
       if ((retval = nc4_type_free(var->type_info)))
-         return retval;
+          return retval;
       var->type_info = NULL;
    }
 
@@ -1388,9 +1214,7 @@ nc4_var_del(NC_VAR_INFO_T *var)
    if (var->dimscale_attached)
       free(var->dimscale_attached);
 
-   /* Release parameter information. */
-   if (var->params)
-      free(var->params);
+   NC_listmap_clear(&var->att);
 
    /* Delete the var. */
    free(var);
@@ -1398,237 +1222,354 @@ nc4_var_del(NC_VAR_INFO_T *var)
    return NC_NOERR;
 }
 
-/**
- * @internal Delete a type from a type list, and nc_free the memory.
- *
- * @param list Pointer to pointer of list of types.
- * @param type Pointer to type info struct of type to delete.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-static int
-type_list_del(NC_TYPE_INFO_T **list, NC_TYPE_INFO_T *type)
-{
-   /* Take this type out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)type);
+/* See also nc4var.c#nc4_vararray_add */
 
-   /* Free the type, and its components */
-   return nc4_type_free(type);
+/* Create and partially initialize new dim object */
+int
+nc4_dim_new(const char* name, NC_DIM_INFO_T **dim)
+{
+   NC_DIM_INFO_T *new_dim;
+
+   if (!(new_dim = calloc(1, sizeof(NC_DIM_INFO_T))))
+      return NC_ENOMEM;
+
+   /* Fill in the index as best we can */
+   new_dim->hdr.sort = NCDIM;
+   new_dim->hdr.name = dupname(name);
+   if(new_dim->hdr.name == NULL) {
+	free(new_dim);
+	return NC_ENOMEM;
+   }
+
+   /* Set the dim pointer */
+   *dim = new_dim;
+
+   return NC_NOERR;
 }
 
-/**
- * @internal Delete a del from a var list, and nc_free the memory.
- *
- * @param list Pointer to pointer of list of dims.
- * @param dim Pointer to dim info struct of type to delete.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
+/* Delete a dim and nc_free the memory. */
 int
-nc4_dim_list_del(NC_DIM_INFO_T **list, NC_DIM_INFO_T *dim)
+nc4_dim_free(NC_DIM_INFO_T *dim)
 {
-   /* Take this dimension out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)dim);
-
    /* Free memory allocated for names. */
-   if (dim->name)
-      free(dim->name);
-
+   if (dim->hdr.name)
+      free(dim->hdr.name);
    free(dim);
    return NC_NOERR;
 }
 
-/**
- * @internal Remove a NC_GRP_INFO_T from the linked list. This will
- * nc_free the memory too.
- *
- * @param list Pointer to pointer of list of group info structs.
- * @param grp Pointer to group info struct.
- *
- * @return ::NC_NOERR No error.
- * @author Ed Hartnett
- */
-static void
-grp_list_del(NC_GRP_INFO_T **list, NC_GRP_INFO_T *grp)
+/*
+Return the expected next dimid
+*/
+int
+nc4_dim_nextid(NC_HDF5_FILE_INFO_T* h5)
 {
-   /* Take this group out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)grp);
+   return nclistlength(h5->alldims);
+}
 
-   free(grp);
+int
+nc4_type_new(nc_type typeclass, size_t size, const char *name, NC_TYPE_INFO_T **typep)
+{
+   NC_TYPE_INFO_T *new_type;
+
+   /* Allocate memory for the type */
+   if (!(new_type = calloc(1, sizeof(NC_TYPE_INFO_T))))
+      return NC_ENOMEM;
+
+   if((new_type->hdr.name = dupname(name)) == NULL) {
+	free(new_type);
+	return NC_ENOMEM;
+   }
+
+   /* Remember info about this type. */
+   new_type->nc_type_class = typeclass; 
+   new_type->size = size;
+   *typep = new_type;
+   return NC_NOERR;
 }
 
 /**
- * @internal Recursively delete the data for a group (and everything
- * it contains) in our internal metadata store.
+ * @internal Add created type to the end of a type list.
  *
- * @param list Pointer to pointer of list.
  * @param grp Pointer to group info struct.
+ * @param new_type Pointer new type info
  *
  * @return ::NC_NOERR No error.
- * @author Ed Hartnett
+ * @return ::NC_ENOMEM Out of memory.
+ * @author Dennis Heimbigner
  */
 int
-nc4_rec_grp_del(NC_GRP_INFO_T **list, NC_GRP_INFO_T *grp)
+nc4_type_list_add(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *new_type)
 {
-   NC_GRP_INFO_T *g, *c;
-   NC_VAR_INFO_T *var;
-   NC_ATT_INFO_T *a, *att;
-   NC_DIM_INFO_T *d, *dim;
-   NC_TYPE_INFO_T *type, *t;
-   int retval;
+   NC_HDF5_FILE_INFO_T* h5 = grp->nc4_info;
+
+   new_type->hdr.id = nclistlength(h5->alltypes); 
+
+   /* Add object to lists */
+   nclistpush(h5->alltypes,new_type);
+   NC_listmap_add(&grp->type, (NC_OBJ*)new_type);
+
+   /* Increment the ref. count on the type */
+   new_type->rc++;
+
+   return NC_NOERR;
+}
+
+/* Create field */
+int
+nc4_field_new(const char *name,
+		   size_t offset, hid_t field_hdf_typeid, hid_t native_typeid,
+		   nc_type xtype, int ndims, const int *dim_sizesp, NC_FIELD_INFO_T** fieldp)
+{
+   NC_FIELD_INFO_T *field;
+
+   /* Name has already been checked and UTF8 normalized. */
+   if (!name)
+      return NC_EINVAL;
+
+   /* Allocate storage for this field information. */
+   if (!(field = calloc(1, sizeof(NC_FIELD_INFO_T))))
+      return NC_ENOMEM;
+
+   /* Fill in the index as best we can */
+   field->hdr.sort = NCDIM;
+   field->hdr.name = dupname(name);
+   if(field->hdr.name == NULL) {
+	free(field);
+	return NC_ENOMEM;
+   }
+
+   field->hdf_typeid = field_hdf_typeid;
+   field->native_hdf_typeid = native_typeid;
+   field->nc_typeid = xtype;
+   field->offset = offset;
+   field->dims.ndims = ndims;
+   if (ndims)
+   {
+      int i;
+
+      if (!(field->dims.dim_size = malloc(ndims * sizeof(int))))
+      {
+         if(field->hdr.name) free(field->hdr.name);
+         free(field);
+	 return NC_ENOMEM;
+      }
+      for (i = 0; i < ndims; i++)
+	 field->dims.dim_size[i] = dim_sizesp[i];
+   }
+   *fieldp = field;
+   return NC_NOERR;
+}
+
+/* Delete a field from a field list, and nc_free the memory. */
+int
+nc4_field_free(NC_FIELD_INFO_T *field)
+{
+   /* Free some stuff. */
+   if (field->name)
+      free(field->name);
+   if (field->dims.dim_size)
+      free(field->dims.dim_size);
+   /* free the memory. */
+   free(field);
+   return NC_NOERR;
+}
+	
+/**
+ * @internal Add to the end of a compound field list.
+ *
+ * @param parent Pointer to parent compound type
+ * @param field The field object
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_ENOMEM Out of memory
+ * @author Dennis Heimbigner
+ */
+int
+nc4_field_list_add(NC_TYPE_INFO_T* parent, NC_FIELD_INFO_T* field)
+{
+   /* Add object to list */
+   if(parent->u.c.fields == NULL
+	&& (parent->u.c.fields = nclistnew()) == NULL) return NC_ENOMEM;
+   field->fieldid = nclistlength(parent->u.c.fields);
+   nclistpush(parent->u.c.fields,field);
+   return NC_NOERR;
+}
+
+/* Create Instance of NC_ENUM_MEMBER_INFO_T */
+int
+nc4_enum_member_new(size_t size, const char *name, const void *value, NC_ENUM_MEMBER_INFO_T** emp)
+{
+   NC_ENUM_MEMBER_INFO_T *member;
+
+   /* Name has already been checked. */
+   assert(name && size > 0 && value);
+   LOG((4, "%s: size %d name %s", __func__, size, name));
+
+   /* Allocate storage for this field information. */
+   if (!(member = calloc(1, sizeof(NC_ENUM_MEMBER_INFO_T))))
+      return NC_ENOMEM;
+
+   if((member->name = dupname(name)) == NULL) {
+	free(member);
+	return NC_ENOMEM;
+   }
+
+   if (!(member->value = malloc(size))) {
+      free(member->name);
+      free(member);
+      return NC_ENOMEM;
+   }
+
+   /* Store the value for this member. */
+   memcpy(member->value, value, size);
+
+   *emp = member;
+
+   return NC_NOERR;
+}
+
+/* Free Instance of NC_ENUM_MEMBER_INFO_T */
+int
+nc4_enum_member_free(NC_ENUM_MEMBER_INFO_T *member)
+{
+    if(member) {
+        if(member->name) free(member->name);
+        if(member->value) free(member->value);
+	free(member);
+    }
+    return NC_NOERR;
+}
+
+/**
+ * @internal Add a member to an enum type.
+ *
+ * @param parent Pointer to parent enum type
+ * @param member The enum const object
+ *
+ * @return ::NC_NOERR No error.
+ * @return ::NC_ENOMEM Out of memory.
+ * @author Dennis Heimbigne
+ */
+int
+nc4_member_list_add(NC_TYPE_INFO_T* parent, NC_ENUM_MEMBER_INFO_T *member)
+{
+   /* Add object to list */
+   if(parent->u.e.members == NULL
+	&& (parent->u.e.members = nclistnew()) == NULL) return NC_ENOMEM;
+   nclistpush(parent->u.e.members, member);
+   return NC_NOERR;
+}
+
+/**
+ * @internal Free allocated space for type information.
+ *
+ * @param type Pointer to type info struct.
+ *
+ * @return ::NC_NOERR No error.
+ * @author Dennis Heimbigner
+ */
+int
+nc4_type_free(NC_TYPE_INFO_T *type)
+{
    int i;
 
-   assert(grp);
-   LOG((3, "%s: grp->name %s", __func__, grp->name));
+   /* Decrement the ref. count on the type */
+   assert(type->rc);
+   type->rc--;
 
-   /* Recursively call this function for each child, if any, stopping
-    * if there is an error. */
-   g = grp->children;
-   while(g)
+   /* Release the type, if the ref. count drops to zero */
+   if (0 == type->rc)
    {
-      c = g->l.next;
-      if ((retval = nc4_rec_grp_del(&(grp->children), g)))
-         return retval;
-      g = c;
-   }
-
-   /* Delete all the list contents for vars, dims, and atts, in each
-    * group. */
-   att = grp->att;
-   while (att)
-   {
-      LOG((4, "%s: deleting att %s", __func__, att->name));
-      a = att->l.next;
-      if ((retval = nc4_att_list_del(&grp->att, att)))
-         return retval;
-      att = a;
-   }
-
-   /* Delete all vars. */
-   for (i=0; i < grp->vars.nelems; i++)
-   {
-      var = grp->vars.value[i];
-      if (!var) continue;
-
-      LOG((4, "%s: deleting var %s", __func__, var->name));
-      /* Close HDF5 dataset associated with this var, unless it's a
-       * scale. */
-      if (var->hdf_datasetid && H5Dclose(var->hdf_datasetid) < 0)
+      /* Close any open user-defined HDF5 typeids. */
+      if (type->hdf_typeid && H5Tclose(type->hdf_typeid) < 0)
          return NC_EHDFERR;
-      if ((retval = nc4_var_del(var)))
-         return retval;
-      grp->vars.value[i] = NULL;
-   }
-
-   /* Vars are all freed above.  When eliminate linked-list,
-      then need to iterate value and free vars from it.
-   */
-   if (grp->vars.nalloc != 0) {
-      assert(grp->vars.value != NULL);
-      free(grp->vars.value);
-      grp->vars.value = NULL;
-      grp->vars.nalloc = 0;
-   }
-
-   /* Delete all dims. */
-   dim = grp->dim;
-   while (dim)
-   {
-      LOG((4, "%s: deleting dim %s", __func__, dim->name));
-      /* If this is a dim without a coordinate variable, then close
-       * the HDF5 DIM_WITHOUT_VARIABLE dataset associated with this
-       * dim. */
-      if (dim->hdf_dimscaleid && H5Dclose(dim->hdf_dimscaleid) < 0)
+      if (type->native_hdf_typeid && H5Tclose(type->native_hdf_typeid) < 0)
          return NC_EHDFERR;
-      d = dim->l.next;
-      if ((retval = nc4_dim_list_del(&grp->dim, dim)))
-         return retval;
-      dim = d;
+
+      /* Free the name. */
+      if (type->hdr.name)
+         free(type->hdr.name);
+
+      /* Class-specific cleanup */
+      switch (type->nc_type_class)
+      {
+         case NC_COMPOUND:
+            {
+               /* Delete all the fields in this type (there will be some if its a compound). */
+	       for(i=0;i<nclistlength(type->u.c.fields);i++)
+                  nc4_field_free(nclistget(type->u.c.fields,i));
+	       nclistfree(type->u.c.fields);
+            }
+            break;
+
+         case NC_ENUM:
+            {
+               NC_ENUM_MEMBER_INFO_T *enum_member = NULL;
+               /* Delete all the enum_members, if any. */
+	       for(i=0;i<nclistlength(type->u.e.members);i++)
+               {
+		  enum_member = nclistget(type->u.e.members,i);
+                  free(enum_member->value);
+                  free(enum_member->name);
+                  free(enum_member);
+               }
+	       nclistfree(type->u.e.members);
+               if (H5Tclose(type->u.e.base_hdf_typeid) < 0)
+                  return NC_EHDFERR;
+            }
+            break;
+
+         case NC_VLEN:
+            if (H5Tclose(type->u.v.base_hdf_typeid) < 0)
+               return NC_EHDFERR;
+
+         default:
+            break;
+      }
+
+      /* Release the memory. */
+      free(type);
    }
-
-   /* Delete all types. */
-   type = grp->type;
-   while (type)
-   {
-      LOG((4, "%s: deleting type %s", __func__, type->name));
-      t = type->l.next;
-      if ((retval = type_list_del(&grp->type, type)))
-         return retval;
-      type = t;
-   }
-
-   /* Tell HDF5 we're closing this group. */
-   LOG((4, "%s: closing group %s", __func__, grp->name));
-   if (grp->hdf_grpid && H5Gclose(grp->hdf_grpid) < 0)
-      return NC_EHDFERR;
-
-   /* Free the name. */
-   free(grp->name);
-
-   /* Finally, redirect pointers around this entry in the list, and
-    * nc_free its memory. */
-   grp_list_del(list, grp);
 
    return NC_NOERR;
 }
 
 /**
- * @internal Remove a NC_ATT_INFO_T from the linked list. This will
- * nc_free the memory too.
+ * @internal Remove a NC_ATT_INFO_T from a list and renumber the following elements
  *
- * @param list Pointer to pointer of list.
+ * @param list Pointer to list
  * @param att Pointer to attribute info struct.
  *
  * @return ::NC_NOERR No error.
- * @author Ed Hartnett
+ * @author Dennis Heimbigner
  */
 int
-nc4_att_list_del(NC_ATT_INFO_T **list, NC_ATT_INFO_T *att)
+nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att)
 {
-   int i;
+    size_t size;
+    NC_ATT_INFO_T *tmp;
+    NC_ATT_INFO_T** attlist;
+    int i;
 
-   /* Take this att out of the list. */
-   obj_list_del((NC_LIST_NODE_T **)list, (NC_LIST_NODE_T *)att);
-
-   /* Free memory that was malloced to hold data for this
-    * attribute. */
-   if (att->data)
-      free(att->data);
-
-   /* Free the name. */
-   if (att->name)
-      free(att->name);
-
-   /* Close the HDF5 typeid. */
-   if (att->native_hdf_typeid && H5Tclose(att->native_hdf_typeid) < 0)
-      return NC_EHDFERR;
-
-   /* If this is a string array attribute, delete all members of the
-    * string array, then delete the array of pointers to strings. (The
-    * array was filled with pointers by HDF5 when the att was read,
-    * and memory for each string was allocated by HDF5. That's why I
-    * use free and not nc_free, because the netCDF library didn't
-    * allocate the memory that is being freed.) */
-   if (att->stdata)
-   {
-      for (i = 0; i < att->len; i++)
-         if(att->stdata[i])
-            free(att->stdata[i]);
-      free(att->stdata);
-   }
-
-   /* If this att has vlen data, release it. */
-   if (att->vldata)
-   {
-      for (i = 0; i < att->len; i++)
-         nc_free_vlen(&att->vldata[i]);
-      free(att->vldata);
-   }
-
-   free(att);
-   return NC_NOERR;
+    if(list == NULL || NC_listmap_size(list) == 0 || att == NULL)
+	return NC_ENOTATT;    
+    size = NC_listmap_size(list);
+    /* Get a duplicate of the listmap vector's contents */
+    attlist = (NC_ATT_INFO_T**)NC_listmap_dup(list);
+    if(attlist == NULL)
+	return NC_EINTERNAL;
+    /* Re-number all the higher attribute ids */
+    for(i=att->hdr.id;i<size;i++) {
+	tmp = attlist[i];
+	tmp->hdr.id--;
+    }
+    /* Now, rebuild the att listmap */
+    if(!NC_listmap_rehash(list))
+	return NC_EINTERNAL;
+    /* Now free the deleted attribute */
+    nc4_att_free(att);
+    return NC_NOERR;        
 }
 
 /**
@@ -1655,26 +1596,26 @@ nc4_break_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var, NC_DIM_INFO_T 
 
    /* Sanity checks */
    assert(grp && coord_var && dim && dim->coord_var == coord_var &&
-          coord_var->dim[0] == dim && coord_var->dimids[0] == dim->dimid &&
+          coord_var->dim.dims[0] == dim && coord_var->dim.dimids[0] == dim->hdr.id &&
           !dim->hdf_dimscaleid);
    LOG((3, "%s dim %s was associated with var %s, but now has different name",
-        __func__, dim->name, coord_var->name));
+        __func__, dim->hdr.name, coord_var->hdr.name));
 
    /* If we're replacing an existing dimscale dataset, go to
     * every var in the file and detach this dimension scale. */
    if ((retval = rec_detach_scales(grp->nc4_info->root_grp,
-                                   dim->dimid, coord_var->hdf_datasetid)))
+                                   dim->hdr.id, coord_var->hdf_datasetid)))
       return retval;
 
    /* Allow attached dimscales to be tracked on the [former]
     * coordinate variable */
-   if (coord_var->ndims)
+   if (coord_var->dim.ndims)
    {
       /* Coordinate variables shouldn't have dimscales attached. */
       assert(!coord_var->dimscale_attached);
 
       /* Allocate space for tracking them */
-      if (!(coord_var->dimscale_attached = calloc(coord_var->ndims,
+      if (!(coord_var->dimscale_attached = calloc(coord_var->dim.ndims,
                                                   sizeof(nc_bool_t))))
          return NC_ENOMEM;
    }
@@ -1720,7 +1661,7 @@ delete_existing_dimscale_dataset(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T *d
    int retval;
 
    assert(grp && dim);
-   LOG((2, "%s: deleting dimscale dataset %s dimid %d", __func__, dim->name,
+   LOG((2, "%s: deleting dimscale dataset %s dimid %d", __func__, dim->hdr.name,
         dimid));
 
    /* Detach dimscale from any variables using it */
@@ -1733,7 +1674,7 @@ delete_existing_dimscale_dataset(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T *d
    dim->hdf_dimscaleid = 0;
 
    /* Now delete the dataset. */
-   if (H5Gunlink(grp->hdf_grpid, dim->name) < 0)
+   if (H5Gunlink(grp->hdf_grpid, dim->hdr.name) < 0)
       return NC_EHDFERR;
 
    return NC_NOERR;
@@ -1757,7 +1698,7 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
    int retval = NC_NOERR;
 
    assert(grp && var && dim);
-   LOG((3, "%s: dim->name %s var->name %s", __func__, dim->name, var->name));
+   LOG((3, "%s: dim->hdr.name %s var->hdr.name %s", __func__, dim->hdr.name, var->hdr.name));
 
    /* Detach dimscales from the [new] coordinate variable */
    if(var->dimscale_attached)
@@ -1767,7 +1708,7 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
       int d;
 
       /* Loop over all dimensions for variable */
-      for (d = 0; d < var->ndims && !finished; d++)
+      for (d = 0; d < var->dim.ndims && !finished; d++)
       {
          /* Is there a dimscale attached to this axis? */
          if(var->dimscale_attached[d])
@@ -1777,10 +1718,11 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
             for (g = grp; g && !finished; g = g->parent)
             {
                NC_DIM_INFO_T *dim1;
+	       size_t diter;
 
-               for (dim1 = g->dim; dim1 && !finished; dim1 = dim1->l.next)
+	       for(diter=0;!finished && NC_listmap_next(&g->dim,diter,(NC_OBJ**)&dim1);diter++)
                {
-                  if (var->dimids[d] == dim1->dimid)
+                  if (var->dim.dimids[d] == dim1->hdr.id)
                   {
                      hid_t dim_datasetid;  /* Dataset ID for dimension */
 
@@ -1796,12 +1738,12 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
                       * detached. */
                      if (dim_datasetid > 0)
                      {
-                        LOG((3, "detaching scale from %s", var->name));
+                        LOG((3, "detaching scale from %s", var->hdr.name));
                         if (H5DSdetach_scale(var->hdf_datasetid, dim_datasetid, d) < 0)
                            BAIL(NC_EHDFERR);
                      }
                      var->dimscale_attached[d] = NC_FALSE;
-                     if (dims_detached++ == var->ndims)
+                     if (dims_detached++ == var->dim.ndims)
                         finished++;
                   }
                }
@@ -1818,14 +1760,14 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
    /* Use variable's dataset ID for the dimscale ID. */
    if (dim->hdf_dimscaleid && grp != NULL)
    {
-      LOG((3, "closing and unlinking dimscale dataset %s", dim->name));
+      LOG((3, "closing and unlinking dimscale dataset %s", dim->hdr.name));
       if (H5Dclose(dim->hdf_dimscaleid) < 0)
          BAIL(NC_EHDFERR);
       dim->hdf_dimscaleid = 0;
 
       /* Now delete the dimscale's dataset
          (it will be recreated later, if necessary) */
-      if (H5Gunlink(grp->hdf_grpid, dim->name) < 0)
+      if (H5Gunlink(grp->hdf_grpid, dim->hdr.name) < 0)
          return NC_EDIMMETA;
    }
 
@@ -1839,7 +1781,7 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
       /* Reattach the scale everywhere it is used. */
       /* (Recall that netCDF dimscales are always 1-D) */
       if ((retval = rec_reattach_scales(grp->nc4_info->root_grp,
-                                        var->dimids[0], var->hdf_datasetid)))
+                                        var->dim.dimids[0], var->hdf_datasetid)))
          return retval;
 
       /* Set state transition indicator (cancels earlier transition) */
@@ -1926,6 +1868,7 @@ nc_set_log_level(int new_level)
    return 0;
 }
 
+
 #define MAX_NESTS 10
 /**
  * @internal Recursively print the metadata of a group.
@@ -1939,53 +1882,54 @@ nc_set_log_level(int new_level)
 static int
 rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
 {
-   NC_GRP_INFO_T *g;
-   NC_ATT_INFO_T *att;
-   NC_VAR_INFO_T *var;
-   NC_DIM_INFO_T *dim;
-   NC_TYPE_INFO_T *type;
-   NC_FIELD_INFO_T *field;
+   NC_GRP_INFO_T *g = NULL;
+   NC_ATT_INFO_T *att = NULL;
+   NC_VAR_INFO_T *var = NULL;
+   NC_DIM_INFO_T *dim = NULL;
+   NC_TYPE_INFO_T *type = NULL;
+   NC_FIELD_INFO_T *field = NULL;
    char tabs[MAX_NESTS+1] = "";
    char *dims_string = NULL;
    char temp_string[10];
-   int t, retval, d, i;
+   int t, retval, d;
+   size_t iter;
 
    /* Come up with a number of tabs relative to the group. */
    for (t = 0; t < tab_count && t < MAX_NESTS; t++)
       tabs[t] = '\t';
    tabs[t] = '\0';
 
-   LOG((2, "%s GROUP - %s nc_grpid: %d nvars: %d natts: %d",
-        tabs, grp->name, grp->nc_grpid, grp->nvars, grp->natts));
+   LOG((2, "%s GROUP - %s nc_grpid: %d nvars: %lu natts: %lu",
+        tabs, grp->hdr.name, grp->nc_grpid, NC_listmap_size(&grp->vars), NC_listmap_size(&grp->att)));
 
-   for(att = grp->att; att; att = att->l.next)
+   for(iter=0;NC_listmap_next(&grp->att,iter,(NC_OBJ**)&att);iter++)
       LOG((2, "%s GROUP ATTRIBUTE - attnum: %d name: %s type: %d len: %d",
-           tabs, att->attnum, att->name, att->nc_typeid, att->len));
+           tabs, att->hdr.id, att->hdr.name, att->nc_typeid, att->len));
 
-   for(dim = grp->dim; dim; dim = dim->l.next)
+   for(iter=0;NC_listmap_next(&grp->dim,iter,(NC_OBJ**)&dim);iter++)
       LOG((2, "%s DIMENSION - dimid: %d name: %s len: %d unlimited: %d",
-           tabs, dim->dimid, dim->name, dim->len, dim->unlimited));
+           tabs, dim->hdr.id, dim->hdr.name, dim->len, dim->unlimited));
 
-   for (i=0; i < grp->vars.nelems; i++)
+   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
    {
-      var = grp->vars.value[i];
+      size_t aiter;
       if (!var) continue;
-      if(var->ndims > 0)
+      if(var->dim.ndims > 0)
       {
-         dims_string = (char*)malloc(sizeof(char)*(var->ndims*4));
+         dims_string = (char*)malloc(sizeof(char)*(var->dim.ndims*4));
          strcpy(dims_string, "");
-         for (d = 0; d < var->ndims; d++)
+         for (d = 0; d < var->dim.ndims; d++)
          {
-            sprintf(temp_string, " %d", var->dimids[d]);
+            sprintf(temp_string, " %d", var->dim.dimids[d]);
             strcat(dims_string, temp_string);
          }
       }
       LOG((2, "%s VARIABLE - varid: %d name: %s type: %d ndims: %d dimscale: %d dimids:%s endianness: %d, hdf_typeid: %d",
-           tabs, var->varid, var->name, var->type_info->nc_typeid, var->ndims, (int)var->dimscale,
+           tabs, var->hdr.id, var->hdr.name, var->type_info->hdr.id, var->dim.ndims, (int)var->dimscale,
            (dims_string ? dims_string : " -"),var->type_info->endianness, var->type_info->native_hdf_typeid));
-      for(att = var->att; att; att = att->l.next)
+      for(aiter=0;NC_listmap_next(&var->att,aiter,(NC_OBJ**)&att);aiter++)
          LOG((2, "%s VAR ATTRIBUTE - attnum: %d name: %s type: %d len: %d",
-              tabs, att->attnum, att->name, att->nc_typeid, att->len));
+              tabs, att->hdr.id, att->hdr.name, att->nc_typeid, att->len));
       if(dims_string)
       {
          free(dims_string);
@@ -1993,19 +1937,22 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
       }
    }
 
-   for (type = grp->type; type; type = type->l.next)
+   for(iter=0;NC_listmap_next(&grp->type,iter,(NC_OBJ**)&type);iter++)
    {
       LOG((2, "%s TYPE - nc_typeid: %d hdf_typeid: 0x%x size: %d committed: %d "
-           "name: %s num_fields: %d", tabs, type->nc_typeid,
-           type->hdf_typeid, type->size, (int)type->committed, type->name,
-           type->u.c.num_fields));
+           "name: %s num_fields: %d", tabs, type->hdr.id,
+           type->hdf_typeid, type->size, (int)type->committed, type->hdr.name,
+           nclistlength(type->u.c.fields)));
       /* Is this a compound type? */
       if (type->nc_type_class == NC_COMPOUND)
       {
+	 int i;
          LOG((3, "compound type"));
-         for (field = type->u.c.field; field; field = field->l.next)
-            LOG((4, "field %s offset %d nctype %d ndims %d", field->name,
-                 field->offset, field->nc_typeid, field->ndims));
+	 for (i=0;i<nclistlength(type->u.c.fields);i++) {
+	    field = nclistget(type->u.c.fields,i);
+            LOG((4, "field %s offset %d nctype %d ndims %d", field->hdr.name,
+                 field->offset, field->nc_typeid, field->dims.ndims));
+	 }
       }
       else if (type->nc_type_class == NC_VLEN)
       {
@@ -2027,11 +1974,13 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
    }
 
    /* Call self for each child of this group. */
-   if (grp->children)
+   if (NC_listmap_size(&grp->children) > 0)
    {
-      for (g = grp->children; g; g = g->l.next)
+      size_t giter;
+      for(giter=0;NC_listmap_next(&grp->children,giter,(NC_OBJ**)&g);giter++) {
          if ((retval = rec_print_metadata(g, tab_count + 1)))
             return retval;
+      }
    }
 
    return NC_NOERR;
@@ -2058,9 +2007,9 @@ log_metadata_nc(NC *nc)
       return NC_NOERR;
    }
    LOG((2, "FILE - hdfid: 0x%x path: %s cmode: 0x%x parallel: %d redef: %d "
-        "fill_mode: %d no_write: %d next_nc_grpid: %d", h5->hdfid, nc->path,
+        "fill_mode: %d no_write: %d next grpid: %d", h5->hdfid, nc->path,
         h5->cmode, (int)h5->parallel, (int)h5->redef, h5->fill_mode, (int)h5->no_write,
-        h5->next_nc_grpid));
+        nclistlength(h5->allgroups)));
    return rec_print_metadata(h5->root_grp, 0);
 }
 
@@ -2093,3 +2042,4 @@ NC4_show_metadata(int ncid)
 #endif /*LOGGING*/
    return retval;
 }
+
