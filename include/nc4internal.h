@@ -164,7 +164,7 @@ typedef struct NC_VAR_INFO
 {
    NC_OBJ hdr;
    char *hdf5_name; /* used if different from name */
-   struct NC_GRP_INFO* parent; /* containing group */
+   struct NC_GRP_INFO* container; /* containing group */
    struct {
 	size_t ndims;
         NC_DIM_INFO_T** dims;
@@ -233,6 +233,8 @@ typedef struct NC_TYPE_INFO
                                  * defined value for user-defined types (stored
                                  * as named datatypes in the HDF5 file).
                                  */
+
+   struct NC_GRP_INFO* container; /* Containing group */
    unsigned rc;                 /* Ref. count of objects using this type */
    hid_t hdf_typeid;            /* HDF5 type ID, in the file */
    hid_t native_hdf_typeid;     /* HDF5 type ID, in memory */
@@ -284,10 +286,11 @@ typedef struct NC_GRP_INFO
    struct NC_HDF5_FILE_INFO *nc4_info;
    struct NC_GRP_INFO *parent;
    NC_listmap children;		/* NC_listmap<struct NC_GRP_INFO*> */
-   NC_listmap vars;/* NC_listmap<NC_VAR_INFO_T> * */
    NC_listmap dim; /* NC_listmap<NC_DIM_INFO_T> * */
    NC_listmap att; /* NC_listmap<NC_ATT_INFO_T> * */
    NC_listmap type; /* NC_listmap<NC_TYPE_INFO_T> * */
+   /* Note that this is the list of vars with position == varid */
+   NC_listmap vars;/* NC_listmap<NC_VAR_INFO_T> * */
 } NC_GRP_INFO_T;
 
 /* These constants apply to the cmode parameter in the
@@ -320,7 +323,6 @@ typedef struct  NC_HDF5_FILE_INFO
    NClist* alldims;
    NClist* alltypes;
    NClist* allgroups; /* including root group */
-   NClist* allvars; /* position does not indicate varid */
 #ifdef USE_HDF4
    nc_bool_t hdf4;              /* True for HDF4 file */
    int sdid;
@@ -405,7 +407,6 @@ int nc4_field_free(NC_FIELD_INFO_T*);
 /* These list functions add and delete vars, atts. */
 /* Delete functions only exist when the deletion has complications */
 int nc4_nc4f_list_add(NC *nc, const char *path, int mode);
-int nc4_dim_nextid(NC_HDF5_FILE_INFO_T*);
 int nc4_dim_list_add(NC_GRP_INFO_T*, NC_DIM_INFO_T *dim);
 int nc4_att_list_add(NC_listmap* list, NC_ATT_INFO_T *att);
 int nc4_att_list_del(NC_listmap* list, NC_ATT_INFO_T *att);

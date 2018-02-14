@@ -138,9 +138,7 @@ nc4_get_att(int ncid, int varid, const char *name, nc_type *xtype,
 
    /* Check varid */
    if (varid != NC_GLOBAL) {
-      if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
-         return NC_ENOTVAR;
-      if (NC_listmap_iget(&grp->vars,varid) != NULL)
+      if (NC_listmap_ith(&grp->vars,varid) == NULL)
          return NC_ENOTVAR;
    }
 
@@ -155,7 +153,7 @@ nc4_get_att(int ncid, int varid, const char *name, nc_type *xtype,
    if (nc->ext_ncid == ncid && varid == NC_GLOBAL) {
       const NC_reservedatt* ra = NC_findreserved(norm_name);
       if(ra != NULL && (ra->flags & NAMEONLYFLAG))
-	    return nc4_get_att_special(h5, norm_name, xtype, mem_type, lenp, attnum, data);
+	return nc4_get_att_special(h5, norm_name, xtype, mem_type, lenp, attnum, data);
    }
 
    /* Find the attribute, if it exists. */
@@ -419,9 +417,7 @@ NC4_rename_att(int ncid, int varid, const char *name, const char *newname)
    }
    else
    {
-      if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
-         return NC_ENOTVAR;
-      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
       assert(var->hdr.id == varid);
       list = &var->att;
@@ -545,7 +541,7 @@ NC4_del_att(int ncid, int varid, const char *name)
    {
       if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
          return NC_ENOTVAR;
-      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
       attlist = &var->att;
       assert(var->hdr.id == varid);
@@ -599,7 +595,7 @@ exit:
  * @author Ed Hartnett, Dennis Heimbigner
  */
 int
-nc4_put_att(int ncid, int varid, const char *name, nc_type file_type,
+NC4_put_att(int ncid, int varid, const char *name, nc_type file_type,
             size_t len, const void *data, nc_type mem_type)
 {
    NC *nc;
@@ -650,7 +646,7 @@ nc4_put_att(int ncid, int varid, const char *name, nc_type file_type,
    {
       if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
 	return NC_ENOTVAR;
-      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
       attlist = &var->att;
       assert(var->hdr.id == varid);

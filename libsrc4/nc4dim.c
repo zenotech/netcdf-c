@@ -54,8 +54,9 @@ NC4_inq_unlimdim(int ncid, int *unlimdimidp)
       {
           int k;
           size_t count = NC_listmap_size(&g->dim);
+	  /* Walk the dimension vector */
           for(k=0;k<count;k++) {
-	      dim = (NC_DIM_INFO_T*)NC_listmap_iget(&g->dim,k);
+	      dim = (NC_DIM_INFO_T*)NC_listmap_ith(&g->dim,k);
               if (dim->unlimited) {
 	          *unlimdimidp = dim->hdr.id;
 	          found++;
@@ -120,7 +121,7 @@ NC4_def_dim(int ncid, const char *name, size_t len, int *idp)
 	int k;
 	size_t count = NC_listmap_size(&grp->dim);
 	for(k=0;k<count;k++) {
-	    dim = (NC_DIM_INFO_T*)NC_listmap_iget(&grp->dim,k);
+	    dim = (NC_DIM_INFO_T*)NC_listmap_ith(&grp->dim,k);
 	    if (dim->unlimited)
 	       return NC_EUNLIMIT;
         }
@@ -450,7 +451,7 @@ NC4_inq_unlimdims(int ncid, int *nunlimdimsp, int *unlimdimidsp)
       int k;
       int count = NC_listmap_size(&grp->dim);
       for(k=0;k<count;k++) {
-         dim = (NC_DIM_INFO_T*)NC_listmap_iget(&grp->dim,k);
+         dim = (NC_DIM_INFO_T*)NC_listmap_ith(&grp->dim,k);
 	 if (dim->unlimited)
 	 {
 	    if (unlimdimidsp)

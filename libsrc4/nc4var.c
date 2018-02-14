@@ -100,7 +100,7 @@ NC4_set_var_chunk_cache(int ncid, int varid, size_t size, size_t nelems,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->hdr.id == varid);
 
@@ -181,7 +181,7 @@ NC4_get_var_chunk_cache(int ncid, int varid, size_t *sizep,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->hdr.id == varid);
 
@@ -407,7 +407,6 @@ nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 int
 nc4_vararray_add(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 {
-  NC_HDF5_FILE_INFO_T *h5;
   if(!NC_listmap_initialized(&grp->vars)) {
     NC_listmap_init(&grp->vars,0); /* Use default size */
   }
@@ -415,10 +414,7 @@ nc4_vararray_add(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
       return NC_EINVAL;
   var->hdr.id = NC_listmap_size(&grp->vars);
   NC_listmap_add(&grp->vars,(NC_OBJ*)var);
-  var->parent = grp;
-  /* Also push onto the global allvars list */
-  h5 = grp->nc4_info;
-  nclistpush(h5->allvars,var);
+  var->container = grp;
   return NC_NOERR;
 }
 
@@ -799,7 +795,7 @@ NC4_inq_var_all(int ncid, int varid, char *name, nc_type *xtypep,
    }
 
    /* Find the var. */
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->hdr.id == varid);
 
@@ -964,7 +960,7 @@ nc_def_var_extra(int ncid, int varid, int *shuffle, int *deflate,
       return NC_EPERM;
 
    /* Find the var. */
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->hdr.id == varid);
 
@@ -1413,7 +1409,7 @@ NC4_def_var_filter(int ncid, int varid, unsigned int id, size_t nparams,
    assert(nc && grp && h5);
 
    /* Find the var. */
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->hdr.id == varid);
 
@@ -1555,7 +1551,7 @@ NC4_rename_var(int ncid, int varid, const char *name)
       return retval;
 
    /* Get var to be renamed by its varid */
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if(var == NULL)
 	return NC_ENOTVAR;
 

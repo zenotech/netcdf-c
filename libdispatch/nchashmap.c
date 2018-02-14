@@ -100,7 +100,8 @@ locate(NC_hashmap* hash, unsigned int hashkey, void* key, size_t keysize, size_t
 	    if(indexp) *indexp = index; /* assume a match */
             if(entry->hashkey == hashkey && entry->keysize == keysize) {
 		/* Check content */
-		if(entry->iscontent && memcmp((void*)&entry->data,key,keysize)==0)
+		if(entry->keysize <= sizeof(uintptr_t)
+			&& memcmp((void*)&entry->data,&key,keysize)==0)
 		    return 1;
 		else if(memcmp((void*)entry->data,key,keysize)==0)
 		    return 1;

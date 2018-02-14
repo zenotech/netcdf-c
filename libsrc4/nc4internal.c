@@ -166,9 +166,7 @@ find_var_dim_max_length(NC_GRP_INFO_T *grp, int varid, int dimid, size_t *maxlen
    *maxlen = 0;
 
    /* Find this var. */
-   if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
-     return NC_ENOTVAR;
-   var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+   var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
    if (!var) return NC_ENOTVAR;
    assert(var->hdr.id == varid);
 
@@ -255,7 +253,6 @@ nc4_nc4f_list_add(NC *nc, const char *path, int mode)
    /* Establish the global type,dim, and group vectors */
    h5->alldims = nclistnew();
    h5->allgroups = nclistnew();
-   h5->allvars = nclistnew();
    h5->alltypes = nclistnew();
    { /* Add null entries for the atomic types */
       int i;
@@ -398,6 +395,7 @@ NC_GRP_INFO_T *
 nc4_rec_find_grp(NC_GRP_INFO_T *start_grp, int target_nc_grpid)
 {
    NC_GRP_INFO_T *g, *res;
+   int i,n;
 
    assert(start_grp);
 
@@ -406,12 +404,11 @@ nc4_rec_find_grp(NC_GRP_INFO_T *start_grp, int target_nc_grpid)
       return start_grp;
 
    /* Shake down the kids. */
-   if (NC_listmap_size(&start_grp->children) > 0) {
-      size_t giter;
-      for(giter=0;NC_listmap_next(&start_grp->children,giter,(NC_OBJ**)&g);giter++) {
-         if ((res = nc4_rec_find_grp(g, target_nc_grpid)))
+   n = NC_listmap_size(&start_grp->children);
+   for(i=0;i<n;i++) {
+      g = NC_listmap_ith(&start_grp->children,i);
+      if ((res = nc4_rec_find_grp(g, target_nc_grpid)))
             return res;
-	 }
    }
    /* Can't find it. Fate, why do you mock me? */
    return NULL;
@@ -447,7 +444,7 @@ nc4_find_g_var_nc(NC *nc, int ncid, int varid,
    /* Find the var info. */
    if (varid < 0 || varid >= NC_listmap_size(&((*grp)->vars)))
       return NC_ENOTVAR;
-   (*var) = (NC_VAR_INFO_T*)NC_listmap_iget(&((*grp)->vars),varid);
+   (*var) = (NC_VAR_INFO_T*)NC_listmap_ith(&(*grp)->vars,varid);
 
    return NC_NOERR;
 }
@@ -514,22 +511,13 @@ nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dimp,
 int
 nc4_find_var(NC_GRP_INFO_T *grp, const char *name, NC_VAR_INFO_T **varp)
 {
-   size_t iter;
    NC_VAR_INFO_T* var = NULL;
 
    assert(grp && var && name);
 
    /* Find the var info. */
-   /* TODO: why can we not directly find by name? */
-   *varp = NULL;
-   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
-   {
-      if (0 == strcmp(name, var->hdr.name))
-      {
-         *varp = var;
-         break;
-      }
-   }
+   var = (NC_VAR_INFO_T*)NC_listmap_get(&grp->vars,name);
+   if(*varp) *varp = var;
    return NC_NOERR;
 }
 
@@ -548,13 +536,14 @@ nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid)
    NC_GRP_INFO_T *g;
    NC_TYPE_INFO_T *type, *res;
    htri_t equal;
-   size_t iter;
+   int i,n;
 
    assert(start_grp);
 
    /* Does this group have the type we are searching for? */
-   for(iter=0;NC_listmap_next(&start_grp->type,iter,(NC_OBJ**)&type);iter++)
-   {
+   n = NC_listmap_size(&start_grp->type);
+   for(i=0;i<n;i++) {
+      type = NC_listmap_ith(&start_grp->type,i);
       if ((equal = H5Tequal(type->native_hdf_typeid ? type->native_hdf_typeid : type->hdf_typeid, target_hdf_typeid)) < 0)
          return NULL;
       if (equal)
@@ -562,12 +551,12 @@ nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid)
    }
 
    /* Shake down the kids. */
-   if (NC_listmap_size(&start_grp->children) > 0) {
-      size_t giter;
-      for(giter=0;NC_listmap_next(&start_grp->children,giter,(NC_OBJ**)&g);giter++) {
-         if ((res = nc4_rec_find_hdf_type(g, target_hdf_typeid)))
-            return res;
-      }
+
+   n = NC_listmap_size(&start_grp->children);
+   for(i=0;i<n;i++) {
+      g = NC_listmap_ith(&start_grp->children,i);
+      if ((res = nc4_rec_find_hdf_type(g, target_hdf_typeid)))
+         return res;
    }
    /* Can't find it. Fate, why do you mock me? */
    return NULL;
@@ -583,69 +572,27 @@ nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid)
  * @author Ed Hartnett
  */
 NC_TYPE_INFO_T *
-nc4_rec_find_named_type(NC_GRP_INFO_T *start_grp, char *name)
+nc4_rec_find_named_type(NC_GRP_INFO_T *grp, char *name)
 {
-   NC_GRP_INFO_T *g;
    NC_TYPE_INFO_T *type, *res;
-   size_t iter;
+   size_t i, count;
 
-   assert(start_grp);
+   assert(grp && name);
 
    /* Does this group have the type we are searching for? */
-   for(iter=0;NC_listmap_next(&start_grp->type,iter,(NC_OBJ**)&type);iter++) {
-      if (!strcmp(type->hdr.name, name))
-         return type;
-   }
-
+   type = (NC_TYPE_INFO_T*)NC_listmap_get(&grp->type,name);
+   if(type != NULL)
+	return type;
    /* Search subgroups. */
-   if (NC_listmap_size(&start_grp->children) > 0) {
-      for(iter=0;NC_listmap_next(&start_grp->children,iter,(NC_OBJ**)&g);iter++) {
-         if ((res = nc4_rec_find_named_type(g, name)))
+
+   count = NC_listmap_size(&grp->children);
+   for(i=0;i<count;i++) {
+      NC_GRP_INFO_T *g = NC_listmap_ith(&grp->children,i);
+      if ((res = nc4_rec_find_named_type(g, name)))
             return res;
-      }
    }
 
    /* Can't find it. Oh, woe is me! */
-   return NULL;
-}
-
-/**
- * @internal Recursively hunt for a netCDF type id.
- *
- * @param start_grp Pointer to starting group info.
- * @param target_nc_typeid NetCDF type ID to find.
- *
- * @return Pointer to type info, or NULL if not found.
- * @author Ed Hartnett
- */
-NC_TYPE_INFO_T *
-nc4_rec_find_nc_type(NC_GRP_INFO_T *start_grp, nc_type target_nc_typeid)
-{
-   NC_TYPE_INFO_T *type;
-   size_t iter;
-
-   assert(start_grp);
-
-   /* Does this group have the type we are searching for? */
-   type = (NC_TYPE_INFO_T*)NC_listmap_iget(&start_grp->type,target_nc_typeid);
-   if(type != NULL)
-	return type;
-
-   /* Shake down the kids. */
-   if (NC_listmap_size(&start_grp->children) > 0)
-   {
-      NC_GRP_INFO_T *g;
-
-      for(iter=0;NC_listmap_next(&start_grp->children,iter,(NC_OBJ**)&g);iter++)
-      {
-         NC_TYPE_INFO_T *res;
-
-         if ((res = nc4_rec_find_nc_type(g, target_nc_typeid)))
-            return res;
-      }
-   }
-
-   /* Can't find it. Fate, why do you mock me? */
    return NULL;
 }
 
@@ -668,14 +615,13 @@ nc4_find_type(const NC_HDF5_FILE_INFO_T *h5, nc_type typeid, NC_TYPE_INFO_T **ty
    *type = NULL;
 
    /* Atomic types don't have associated NC_TYPE_INFO_T struct, just
-    * return NOERR. */
+    * return NOERR. and set NULL*/
    if (typeid <= NC_STRING)
       return NC_NOERR;
 
-   /* Find the type. */
-   if(!(*type = nc4_rec_find_nc_type(h5->root_grp, typeid)))
+   (*type) = (NC_TYPE_INFO_T*)nclistget(h5->alltypes,typeid);
+   if((*type) == NULL )
       return NC_EBADTYPID;
-
    return NC_NOERR;
 }
 
@@ -697,23 +643,26 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
    NC_GRP_INFO_T *g;
    NC_VAR_INFO_T *var;
    int retval;
-   size_t iter;
+   int i,n;
 
    assert(grp && len);
    LOG((3, "nc4_find_dim_len: grp->name %s dimid %d", grp->name, dimid));
 
-   /* If there are any groups, call this function recursively on
-    * them. */
-   for(iter=0;NC_listmap_next(&grp->children,iter,(NC_OBJ**)&g);iter++) {
+   /* If there are any groups, call this function recursively on them. */
+   n = NC_listmap_size(&grp->children);
+   for(i=0;i<n;i++) {
+      g = (NC_GRP_INFO_T*)NC_listmap_ith(&grp->children,i);
       if ((retval = nc4_find_dim_len(g, dimid, len)))
          return retval;
    }
 
    /* For all variables in this group, find the ones that use this
     * dimension, and remember the max length. */
-   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
-   {
+   n = NC_listmap_size(&grp->vars);
+   for(i=0;i<n;i++) {
       size_t mylen;
+
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,i);
       if (!var) continue;
 
       /* Find max length of dim in this variable... */
@@ -727,7 +676,8 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
 }
 
 /**
- * @internal Given a group, find an att. 
+ * @internal Given a group, find an att, either global or associated
+ *           with specified var in the group
  *
  * @param grp Pointer to group info struct.
  * @param varid Variable ID.
@@ -758,7 +708,7 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
    {
       if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
 	return NC_ENOTVAR;
-      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
       attlist = &var->att;
       assert(var->hdr.id == varid);
@@ -767,9 +717,11 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
    /* Now find the attribute by name or number. If a name is provided,
     * ignore the attnum. */
    if(attlist) {
-      size_t iter;
+      int j,m;
       NC_ATT_INFO_T* att;
-      for(iter=0;NC_listmap_next(attlist,iter,(NC_OBJ**)&att);iter++) {
+      m = NC_listmap_size(attlist);
+      for(j=0;j<m;j++) {
+         att = (NC_ATT_INFO_T*)NC_listmap_ith(attlist,j);
          if(attp) *attp = att;
          if (name && att->hdr.name && !strcmp(att->hdr.name, name))
             return NC_NOERR;
@@ -806,7 +758,6 @@ nc4_find_nc_att(int ncid, int varid, const char *name, int attnum,
    NC_ATT_INFO_T *att = NULL;
    NC_listmap* attlist = NULL;
    int retval;
-   size_t iter;
 
    LOG((4, "nc4_find_nc_att: ncid 0x%x varid %d name %s attnum %d",
         ncid, varid, name, attnum));
@@ -823,22 +774,21 @@ nc4_find_nc_att(int ncid, int varid, const char *name, int attnum,
    {
       if (varid < 0 || varid >= NC_listmap_size(&grp->vars))
 	return NC_ENOTVAR;
-      var = (NC_VAR_INFO_T*)NC_listmap_iget(&grp->vars,varid);
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,varid);
       if (!var) return NC_ENOTVAR;
       attlist = &var->att;
       assert(var->hdr.id == varid);
    }
 
    /* Now find the attribute by name or number. If a name is provided, ignore the attnum. */
-   for(iter=0;NC_listmap_next(attlist,iter,(NC_OBJ**)att);iter++) {
-      if ((name && !strcmp(att->hdr.name, name)) ||
-          (!name && att->hdr.id == attnum)) {
-	 if(attp) *attp = att;
-         return NC_NOERR;
-      }
-   }
-   /* If we get here, we couldn't find the attribute. */
-   return NC_ENOTATT;
+   if(name != NULL)
+      att = (NC_ATT_INFO_T*)NC_listmap_get(attlist,name);
+   else
+      att = (NC_ATT_INFO_T*)NC_listmap_ith(attlist,attnum);
+   if(att == NULL)
+      /* If we get here, we couldn't find the attribute. */
+      return NC_ENOTATT;
+   return NC_NOERR;
 }
 
 
@@ -868,10 +818,10 @@ nc4_find_nc_file(int ext_ncid, NC_HDF5_FILE_INFO_T** h5p)
 }
 
 /**
- * @internal Add to the beginning of a dim list.
+ * @internal Add to the end of a dim list.
  *
- * @param list List of dimension info structs.
- * @param dim Pointer to pointer that gets the new dim info struct.
+ * @param parent Parent group containing this dimension
+ * @param new_dim Pointer the new dim info struct.
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett
@@ -881,11 +831,12 @@ nc4_dim_list_add(NC_GRP_INFO_T* parent, NC_DIM_INFO_T *new_dim)
 {
    NC_HDF5_FILE_INFO_T* h5 = parent->nc4_info;
 
-   new_dim->hdr.id = nc4_dim_nextid(h5);
-
    /* Add object to lists */
+   new_dim->hdr.id = nclistlength(h5->alldims);
    nclistpush(h5->alldims, new_dim);
-   NC_listmap_add(&parent->dim, (NC_OBJ*)new_dim);
+
+   if(parent)
+       NC_listmap_add(&parent->dim, (NC_OBJ*)new_dim);
 
    return NC_NOERR;
 }
@@ -1097,6 +1048,24 @@ done:
 int
 nc4_grp_free(NC_GRP_INFO_T* grp)
 {
+   int ret = NC_NOERR;
+   int i,n;
+   /* First, delete all attributes associated with this group */
+   n = NC_listmap_size(&grp->att);
+   for(i=0;i<n;i++) {
+      NC_ATT_INFO_T* att = (NC_ATT_INFO_T*)NC_listmap_ith(&grp->att,i);
+      if ((ret = nc4_att_free(att)))
+	 return ret;
+   }
+   /* Next, delete all variables associated with this group */
+   n = NC_listmap_size(&grp->vars);
+   for(i=0;i<n;i++) {
+      NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,i);
+      if ((ret = nc4_var_free(var)))
+	 return ret;
+   }
+   /* We do not need to delete types and dimensions because we have the global lists for that */
+   /* Cleanup */
    if(grp->hdr.name) free(grp->hdr.name);
    NC_listmap_clear(&grp->vars);
    NC_listmap_clear(&grp->children);
@@ -1145,14 +1114,15 @@ nc4_var_free(NC_VAR_INFO_T *var)
 {
    NC_ATT_INFO_T *att;
    int ret;
-   size_t iter;
+   int i,n;
 
    if(var == NULL)
      return NC_NOERR;
 
    /* First delete all the attributes attached to this var. */
-   for(iter=0;NC_listmap_next(&var->att,iter,(NC_OBJ**)&att);iter++)
-   {
+   n = NC_listmap_size(&var->att);
+   for(i=0;i<n;i++) {
+      att = (NC_ATT_INFO_T*)NC_listmap_ith(&var->att,i);
       if ((ret = nc4_att_free(att)))
 	 return ret;
    }
@@ -1258,15 +1228,6 @@ nc4_dim_free(NC_DIM_INFO_T *dim)
    return NC_NOERR;
 }
 
-/*
-Return the expected next dimid
-*/
-int
-nc4_dim_nextid(NC_HDF5_FILE_INFO_T* h5)
-{
-   return nclistlength(h5->alldims);
-}
-
 int
 nc4_type_new(nc_type typeclass, size_t size, const char *name, NC_TYPE_INFO_T **typep)
 {
@@ -1308,6 +1269,9 @@ nc4_type_list_add(NC_GRP_INFO_T *grp, NC_TYPE_INFO_T *new_type)
    /* Add object to lists */
    nclistpush(h5->alltypes,new_type);
    NC_listmap_add(&grp->type, (NC_OBJ*)new_type);
+
+   /* Record containment */
+   new_type->container = grp;
 
    /* Increment the ref. count on the type */
    new_type->rc++;
@@ -1718,10 +1682,11 @@ nc4_reform_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var, NC_DIM_INFO_T *dim)
             for (g = grp; g && !finished; g = g->parent)
             {
                NC_DIM_INFO_T *dim1;
-	       size_t diter;
+	       int j,m;
 
-	       for(diter=0;!finished && NC_listmap_next(&g->dim,diter,(NC_OBJ**)&dim1);diter++)
-               {
+               m = NC_listmap_size(&g->dim);
+               for(j=0;j<m;j++) {
+                  dim1 = (NC_DIM_INFO_T*)NC_listmap_ith(&g->dim,j);
                   if (var->dim.dimids[d] == dim1->hdr.id)
                   {
                      hid_t dim_datasetid;  /* Dataset ID for dimension */
@@ -1892,7 +1857,7 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
    char *dims_string = NULL;
    char temp_string[10];
    int t, retval, d;
-   size_t iter;
+   int i,n;
 
    /* Come up with a number of tabs relative to the group. */
    for (t = 0; t < tab_count && t < MAX_NESTS; t++)
@@ -1902,17 +1867,22 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
    LOG((2, "%s GROUP - %s nc_grpid: %d nvars: %lu natts: %lu",
         tabs, grp->hdr.name, grp->nc_grpid, NC_listmap_size(&grp->vars), NC_listmap_size(&grp->att)));
 
-   for(iter=0;NC_listmap_next(&grp->att,iter,(NC_OBJ**)&att);iter++)
+   n = NC_listmap_size(&grp->att);
+   for(i=0;i<n;i++) {
+      att = (NC_ATT_INFO_T*)NC_listmap_ith(&grp->att,i);
       LOG((2, "%s GROUP ATTRIBUTE - attnum: %d name: %s type: %d len: %d",
            tabs, att->hdr.id, att->hdr.name, att->nc_typeid, att->len));
-
-   for(iter=0;NC_listmap_next(&grp->dim,iter,(NC_OBJ**)&dim);iter++)
+   }
+   n = NC_listmap_size(&grp->dim);
+   for(i=0;i<n;i++) {
+      dim = (NC_DIM_INFO_T*)NC_listmap_ith(&grp->dim,i);
       LOG((2, "%s DIMENSION - dimid: %d name: %s len: %d unlimited: %d",
            tabs, dim->hdr.id, dim->hdr.name, dim->len, dim->unlimited));
-
-   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
-   {
-      size_t aiter;
+   }
+   n = NC_listmap_size(&grp->vars);
+   for(i=0;i<n;i++) {
+      int j,m;
+      var = (NC_VAR_INFO_T*)NC_listmap_ith(&grp->vars,i);
       if (!var) continue;
       if(var->dim.ndims > 0)
       {
@@ -1927,9 +1897,12 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
       LOG((2, "%s VARIABLE - varid: %d name: %s type: %d ndims: %d dimscale: %d dimids:%s endianness: %d, hdf_typeid: %d",
            tabs, var->hdr.id, var->hdr.name, var->type_info->hdr.id, var->dim.ndims, (int)var->dimscale,
            (dims_string ? dims_string : " -"),var->type_info->endianness, var->type_info->native_hdf_typeid));
-      for(aiter=0;NC_listmap_next(&var->att,aiter,(NC_OBJ**)&att);aiter++)
+      m = NC_listmap_size(&var->att);
+      for(j=0;j<m;j++) {
+         att = (NC_ATT_INFO_T*)NC_listmap_ith(&var->att,j);
          LOG((2, "%s VAR ATTRIBUTE - attnum: %d name: %s type: %d len: %d",
               tabs, att->hdr.id, att->hdr.name, att->nc_typeid, att->len));
+      }
       if(dims_string)
       {
          free(dims_string);
@@ -1937,8 +1910,9 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
       }
    }
 
-   for(iter=0;NC_listmap_next(&grp->type,iter,(NC_OBJ**)&type);iter++)
-   {
+   n = NC_listmap_size(&grp->type);
+   for(i=0;i<n;i++) {
+      type = (NC_TYPE_INFO_T*)NC_listmap_ith(&grp->type,i);
       LOG((2, "%s TYPE - nc_typeid: %d hdf_typeid: 0x%x size: %d committed: %d "
            "name: %s num_fields: %d", tabs, type->hdr.id,
            type->hdf_typeid, type->size, (int)type->committed, type->hdr.name,
@@ -1976,8 +1950,10 @@ rec_print_metadata(NC_GRP_INFO_T *grp, int tab_count)
    /* Call self for each child of this group. */
    if (NC_listmap_size(&grp->children) > 0)
    {
-      size_t giter;
-      for(giter=0;NC_listmap_next(&grp->children,giter,(NC_OBJ**)&g);giter++) {
+      int i,n;
+      n = NC_listmap_size(&grp->children);
+      for(i=0;i<n;i++) {
+         g = (NC_GRP_INFO_T*)NC_listmap_ith(&grp->children,i);
          if ((retval = rec_print_metadata(g, tab_count + 1)))
             return retval;
       }

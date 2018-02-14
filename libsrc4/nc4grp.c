@@ -215,11 +215,10 @@ NC4_inq_ncid(int ncid, const char *name, int *grp_ncid)
 int
 NC4_inq_grps(int ncid, int *numgrps, int *ncids)
 {
-   NC_GRP_INFO_T *grp, *g;
+   NC_GRP_INFO_T* grp;
    NC_HDF5_FILE_INFO_T *h5;
    int num = 0;
    int retval;
-   size_t iter;
 
    LOG((2, "nc_inq_grps: ncid 0x%x", ncid));
 
@@ -229,17 +228,17 @@ NC4_inq_grps(int ncid, int *numgrps, int *ncids)
    assert(h5);
 
    /* Count the number of groups in this group and record the ncids for them */
-   for(iter=0;NC_listmap_next(&grp->children,iter,(NC_OBJ**)&g);iter++)
-   {
-      if (ncids)
-      {
+   num = NC_listmap_size(&grp->children);
+   if(ncids) {
+      int i;
+      for(i=0;i<num;i++) {
+         NC_GRP_INFO_T *g;
+	 g = NC_listmap_ith(&grp->children,i);
 	 /* Combine the nc_grpid in a bitwise or with the ext_ncid,
 	  * which allows the returned ncid to carry both file and
 	  * group information. */
-	 *ncids = g->nc_grpid | g->nc4_info->controller->ext_ncid;
-	 ncids++;
+	 ncids[i] = (g->nc_grpid | g->nc4_info->controller->ext_ncid);
       }
-      num++;
    }
    
    if (numgrps)
@@ -477,10 +476,8 @@ NC4_inq_varids(int ncid, int *nvars, int *varids)
 {
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
-   NC_VAR_INFO_T *var;
    int num_vars = 0;
    int retval;
-   size_t iter;
 
    LOG((2, "nc_inq_varids: ncid 0x%x", ncid));
 
@@ -491,12 +488,15 @@ NC4_inq_varids(int ncid, int *nvars, int *varids)
 
    /* This is a netCDF-4 group. Round up them doggies and count
     * 'em. The list is in correct (i.e. creation) order. */
-   for(iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var);iter++)
-   {
-      if (!var) continue;
-      if (varids)
+   num_vars = NC_listmap_size(&grp->vars);
+   if(varids) {
+      int i;
+      for(i=0;i<num_vars;i++) {
+         NC_VAR_INFO_T *var;
+         var = NC_listmap_ith(&grp->vars,i);
+         if (!var) continue;
          varids[num_vars] = var->hdr.id;
-      num_vars++;
+      }
    }
 
    /* If the user wants to know how many vars in the group, tell
@@ -546,7 +546,6 @@ NC4_inq_dimids(int ncid, int *ndims, int *dimids, int include_parents)
 {
    NC_GRP_INFO_T *grp, *g;
    NC_HDF5_FILE_INFO_T *h5;
-   NC_DIM_INFO_T *dim;
    int num = 0;
    int retval;
 
@@ -567,23 +566,27 @@ NC4_inq_dimids(int ncid, int *ndims, int *dimids, int include_parents)
    /* If the user wants the dimension ids, get them. */
    if (dimids)
    {
-      size_t iter;
-      int n = 0;
-      
-      /* Get dimension ids from this group. */
-      for(iter=0;NC_listmap_next(&grp->dim,iter,(NC_OBJ**)&dim);iter++)
-          dimids[n++] = dim->hdr.id;
-      
-      /* Get dimension ids from parent groups. */
-      if (include_parents) {
-         for (g = grp->parent; g; g = g->parent) {
-	    for(iter=0;NC_listmap_next(&g->dim,iter,(NC_OBJ**)&dim);iter++)
-               dimids[n++] = dim->hdr.id;
+      int globaln;
+      globaln = 0; /* index into the dimids */
+      /* Iterate over this group and (optionally) its parents */
+      for (g = grp; g; g = g->parent) {
+         int i, localn;
+         localn = NC_listmap_size(&g->dim); /* Count # in this group */
+         for(i=0;i<localn;i++) {
+	    for(i=0;i<localn;i++) {
+               NC_DIM_INFO_T *dim;
+	       dim = NC_listmap_ith(&g->dim,i);
+               dimids[globaln++] = dim->hdr.id;
+            }
 	 }
+	 /* If we do not want parents, then stop after the first iteration */
+	 if(!include_parents)
+	    break;
       }      
+      assert(globaln == num);
+      /* Sort the list */
       qsort(dimids, num, sizeof(int), int_cmp);
    }
-
    /* If the user wants the number of dims, give it. */
    if (ndims)
       *ndims = num;

@@ -152,10 +152,13 @@ NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
       return retval;
    assert(h5 && grp);
 
+   /* Wait, this is wrong, the documentation says nothing about fully
+      qualified names */
+
    /* If the first char is a /, this is a fully-qualified
     * name. Otherwise, this had better be a local name (i.e. no / in
     * the middle). */
-   if (name[0] != '/' && strstr(name, "/"))
+   if (name[0] != '/' && strchr(name, '/'))
       return NC_EINVAL;
 
    /* Normalize name. */
@@ -165,21 +168,18 @@ NC4_inq_typeid(int ncid, const char *name, nc_type *typeidp)
      free(norm_name);
      return retval;
    }
+
    /* Is the type in this group? If not, search parents. */
    for (grptwo = grp; grptwo; grptwo = grptwo->parent) {
-      size_t titer;
-      for(titer=0;NC_listmap_next(&grptwo->type,titer,(NC_OBJ**)&type);titer++) {
-	 if (!strcmp(norm_name, type->hdr.name))
-	 {
-	    if (typeidp)
-	       *typeidp = type->hdr.id;
-	    break;
-	 }
+      /* Extract the type by name from the group's type listmap */
+      type = (NC_TYPE_INFO_T*)NC_listmap_get(&grptwo->type,norm_name);
+      if(type != NULL) {
+	if(typeidp) *typeidp = type->hdr.id;
+	break;
       }
    }
 
-   /* Still didn't find type? Search file recursively, starting at the
-    * root group. */
+   /* Still didn't find type? Search the group tree recursively in pre-order */
    if (!type)
       if ((type = nc4_rec_find_named_type(grp->nc4_info->root_grp, norm_name)))
 	 if (typeidp)
@@ -212,9 +212,9 @@ NC4_inq_typeids(int ncid, int *ntypes, int *typeids)
 {
    NC_GRP_INFO_T *grp;
    NC_HDF5_FILE_INFO_T *h5;
-   NC_TYPE_INFO_T *type;
    int num = 0;
    int retval;
+   int i;
 
    LOG((2, "nc_inq_typeids: ncid 0x%x", ncid));
 
@@ -224,14 +224,12 @@ NC4_inq_typeids(int ncid, int *ntypes, int *typeids)
    assert(h5 && grp);
 
    /* Count types. */
-   if (NC_listmap_size(&grp->type) > 0) {
-      size_t iter;
-      for(iter=0;NC_listmap_next(&grp->type,iter,(NC_OBJ**)&type);iter++)
-      {
-	 if (typeids)
-	    typeids[num] = type->hdr.id;
-	 num++;
-      }
+   num = (int)NC_listmap_size(&grp->type);
+   for(i=0;i<num;i++) {
+      NC_TYPE_INFO_T *type;
+      type = NC_listmap_ith(&grp->type,i);
+      if(typeids)
+	    typeids[i] = type->hdr.id;
    }
 
    /* Give the count to the user. */

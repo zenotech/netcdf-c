@@ -15,8 +15,8 @@ struct NC_OBJ;
 /*
 This listmap data structure is an ordered list of objects. It is
 used pervasively in libsrc to store metadata relationships.  The
-goal is to provide both by-name (via NC_hashmap), by-id (via NC_hashmap)
-and indexed access (via NClist) to the objects in the listmap.  Using
+goal is to provide by-name (via NC_hashmap), and i'th
+indexed access (via NClist) to the objects in the listmap.  Using
 hashmap might be overkill for some relationships, but we can
 sort that out later.
 As a rule, we use this to store definitional relationships
@@ -28,15 +28,11 @@ such as the list of dimensions for a variable.
 /* Generic list + matching hashtable */
 typedef struct NC_listmap {
    NClist* list;
-   NC_hashmap* namemap;
-   NC_hashmap* idmap;
+   NC_hashmap* map;
 } NC_listmap;
 
 /* Locate object by name in an NC_listmap */
 extern struct NC_OBJ* NC_listmap_get(NC_listmap* listmap, const char* name);
-
-/* Locate object by id in an NC_listmap */
-extern struct NC_OBJ* NC_listmap_iget(NC_listmap* listmap, size_t id);
 
 /* Get ith object in the list map vector */
 extern void* NC_listmap_ith(NC_listmap* listmap, size_t index);
@@ -51,41 +47,6 @@ extern struct NC_OBJ** NC_listmap_dup(NC_listmap* listmap);
 /* Rehash all objects in the vector */
 /* Return 1 if ok, 0 otherwise.*/
 extern int NC_listmap_rehash(NC_listmap* listmap);
-
-#if 0
-/* Remove object from listmap */
-/* Return 1 if ok, 0 otherwise.*/
-extern int NC_listmap_del(NC_listmap* listmap, struct NC_OBJ* target);
-
-/* Remove object from listmap by index in vector*/
-/* Return 1 if ok, 0 otherwise.*/
-extern int NC_listmap_delith(NC_listmap* listmap, size_t index);
-
-/* Reinsert an object into the hash maps as determined by its current vector position */
-/* Return 1 if ok, 0 otherwise.*/
-extern int NC_listmap_reinsert(NC_listmap* listmap, NC_OBJ* obj);
-#endif
-
-/* Pseudo iterator; start index at 0, return 1 if more data, 0 if done.
-   Usage:
-      size_t iter;
-      void* data;
-      for(iter=0;NC_listmap_next(listmap,iter,&data);iter++) {f(data);}
-*/
-extern size_t NC_listmap_next(NC_listmap*, size_t iter, struct NC_OBJ** datap);
-
-#if 0
-/* Reverse pseudo iterator; start index at 0, return 1 if more data, 0 if done.
-   Differs from NC_listmap_next in that it iterates from last to first.
-   This means that the iter value cannot be directly used as an index
-   for e.g. NC_listmap_iget().
-   Usage:
-      size_t iter;
-      void* data;
-      for(iter=0;NC_listmap_prev(listmap,iter,&data);iter++) {f(data);}
-*/
-extern size_t NC_listmap_prev(NC_listmap* listmap, size_t iter, void** datap);
-#endif
 
 /* Reset a list map without free'ing the map itself */
 /* Return 1 if ok; 0 otherwise */

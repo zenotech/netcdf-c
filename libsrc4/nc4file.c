@@ -573,37 +573,7 @@ close_netcdf4_file(NC_HDF5_FILE_INFO_T *h5, int abort)
 
    /* Delete all metadata by walking the allXXX lists */
 
-   /* Start by deleting all the attributes for each group */
-   for(i=0;i<nclistlength(h5->allgroups);i++) {
-      NC_GRP_INFO_T* grp = (NC_GRP_INFO_T*)nclistget(h5->allgroups,i);
-      if(NC_listmap_size(&grp->att) > 0) {
-	  NC_ATT_INFO_T* att;
-	  size_t iter;
-          for(iter=0;NC_listmap_next(&grp->att,iter,(NC_OBJ**)&att);iter++) {
-              LOG((4, "%s: deleting att %s.%s", __func__, grp->hdr.name,att->hdr.name));
-	      if ((retval = nc4_att_free(att)))
-		 return retval;
-	  }
-      }
-      NC_listmap_clear(&grp->att);
-   }
-
-   /* Ditto all attributes of all vars */
-   for(i=0;i<nclistlength(h5->allvars);i++) {
-      NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)nclistget(h5->allvars,i);
-      if(NC_listmap_size(&var->att) > 0) {
-	  NC_ATT_INFO_T* att;
-	  size_t iter;
-          for(iter=0;NC_listmap_next(&var->att,iter,(NC_OBJ**)&att);iter++) {
-              LOG((4, "%s: deleting att %s.%s", __func__, var->hdr.name,att->hdr.name));
-	      if ((retval = nc4_att_free(att)))
-		 return retval;
-	  }
-      }
-      NC_listmap_clear(&var->att);
-   }
-
-   /* Now delete all the known dimensions */
+   /* Delete all the known dimensions */
    for(i=0;i<nclistlength(h5->alldims);i++) {
       NC_DIM_INFO_T* dim = (NC_DIM_INFO_T*)nclistget(h5->alldims,i);
       if(dim == NULL) continue; /* should not happen */
@@ -625,22 +595,6 @@ close_netcdf4_file(NC_HDF5_FILE_INFO_T *h5, int abort)
 	 return retval;
    }   
    nclistclear(h5->alltypes);
-
-   /* Delete all the known variables */
-   for(i=0;i<nclistlength(h5->allvars);i++) {
-      NC_VAR_INFO_T* var = (NC_VAR_INFO_T*)nclistget(h5->allvars,i);
-      struct NC_GRP_INFO* grp;
-      if(var == NULL) continue; /* should not happen */
-      grp = var->parent;
-      LOG((4, "%s: deleting var %s.%s", __func__, grp->hdr.name,var->hdr.name));
-      /* Close HDF5 dataset associated with this var, unless it's a
-       * scale. */
-      if (var->hdf_datasetid && H5Dclose(var->hdf_datasetid) < 0)
-	 return NC_EHDFERR;
-      if ((retval = nc4_var_free(var)))
-	 return retval;
-   }   
-   nclistclear(h5->allvars);
 
    /* Delete all the known groups;
       WARNING: we need to delete in reverse order of creation
@@ -1200,6 +1154,10 @@ done:
  * this is a dimension without a variable - that is, a coordinate
  * dimension which does not have any coordinate data.
  *
+ * Note, I believe this is completely wrong. It is making some kind of
+ * assumption about NC_DIMID_ATT_NAME that is undocumented AFAIK.
+ * I really hate dimension scales.
+ *
  * @param grp Pointer to group info struct.
  * @param datasetid The HDF5 dataset ID.
  * @param obj_name
@@ -1248,7 +1206,23 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       /* Check if scale's dimid should impact the group's next dimid */
       /* Move the attribute to the correct location to match desired dimid.*/
       /* nclistset makes sure there is room */
-      nclistset(h5->alldims,new_dim->hdr.id,new_dim);
+      /* WARNING: serious hack */
+      
+      /* There are two case:
+         1. the NC_DIMID_ATT_NAME value is past the end of alldims
+            => pad alldims with NULLs to get to the assigned dimid.
+	 2. the value has already been assigned to some previously
+            created dimension => IMO an error
+      */
+      if(new_dim->hdr.id > nclistlength(h5->alldims)) {
+	 /* Insert NULL entries to place the new dimension into
+            its already assigned slot. */
+	 int i;
+	 for(i=nclistlength(h5->alldims);i<new_dim->hdr.id;i++)
+	    nclistpush(h5->alldims,NULL);
+	 /* insert the dimension */
+         nclistset(h5->alldims,new_dim->hdr.id,new_dim);
+      }
    }
    else
    {
@@ -1257,7 +1231,7 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       nclistpush(h5->alldims,new_dim);
    }
 
-   /* Record the dimension as part of the group */
+   /* Record the dimension as part of the group and alldims (maybe) */
    NC_listmap_add(&grp->dim,(NC_OBJ*)new_dim);
 
    if (SIZEOF_SIZE_T < 8 && scale_size > NC_MAX_UINT)
@@ -1311,8 +1285,8 @@ exit:
    /* On error, undo any dimscale creation */
    if (retval < 0 && dimscale_created)
    {
-      /* Delete the dimension */
-       if(!NC_listmap_del(&grp->dim,(NC_OBJ*)new_dim))
+      /* Delete the dimension from alldims */
+       if(!nclistremove(h5->alldims,new_dim->hdr.id))
 	BAIL2(NC_EDIMMETA);
        nc4_dim_free(new_dim);
    }
@@ -2524,11 +2498,14 @@ nc4_rec_read_metadata(NC_GRP_INFO_T *grp)
 
    /* when exiting define mode, mark all variables written */
    {
-      size_t iter;
-      NC_VAR_INFO_T* var;
-      for (iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var); iter++)
-          var->written_to = NC_TRUE;
-   }
+      int i, n;
+      n = NC_listmap_size(&grp->vars);
+      for(i=0;i<n;i++) {
+         NC_VAR_INFO_T* var;
+         var = NC_listmap_ith(&grp->vars,i);
+         var->written_to = NC_TRUE;
+      }
+  }
 
  exit:
    /* Clean up local information on error, if anything remains */
@@ -3056,7 +3033,7 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
                  dim_name, var->name));
             if ((retval = nc4_dim_list_add(&grp->dim, &dim)))
                return retval;
-            dim->dimid = grp->nc4_info->next_dimid++;
+            dim->hdr.id = grp->nc4_info->next_dimid++;
             if (strlen(dim_name) > NC_MAX_HDF4_NAME)
                return NC_EMAXNAME;
             if (!(dim->name = strdup(dim_name)))
@@ -3069,7 +3046,7 @@ nc4_open_hdf4_file(const char *path, int mode, NC *nc)
          }
 
          /* Tell the variable the id of this dimension. */
-         var->dim.dimids[d] = dim->dimid;
+         var->dim.dimids[d] = dim->hdr.id;
          var->dim[d] = dim;
       }
 
@@ -3373,10 +3350,13 @@ NC4_enddef(int ncid)
 
    /* when exiting define mode, mark all variable written */
    {
-      size_t iter;
-      NC_VAR_INFO_T* var;
-      for (iter=0;NC_listmap_next(&grp->vars,iter,(NC_OBJ**)&var); iter++)
-          var->written_to = NC_TRUE;
+      int i, n;
+      n = NC_listmap_size(&grp->vars);
+      for(i=0;i<n;i++) {
+         NC_VAR_INFO_T* var;
+         var = NC_listmap_ith(&grp->vars,i);
+         var->written_to = NC_TRUE;
+      }
    }
 
    return nc4_enddef_netcdf4_file(nc4_info);
@@ -3524,8 +3504,8 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
    NC *nc;
    NC_HDF5_FILE_INFO_T *h5;
    NC_GRP_INFO_T *grp;
-   NC_DIM_INFO_T *dim;
    int retval;
+   int ndims;
 
    LOG((2, "%s: ncid 0x%x", __func__, ncid));
 
@@ -3536,8 +3516,9 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
    assert(h5 && grp && nc);
 
    /* Count the number of dims, vars, and global atts. */
+   ndims = NC_listmap_size(&grp->dim);
    if (ndimsp)
-      *ndimsp = NC_listmap_size(&grp->dim);
+      *ndimsp = ndims;
    if (nvarsp)
       *nvarsp = NC_listmap_size(&grp->vars);
    if (nattsp)
@@ -3545,17 +3526,17 @@ NC4_inq(int ncid, int *ndimsp, int *nvarsp, int *nattsp, int *unlimdimidp)
 
    if (unlimdimidp)
    {
-      size_t iter;
-
+      int i;
       /* Default, no unlimited dimension */
       *unlimdimidp = -1;
-
       /* If there's more than one unlimited dim, which was not possible
          with netcdf-3, then only the last unlimited one will be reported
          back in xtendimp. */
       /* Note that this code is inconsistent with nc_inq_unlimid() */
-      for(iter=0;NC_listmap_next(&grp->dim,iter,(NC_OBJ**)&dim);iter++) {
-         if (dim->unlimited)
+      for(i=0;i<ndims;i++) {
+         NC_DIM_INFO_T *dim;
+         dim = NC_listmap_ith(&grp->dim,i);
+         if(dim->unlimited)
          {
             *unlimdimidp = dim->hdr.id;
             break;
