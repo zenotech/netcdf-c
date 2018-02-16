@@ -264,11 +264,11 @@ NC_listmap_verify(NC_listmap* lm, int dump)
 
     if(dump) {
 	fprintf(stderr,"-------------------------\n");
-        if(map->count == 0) {
+        if(map->active == 0) {
 	    fprintf(stderr,"hash: <empty>\n");
 	    goto next1;
 	}
-	for(i=0;i < map->size; i++) {
+	for(i=0;i < map->alloc; i++) {
 	    NC_hentry* e = &map->table[i];
 	    if(e->flags != 1) continue;
 	    fprintf(stderr,"hash: %ld: data=%lu key=%s\n",(unsigned long)i,(unsigned long)e->data,keystr(e));
@@ -292,7 +292,7 @@ next2:
     /* Need to verify that every entry in map is also in vector and vice-versa */
 
     /* Verify that map entry points to same-named entry in vector */
-    for(m=0;m < map->size; m++) {
+    for(m=0;m < map->alloc; m++) {
 	NC_hentry* e = &map->table[m];
         char** object = NULL;
 	char* oname = NULL;
@@ -312,13 +312,13 @@ next2:
 	}
     }
     /* Walk vector and mark corresponding hash entry*/
-    if(nclistlength(l) == 0 || map->count == 0)
+    if(nclistlength(l) == 0 || map->active == 0)
 	goto done; /* cannot verify */
     for(i=0;i < nclistlength(l); i++) {
 	int match;
 	const char** xp = (const char**)nclistget(l,i);
         /* Walk map looking for *xp */
-	for(match=0,m=0;m < map->size; m++) {
+	for(match=0,m=0;m < map->active; m++) {
 	    NC_hentry* e = &map->table[m];
 	    if((e->flags & 1) == 0) continue;
 	    if(strcmp(keystr(e),*xp)==0) {
@@ -336,7 +336,7 @@ next2:
 	}
     }
     /* Verify that every element in map in in vector */
-    for(m=0;m < map->size; m++) {
+    for(m=0;m < map->active; m++) {
 	NC_hentry* e = &map->table[m];
 	if((e->flags & 1) == 0) continue;
 	if((e->flags & 128) == 128) continue;
@@ -345,7 +345,7 @@ next2:
 	nerrs++;
     }
     /* clear the 'touched' flag */
-    for(m=0;m < map->size; m++) {
+    for(m=0;m < map->active; m++) {
 	NC_hentry* e = &map->table[m];
 	e->flags &= ~128;
     }

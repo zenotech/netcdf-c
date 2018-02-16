@@ -1265,13 +1265,13 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
 	    nclistpush(h5->alldims,NULL);
 	 /* insert the dimension */
          nclistset(h5->alldims,new_dim->hdr.id,new_dim);
+      }
 #else
       if(new_dim->hdr.id != nclistlength(h5->alldims))
 	return NC_EINTERNAL;
       /* Assign dimid */
       nclistpush(h5->alldims,new_dim);
 #endif
-      }
    }
    else
    {
