@@ -382,8 +382,9 @@ nc4_find_nc_grp_h5(int ncid, NC **nc, NC_GRP_INFO_T **grpp,
 
 /**
  * @internal Recursively hunt for a group id.
- * @Note: if the goal is to find a specific grpid,
- *        then we should be able to extract it from h5->all_grps
+
+ * Note: if the goal is to find a specific grpid,
+ *       then we should be able to extract it from h5->all_grps
  *
  * @param start_grp Pointer to group where search should be started.
  * @param target_nc_grpid Group ID to be found.
@@ -454,8 +455,8 @@ nc4_find_g_var_nc(NC *nc, int ncid, int varid,
  *
  * @param grp Pointer to group info struct.
  * @param dimid Dimension ID to find.
- * @param dim Pointer that gets pointer to dim info if found.
- * @param dim_grp Pointer that gets pointer to group info of group that contians dimension.
+ * @param dimp Pointer that gets pointer to dim info if found.
+ * @param dim_grpp Pointer that gets pointer to group info of group that contians dimension.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EBADDIM Dimension not found.
@@ -503,7 +504,7 @@ nc4_find_dim(NC_GRP_INFO_T *grp, int dimid, NC_DIM_INFO_T **dimp,
  *
  * @param grp Pointer to group info.
  * @param name Name of var to find.
- * @param var Pointer that gets pointer to var info struct, if found.
+ * @param varp Pointer that gets pointer to var info struct, if found.
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett
@@ -565,7 +566,7 @@ nc4_rec_find_hdf_type(NC_GRP_INFO_T *start_grp, hid_t target_hdf_typeid)
 /**
  * @internal Recursively hunt for a netCDF type by name.
  *
- * @param start_grp Pointer to starting group info.
+ * @param grp Pointer to starting group info.
  * @param name Name of type to find.
  *
  * @return Pointer to type info, or NULL if not found.
@@ -683,7 +684,7 @@ nc4_find_dim_len(NC_GRP_INFO_T *grp, int dimid, size_t **len)
  * @param varid Variable ID.
  * @param name Name to of attribute.
  * @param attnum Number of attribute.
- * @param att Pointer to pointer that gets attribute info struct.
+ * @param attp Pointer to pointer that gets attribute info struct.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOTVAR Variable not found.
@@ -741,7 +742,7 @@ nc4_find_grp_att(NC_GRP_INFO_T *grp, int varid, const char *name, int attnum,
  * @param varid Variable ID.
  * @param name Name to of attribute.
  * @param attnum Number of attribute.
- * @param att Pointer to pointer that gets attribute info struct.
+ * @param attp Pointer to pointer that gets attribute info struct.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_ENOTVAR Variable not found.
@@ -908,7 +909,7 @@ nc4_att_free(NC_ATT_INFO_T *att)
  * @internal Add to the end of an att list.
  *
  * @param list List of att info structs.
- * @param att Pointer to pointer that gets the new att info struct.
+ * @param new_att Pointer to pointer that gets the new att info struct.
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett
@@ -928,12 +929,8 @@ nc4_att_list_add(NC_listmap* list, NC_ATT_INFO_T *new_att)
  * @internal Add to the end of a group list. Can't use 0 as a
  * new_nc_grpid - it's reserverd for the root group.
  *
- * @param list List
- * @param new_nc_grpid New group ID.
- * @param parent_grp The parent group.
- * @param nc Pointer to the file's NC struct.
- * @param name Name of the group.
- * @param grp Pointer to pointer that gets new group info struct.
+ * @param h5 The file object
+ * @param new_grp Pointer new group info struct.
  *
  * @return ::NC_NOERR No error.
  * @author Ed Hartnett
@@ -1611,9 +1608,10 @@ nc4_break_coord_var(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *coord_var, NC_DIM_INFO_T 
  * unlinking it.
  *
  * @param grp The grp of the dimscale-only dataset to be deleted, or a
- * higher group in the heirarchy (ex. root group).
+ *            higher group in the heirarchy (ex. root group).
+ * @param dimid index of the dim argument
  * @param dim Pointer to the dim with the dimscale-only dataset to be
- * deleted.
+ *            deleted.
  *
  * @return ::NC_NOERR No error.
  * @return ::NC_EHDFERR HDF5 error.

@@ -324,7 +324,7 @@ incr_NC_vararray(NC_vararray *ncap, NC_var *newelemp)
 
 	if(newelemp != NULL)
 	{
-		NC_hashmapadd(ncap->hashmap, (uintptr_t)ncap->nelems, newelemp->name->cp, newelemp->name->nchars);
+		NC_hashmapadd(ncap->hashmap, (uintptr_t)ncap->nelems, newelemp->name->cp, strlen(newelemp->name->cp));
 		ncap->value[ncap->nelems] = newelemp;
 		ncap->nelems++;
 	}
@@ -490,7 +490,7 @@ NC_var_shape(NC_var *varp, const NC_dimarray *dims)
 out :
 
     /* No variable size can be > X_INT64_MAX - 3 */
-    if (0 == NC_check_vlen(varp, X_INT64_MAX-3)) return NC_EVARSIZE;
+    if (0 == NC_check_vlen(varp, (size_t)X_INT64_MAX-3)) return NC_EVARSIZE;
 
     /*
      * For CDF-1 and CDF-2 formats, the total number of array elements
@@ -782,14 +782,15 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 	if(NC_indef(ncp))
 	{
 		/* Remove old name from hashmap; add new... */
-		NC_hashmapremove(ncp->vars.hashmap,old->cp,old->nchars,NULL);
+	        /* WARNING: strlen(NC_string.cp) may be less than NC_string.nchars */
+		NC_hashmapremove(ncp->vars.hashmap,old->cp,strlen(old->cp),NULL);
 		newStr = new_NC_string(strlen(newname),newname);
 		free(newname);
 		if(newStr == NULL)
 		    return(-1);
 		varp->name = newStr;
 		intdata = (uintptr_t)varid;
-		NC_hashmapadd(ncp->vars.hashmap, intdata, varp->name->cp, varp->name->nchars);
+		NC_hashmapadd(ncp->vars.hashmap, intdata, varp->name->cp, strlen(varp->name->cp));
 		free_NC_string(old);
 		return NC_NOERR;
 	}
@@ -801,9 +802,12 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 	    free(newname);
 	    return NC_ENOTINDEFINE;
 	}
-	/* Remove old name from hashmap; add new... */
-        NC_hashmapremove(ncp->vars.hashmap,old->cp,old->nchars,NULL);
 
+	/* WARNING: strlen(NC_string.cp) may be less than NC_string.nchars */
+	/* Remove old name from hashmap; add new... */
+        NC_hashmapremove(ncp->vars.hashmap,old->cp,strlen(old->cp),NULL);
+
+	/* WARNING: strlen(NC_string.cp) may be less than NC_string.nchars */
 	status = set_NC_string(varp->name, newname);
 	free(newname);
 
@@ -811,7 +815,7 @@ NC3_rename_var(int ncid, int varid, const char *unewname)
 		return status;
 
 	intdata = (uintptr_t)varid;
-	NC_hashmapadd(ncp->vars.hashmap, intdata, varp->name->cp, varp->name->nchars);
+	NC_hashmapadd(ncp->vars.hashmap, intdata, varp->name->cp, strlen(varp->name->cp));
 
 	set_NC_hdirty(ncp);
 

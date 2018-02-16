@@ -59,6 +59,45 @@ typedef struct {
    NC_VAR_INFO_T *var;
 } att_iter_info;
 
+/* Define the table of names and properties of attributes that are reserved. */
+
+#define NRESERVED 11 /*|NC_reservedatt|*/
+
+/* Must be in sorted order for binary search */
+static const NC_reservedatt NC_reserved[NRESERVED] = {
+{NC_ATT_CLASS, DIMSCALEFLAG},		 /*CLASS*/
+{NC_ATT_DIMENSION_LIST, DIMSCALEFLAG},	 /*DIMENSION_LIST*/
+{NC_ATT_NAME, DIMSCALEFLAG},		 /*NAME*/
+{NC_ATT_REFERENCE_LIST, DIMSCALEFLAG},	 /*REFERENCE_LIST*/
+{NC_ATT_FORMAT, READONLYFLAG},		 /*_Format*/
+{ISNETCDF4ATT, READONLYFLAG|NAMEONLYFLAG}, /*_IsNetcdf4*/
+{NCPROPS, READONLYFLAG|NAMEONLYFLAG},	 /*_NCProperties*/
+{NC_ATT_COORDINATES, DIMSCALEFLAG},	 /*_Netcdf4Coordinates*/
+{NC_DIMID_ATT_NAME, DIMSCALEFLAG},	 /*_Netcdf4Dimid*/
+{SUPERBLOCKATT, READONLYFLAG|NAMEONLYFLAG},/*_SuperblockVersion*/
+{NC3_STRICT_ATT_NAME, READONLYFLAG},	 /*_nc3_strict*/
+};
+
+/* Define a binary searcher for reserved attributes */
+const NC_reservedatt*
+NC_findreserved(const char* name)
+{
+    int n = NRESERVED;
+    int L = 0;
+    int R = (n - 1);
+    for(;;) {
+	if(L > R) break;
+        int m = (L + R) / 2;
+	const NC_reservedatt* p = &NC_reserved[m];
+	int cmp = strcmp(p->name,name);
+	if(cmp == 0) return p;
+	if(cmp < 0)
+	    L = (m + 1);
+	else /*cmp > 0*/
+	    R = (m - 1);
+    }
+    return NULL;
+}
 
 /**
  * @internal Given an HDF5 type, set a pointer to netcdf type. 
@@ -1168,6 +1207,7 @@ done:
  *
  * @returns ::NC_NOERR No error.
  * @return ::NC_EHDFERR HDF5 returned error.
+ * @return ::NC_EINTERNAL The assigned dimid is not the next in line.
  * @author Ed Hartnett
  */
 static int
@@ -1208,12 +1248,15 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
       /* nclistset makes sure there is room */
       /* WARNING: serious hack */
       
-      /* There are two case:
-         1. the NC_DIMID_ATT_NAME value is past the end of alldims
-            => pad alldims with NULLs to get to the assigned dimid.
-	 2. the value has already been assigned to some previously
+      /* There are several cases:
+         1. the NC_DIMID_ATT_NAME value is at the end of alldims
+            => assign it.
+         2. the NC_DIMID_ATT_NAME value is past the end of alldims
+            => IMO error
+	 3. the value has already been assigned to some previously
             created dimension => IMO an error
       */
+#if 0 || defined OLDCODE
       if(new_dim->hdr.id > nclistlength(h5->alldims)) {
 	 /* Insert NULL entries to place the new dimension into
             its already assigned slot. */
@@ -1222,6 +1265,12 @@ read_scale(NC_GRP_INFO_T *grp, hid_t datasetid, const char *obj_name,
 	    nclistpush(h5->alldims,NULL);
 	 /* insert the dimension */
          nclistset(h5->alldims,new_dim->hdr.id,new_dim);
+#else
+      if(new_dim->hdr.id != nclistlength(h5->alldims))
+	return NC_EINTERNAL;
+      /* Assign dimid */
+      nclistpush(h5->alldims,new_dim);
+#endif
       }
    }
    else
@@ -2262,8 +2311,7 @@ exit:
 /**
  * @internal Add callback function to list.
  *
- * @param head
- * @param tail
+ * @param udata The callback state
  * @param oinfo The object info.
  *
  * @return ::NC_NOERR No error.

@@ -8,7 +8,7 @@
 
 The original internal representations of metadata in memory
 relied on linear searching of lists to locate various objects
-by name or by numeric id (e.g. varid or grpid).
+by name or by numeric id (e.g. "varid" or "grpid").
 
 In recent years, the flaws in that approach have become obvious
 as users create files with extremely large numbers of objects:
@@ -16,7 +16,7 @@ group, variables, attributes, and dimensions. One case
 has 14 megabytes of metadata. Creating and (especially) later
 opening such files was exceedingly slow.
 
-This problem was partially alleviated in both netcdfd-3 (libsrc)
+This problem was partially alleviated in both netcdf-3 (libsrc)
 and netcdf-4 (libsrc4) by adding name hashing tables.
 However, and especially for netcdf-4, linear search still prevailed.
 

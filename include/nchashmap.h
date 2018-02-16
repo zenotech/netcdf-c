@@ -49,8 +49,8 @@ The hashmap object must give us the hash table (table),
 the |table| size, and the # of defined entries in the table
 */
 typedef struct NC_hashmap {
-  size_t size; /* allocated */
-  size_t count;
+  size_t alloc; /* allocated # of entries */
+  size_t active; /* # of active entries */
   NC_hentry* table;
 } NC_hashmap;
 

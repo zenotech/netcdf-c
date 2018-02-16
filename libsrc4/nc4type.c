@@ -55,9 +55,9 @@ extern int
 NC4_inq_type_equal(int ncid1, nc_type typeid1, int ncid2, 
 		  nc_type typeid2, int *equalp)
 {
-   NC_GRP_INFO_T *grpone, *grptwo;
    NC_TYPE_INFO_T *type1, *type2;
    int retval;
+   NC_HDF5_FILE_INFO_T *h5;
    
    LOG((2, "nc_inq_type_equal: ncid1 0x%x typeid1 %d ncid2 0x%x typeid2 %d", 
 	ncid1, typeid1, ncid2, typeid2));
@@ -91,15 +91,14 @@ NC4_inq_type_equal(int ncid1, nc_type typeid1, int ncid2,
    }
 
    /* Not atomic types - so find type1 and type2 information. */
-   if ((retval = nc4_find_nc4_grp(ncid1, &grpone)))
+   /* Find info for this file */
+   if ((retval = nc4_find_grp_h5(ncid1, NULL, &h5)))
       return retval;
-   if (!(type1 = nc4_rec_find_nc_type(grpone->nc4_info->root_grp, 
-				      typeid1)))
-      return NC_EBADTYPE;
-   if ((retval = nc4_find_nc4_grp(ncid2, &grptwo)))
-      return retval;
-   if (!(type2 = nc4_rec_find_nc_type(grptwo->nc4_info->root_grp, 
-				      typeid2)))
+   assert(h5);
+   
+   type1 = nclistget(h5->alltypes,typeid1);
+   type2 = nclistget(h5->alltypes,typeid2);
+   if(type1 == NULL || type2 == NULL)
       return NC_EBADTYPE;
 
    /* Are the two types equal? */
@@ -362,7 +361,7 @@ NC4_inq_type(int ncid, nc_type typeid1, char *name, size_t *size)
       return retval;
    
    /* Find this type. */
-   if (!(type = nc4_rec_find_nc_type(grp->nc4_info->root_grp, typeid1)))
+   if (!(type = nclistget(grp->nc4_info->alltypes, typeid1)))
       return NC_EBADTYPE;
 
    if (name)
@@ -517,7 +516,7 @@ NC4_inq_user_type(int ncid, nc_type typeid1, char *name, size_t *size,
       return retval;
    
    /* Find this type. */
-   if (!(type = nc4_rec_find_nc_type(grp->nc4_info->root_grp, typeid1)))
+   if (!(type = nclistget(grp->nc4_info->alltypes, typeid1)))
       return NC_EBADTYPE;
 
    /* Count the number of fields. */
@@ -596,7 +595,7 @@ NC4_inq_compound_field(int ncid, nc_type typeid1, int fieldid, char *name,
       return retval;
    
    /* Find this type. */
-   if (!(type = nc4_rec_find_nc_type(grp->nc4_info->root_grp, typeid1)))
+   if (!(type = nclistget(grp->nc4_info->alltypes, typeid1)))
       return NC_EBADTYPE;
 
    /* Find the field. */
@@ -806,7 +805,7 @@ NC4_inq_enum_ident(int ncid, nc_type xtype, long long value, char *identifier)
       return retval;
    
    /* Find this type. */
-   if (!(type = nc4_rec_find_nc_type(grp->nc4_info->root_grp, xtype)))
+   if (!(type = nclistget(grp->nc4_info->alltypes, xtype)))
       return NC_EBADTYPE;
    
    /* Complain if they are confused about the type. */
@@ -892,7 +891,7 @@ NC4_inq_enum_member(int ncid, nc_type typeid1, int idx, char *identifier,
       return retval;
    
    /* Find this type. */
-   if (!(type = nc4_rec_find_nc_type(grp->nc4_info->root_grp, typeid1)))
+   if (!(type = nclistget(grp->nc4_info->alltypes, typeid1)))
       return NC_EBADTYPE;
    
    /* Complain if they are confused about the type. */

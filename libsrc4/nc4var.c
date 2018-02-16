@@ -396,9 +396,9 @@ nc4_find_default_chunksizes2(NC_GRP_INFO_T *grp, NC_VAR_INFO_T *var)
 /**
  * @internal Add a newly created variable into various lists
  *
- * @param pointer to the group the containing group
+ * @param grp pointer to the containing group
  * @param var pointer to the NC_VAR_INFO_T object
-
+ *
  * @returns ::NC_NOERR No error.
  * @returns ::NC_ENOMEM Out of memory.
  * @returns ::NC_EINVAL Bad argument
@@ -1373,7 +1373,9 @@ NC4_def_var_endian(int ncid, int varid, int endianness)
 
 /**
  * @internal Define filter settings. Called by nc_def_var_filter().
- * @Note: TODO: merge with def_var_all so that chunking is properly taken care of.
+ *
+ * Note: TODO: merge with def_var_all so that chunking is properly taken care of.
+ *
  * @param ncid File ID.
  * @param varid Variable ID.
  * @param id Filter ID

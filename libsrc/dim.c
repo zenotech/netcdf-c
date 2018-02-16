@@ -299,7 +299,7 @@ incr_NC_dimarray(NC_dimarray *ncap, NC_dim *newelemp)
 	if(newelemp != NULL)
 	{
            uintptr_t intdata = ncap->nelems;
-	   NC_hashmapadd(ncap->hashmap, intdata, newelemp->name->cp, newelemp->name->nchars);
+	   NC_hashmapadd(ncap->hashmap, intdata, newelemp->name->cp, strlen(newelemp->name->cp));
 	   ncap->value[ncap->nelems] = newelemp;
 	   ncap->nelems++;
 	}
@@ -486,11 +486,11 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 			return NC_ENOMEM;
 
 		/* Remove old name from hashmap; add new... */
-	        NC_hashmapremove(ncp->dims.hashmap, old->cp, old->nchars, NULL);
+	        NC_hashmapremove(ncp->dims.hashmap, old->cp, strlen(old->cp), NULL);
 		dimp->name = newStr;
 
 		intdata = dimid;
-		NC_hashmapadd(ncp->dims.hashmap, intdata, newStr->cp, newStr->nchars);
+		NC_hashmapadd(ncp->dims.hashmap, intdata, newStr->cp, strlen(newStr->cp));
 		free_NC_string(old);
 
 		return NC_NOERR;
@@ -506,15 +506,17 @@ NC3_rename_dim( int ncid, int dimid, const char *unewname)
 	}
 
 	/* Remove old name from hashmap; add new... */
-	NC_hashmapremove(ncp->dims.hashmap, old->cp, old->nchars, NULL);
+	/* WARNING: strlen(NC_string.cp) may be less than NC_string.nchars */
+	NC_hashmapremove(ncp->dims.hashmap, old->cp, strlen(old->cp), NULL);
 
+	/* WARNING: strlen(NC_string.cp) may be less than NC_string.nchars */
 	status = set_NC_string(dimp->name, newname);
 	free(newname);
 	if(status != NC_NOERR)
 		return status;
 
         intdata = (uintptr_t)dimid;
-	NC_hashmapadd(ncp->dims.hashmap, intdata, dimp->name->cp, dimp->name->nchars);
+	NC_hashmapadd(ncp->dims.hashmap, intdata, dimp->name->cp, strlen(dimp->name->cp));
 
 	set_NC_hdirty(ncp);
 
