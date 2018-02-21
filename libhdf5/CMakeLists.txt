@@ -17,6 +17,7 @@ ENDIF()
 # Build the HDF4 dispatch layer as a library that will be included in
 # the netCDF library.
 add_library(netcdfhdf5 OBJECT ${libnchdf5_SOURCES})
+target_link_libraries(netcdfhdf5 PUBLIC hdf5::hdf5-${NC_HDF5_LINK_TYPE})
 
 # Remember to package this file for CMake builds.
 ADD_EXTRA_DIST(${libnchdf5_SOURCES} CMakeLists.txt)

@@ -113,7 +113,7 @@ readszip()
 
     file = H5Fopen (filename, H5F_ACC_RDONLY, H5P_DEFAULT);
     properties = H5Pcreate(H5P_DATASET_ACCESS);
-    dataset32 = H5Dopen(file, "datasetF32", properties);
+    dataset32 = H5Dopen1(file, "datasetF32", properties);
 
     /*
      * Read the array.  This is similar to writing data,

@@ -1025,7 +1025,6 @@ hdf5_parallel=no
 if test "x$enable_hdf5" = xyes; then
 
    AC_DEFINE([USE_HDF5], [1], [if true, use HDF5])
-   AC_DEFINE([H5_USE_16_API], [1], [use HDF5 1.6 API])
 
    # Check for the main hdf5 and hdf5_hl library.
 

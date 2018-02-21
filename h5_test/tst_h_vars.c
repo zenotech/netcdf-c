@@ -32,12 +32,12 @@ main()
    /* Open file and create group. */
    if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT,
 			   H5P_DEFAULT)) < 0) ERR;
-   if ((grpid = H5Gcreate(fileid, GRP_NAME, 0)) < 0) ERR;
+   if ((grpid = H5Gcreate1(fileid, GRP_NAME, 0)) < 0) ERR;
 
    /* Write an array of bools. */
    dims[0] = DIM1_LEN;
    if ((spaceid = H5Screate_simple(1, dims, dims)) < 0) ERR;
-   if ((datasetid = H5Dcreate(grpid, VAR_BOOL_NAME, H5T_NATIVE_HBOOL,
+   if ((datasetid = H5Dcreate1(grpid, VAR_BOOL_NAME, H5T_NATIVE_HBOOL,
 			      spaceid, H5P_DEFAULT)) < 0) ERR;
    if (H5Dwrite(datasetid, H5T_NATIVE_HBOOL, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		bool_out) < 0) ERR;
@@ -77,7 +77,7 @@ main()
       /* Create file and group. */
       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT,
 			      H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gcreate(fileid, GRP2_NAME, 0)) < 0) ERR;
+      if ((grpid = H5Gcreate1(fileid, GRP2_NAME, 0)) < 0) ERR;
 
       /* Create a space corresponding to these three dimensions. */
       dims[0] = 0;
@@ -96,9 +96,9 @@ main()
       if (H5Pset_chunk(cparmsid, NDIMS, dims) < 0) ERR;
 
       /* Create two variables which use this space. */
-      if ((pres_dsid = H5Dcreate(grpid, PRES_NAME, H5T_NATIVE_FLOAT,
+      if ((pres_dsid = H5Dcreate1(grpid, PRES_NAME, H5T_NATIVE_FLOAT,
 				 spaceid, cparmsid)) < 0) ERR;
-      if ((temp_dsid = H5Dcreate(grpid, TEMP_NAME, H5T_NATIVE_FLOAT,
+      if ((temp_dsid = H5Dcreate1(grpid, TEMP_NAME, H5T_NATIVE_FLOAT,
 				 spaceid, cparmsid)) < 0) ERR;
 
       /* Get the spaceid and check various things. */
@@ -194,7 +194,7 @@ main()
       /* Open file and create group. */
       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT,
 			      H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gcreate(fileid, GRP_NAME, 0)) < 0) ERR;
+      if ((grpid = H5Gcreate1(fileid, GRP_NAME, 0)) < 0) ERR;
 
       /* Write an array of bools, with compression. */
       dims[0] = DIM1_LEN;
@@ -203,7 +203,7 @@ main()
       if (H5Pset_chunk(propid, 1, dims)) ERR;
       if (H5Pset_deflate(propid, DEFLATE_LEVEL)) ERR;
       if ((spaceid = H5Screate_simple(1, dims, dims)) < 0) ERR;
-      if ((datasetid = H5Dcreate(grpid, VAR_BOOL_NAME, H5T_NATIVE_HBOOL,
+      if ((datasetid = H5Dcreate1(grpid, VAR_BOOL_NAME, H5T_NATIVE_HBOOL,
 				 spaceid, propid)) < 0) ERR;
       if (H5Dwrite(datasetid, H5T_NATIVE_HBOOL, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		   bool_out) < 0) ERR;
@@ -216,7 +216,7 @@ main()
 
       /* Now reopen the file and check. */
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, GRP_NAME)) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, GRP_NAME)) < 0) ERR;
       if ((datasetid = H5Dopen1(grpid, VAR_BOOL_NAME)) < 0) ERR;
       if ((propid = H5Dget_create_plist(datasetid)) < 0) ERR;
 
@@ -252,7 +252,7 @@ main()
       /* Open file and create group. */
       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT,
 			      H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gcreate(fileid, GRP_NAME, 0)) < 0) ERR;
+      if ((grpid = H5Gcreate1(fileid, GRP_NAME, 0)) < 0) ERR;
 
       /* Write an array of bools, with compression, fletcher32
        * checksum, shuffle filters. Like a hoogie with "the works." */
@@ -264,7 +264,7 @@ main()
       if (H5Pset_deflate(propid, DEFLATE_LEVEL)) ERR;
       if (H5Pset_fletcher32(propid)) ERR;
       if ((spaceid = H5Screate_simple(1, dims, dims)) < 0) ERR;
-      if ((datasetid = H5Dcreate(grpid, VAR_BOOL_NAME, H5T_NATIVE_HBOOL,
+      if ((datasetid = H5Dcreate1(grpid, VAR_BOOL_NAME, H5T_NATIVE_HBOOL,
 				 spaceid, propid)) < 0) ERR;
       if (H5Dwrite(datasetid, H5T_NATIVE_HBOOL, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		   bool_out) < 0) ERR;
@@ -277,7 +277,7 @@ main()
 
       /* Now reopen the file and check. */
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, GRP_NAME)) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, GRP_NAME)) < 0) ERR;
       if ((datasetid = H5Dopen1(grpid, VAR_BOOL_NAME)) < 0) ERR;
       if ((propid = H5Dget_create_plist(datasetid)) < 0) ERR;
 
@@ -335,16 +335,16 @@ main()
       /* Open file and create group. */
       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT,
 			      H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gcreate(fileid, GRP_NAME, 0)) < 0) ERR;
+      if ((grpid = H5Gcreate1(fileid, GRP_NAME, 0)) < 0) ERR;
 
       /* Create a dataset of native endian. */
       dims[0] = DIM1_LEN;
       if ((spaceid = H5Screate_simple(1, dims, dims)) < 0) ERR;
-      if ((native_did = H5Dcreate(grpid, NATIVE_VAR_NAME, H5T_NATIVE_INT,
+      if ((native_did = H5Dcreate1(grpid, NATIVE_VAR_NAME, H5T_NATIVE_INT,
 				  spaceid, H5P_DEFAULT)) < 0) ERR;
-      if ((le_did = H5Dcreate(grpid, LE_VAR_NAME, H5T_STD_I32LE,
+      if ((le_did = H5Dcreate1(grpid, LE_VAR_NAME, H5T_STD_I32LE,
 			      spaceid, H5P_DEFAULT)) < 0) ERR;
-      if ((be_did = H5Dcreate(grpid, BE_VAR_NAME, H5T_STD_I32BE,
+      if ((be_did = H5Dcreate1(grpid, BE_VAR_NAME, H5T_STD_I32BE,
 			      spaceid, H5P_DEFAULT)) < 0) ERR;
       if (H5Dwrite(native_did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		   data) < 0) ERR;
@@ -362,7 +362,7 @@ main()
 
       /* Now reopen the file and check. */
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, GRP_NAME)) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, GRP_NAME)) < 0) ERR;
 
       if ((native_did = H5Dopen1(grpid, NATIVE_VAR_NAME)) < 0) ERR;
       if ((typeid = H5Dget_type(native_did)) < 0) ERR;

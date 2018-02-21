@@ -144,9 +144,6 @@ are set when opening a binary file on Windows. */
 /* if true, run extra tests which may not work yet */
 #cmakedefine EXTRA_TESTS 1
 
-/* use HDF5 1.6 API */
-#cmakedefine H5_USE_16_API 1
-
 /* Define to 1 if you have `alloca', as a function or macro. */
 #cmakedefine HAVE_ALLOCA 1
 

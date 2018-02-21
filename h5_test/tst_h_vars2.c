@@ -57,7 +57,7 @@ main()
       /* Create the variables, one per element. */
       for (i = 0; i < NUM_ELEMENTS; i++)
       {
-	 if ((did[i] = H5Dcreate(grpid, names[i], H5T_NATIVE_INT,
+	 if ((did[i] = H5Dcreate1(grpid, names[i], H5T_NATIVE_INT,
 				 spaceid, H5P_DEFAULT)) < 0) ERR;
 	 if (H5Dclose(did[i]) < 0) ERR;
       }
@@ -73,7 +73,7 @@ main()
       if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) ERR;
       if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) ERR;
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, fapl_id)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, ELEMENTS_NAME)) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, ELEMENTS_NAME)) < 0) ERR;
 
       if (H5Gget_num_objs(grpid, &num_obj) < 0) ERR;
       if (num_obj != NUM_ELEMENTS) ERR;
@@ -129,7 +129,7 @@ main()
       {
 	 /* Create our dimension scale. Use the built-in NAME attribute
 	  * on the dimscale. */
-	 if ((dimscaleid = H5Dcreate(fileid, names[i], H5T_NATIVE_INT,
+	 if ((dimscaleid = H5Dcreate1(fileid, names[i], H5T_NATIVE_INT,
 				     dimscale_spaceid, H5P_DEFAULT)) < 0) ERR;
 	 if (H5DSset_scale(dimscaleid, NAME_ATTRIBUTE) < 0) ERR;
 	 
@@ -146,7 +146,7 @@ main()
       if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) ERR;
       if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) ERR;
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, fapl_id)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
       if (H5Gget_num_objs(grpid, &num_obj) < 0) ERR;
       if (num_obj != NUM_DIMSCALES) ERR;
@@ -201,7 +201,7 @@ main()
       if ((spaceid = H5Screate(H5S_SCALAR)) < 0) ERR;
 
       /* Create a scalar variable. */
-      if ((did = H5Dcreate(grpid, VAR_NAME, H5T_NATIVE_INT,
+      if ((did = H5Dcreate1(grpid, VAR_NAME, H5T_NATIVE_INT,
 			   spaceid, H5P_DEFAULT)) < 0) ERR;
       if (H5Dclose(did) < 0) ERR;
 
@@ -212,11 +212,11 @@ main()
       if (H5Gunlink(grpid, VAR_NAME) < 0) ERR;
 
       /* Re-reate the scalar variable. */
-      if ((did = H5Dcreate(grpid, VAR_NAME, H5T_NATIVE_INT,
+      if ((did = H5Dcreate1(grpid, VAR_NAME, H5T_NATIVE_INT,
 			   spaceid, H5P_DEFAULT)) < 0) ERR;
 
       /* Add an attribute. */
-      if ((attid = H5Acreate(did, "Some_Attribute", H5T_NATIVE_FLOAT, spaceid,
+      if ((attid = H5Acreate1(did, "Some_Attribute", H5T_NATIVE_FLOAT, spaceid,
 			     H5P_DEFAULT)) < 0) ERR;
       if (H5Awrite(attid, H5T_NATIVE_FLOAT, &val) < 0) ERR;
 
@@ -234,7 +234,7 @@ main()
       if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) ERR;
       if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) ERR;
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, fapl_id)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, ELEMENTS_NAME)) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, ELEMENTS_NAME)) < 0) ERR;
 
       if (H5Gget_num_objs(grpid, &num_obj) < 0) ERR;
       if (num_obj != 1) ERR;
@@ -285,7 +285,7 @@ main()
       if (H5Pset_link_creation_order(fcpl_id, H5P_CRT_ORDER_TRACKED|H5P_CRT_ORDER_INDEXED) < 0) ERR;
       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, fcpl_id, fapl_id)) < 0) ERR;
 
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
       dimsize[0] = maxdimsize[0] = NX;
       dimsize[1] = maxdimsize[1] = NY;
@@ -303,7 +303,7 @@ main()
       if (H5Pset_deflate(plistid, DEFLATE_LEVEL) < 0) ERR;
 
       /* Create the variable. */
-      if ((datasetid = H5Dcreate(grpid, SIMPLE_VAR_NAME, H5T_NATIVE_INT,
+      if ((datasetid = H5Dcreate1(grpid, SIMPLE_VAR_NAME, H5T_NATIVE_INT,
 				 spaceid, plistid)) < 0) ERR;
 
       /* Write the data. */
@@ -321,7 +321,7 @@ main()
       if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) ERR;
       if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) ERR;
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, fapl_id)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
       if ((datasetid = H5Dopen1(grpid, SIMPLE_VAR_NAME)) < 0) ERR;
       if ((spaceid = H5Dget_space(datasetid)) < 0)
@@ -363,7 +363,7 @@ main()
 /*       if (H5Pset_link_creation_order(fcpl_id, H5P_CRT_ORDER_TRACKED|H5P_CRT_ORDER_INDEXED) < 0) ERR; */
 /*       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, fcpl_id, fapl_id)) < 0) ERR; */
 
-/*       if ((grpid = H5Gopen(fileid, "/")) < 0) ERR; */
+/*       if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR; */
 
 /*       if ((spaceid = H5Screate(H5S_SCALAR)) < 0) ERR; */
 
@@ -376,7 +376,7 @@ main()
 /*       if (H5Pset_deflate(plistid, DEFLATE_LEVEL) < 0) ERR; */
 
 /*       /\* Create the variable. *\/ */
-/*       if ((datasetid = H5Dcreate(grpid, SIMPLE_VAR_NAME1, H5T_NATIVE_INT, */
+/*       if ((datasetid = H5Dcreate1(grpid, SIMPLE_VAR_NAME1, H5T_NATIVE_INT, */
 /* 				 spaceid, plistid)) < 0) ERR; */
 
 /*       /\* Write the data. *\/ */
@@ -394,7 +394,7 @@ main()
 /*       if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) ERR; */
 /*      if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) ERR;*/
 /*       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, fapl_id)) < 0) ERR; */
-/*       if ((grpid = H5Gopen(fileid, "/")) < 0) ERR; */
+/*       if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR; */
 
 /*       if ((datasetid = H5Dopen1(grpid, SIMPLE_VAR_NAME1)) < 0) ERR; */
 /*       if ((spaceid = H5Dget_space(datasetid)) < 0)  */
@@ -445,7 +445,7 @@ main()
 
       /* Open file and read fill value of the variable. */
       if ((fileid = H5Fopen(file_in, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
       if ((datasetid = H5Dopen1(grpid, VAR_NAME2)) < 0) ERR;
       if ((propid = H5Dget_create_plist(datasetid)) < 0) ERR;
       if (H5Pfill_value_defined(propid, &fill_status) < 0) ERR;
@@ -498,7 +498,7 @@ main()
       if ((fileid = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, fcpl_id, fapl_id)) < 0) ERR;
 
       /* Open root group. */
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
       /* Create 1 D data space with unlimited dimension. */
       dimsize[0] = 0;
@@ -517,7 +517,7 @@ main()
       {
 	 sprintf(var_name, "var_%d", v);
 /*	 printf("creating var %s\n", var_name);*/
-	 if ((datasetid[v] = H5Dcreate(grpid, var_name, H5T_NATIVE_INT,
+	 if ((datasetid[v] = H5Dcreate1(grpid, var_name, H5T_NATIVE_INT,
 				    spaceid, plistid)) < 0) ERR_RET;
       }
 
@@ -536,7 +536,7 @@ main()
       if ((fapl_id = H5Pcreate(H5P_FILE_ACCESS)) < 0) ERR;
       if (H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) ERR;
       if ((fileid = H5Fopen(FILE_NAME, H5F_ACC_RDONLY, fapl_id)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
 /*       if ((datasetid = H5Dopen1(grpid, SIMPLE_VAR_NAME)) < 0) ERR; */
 /*       if ((spaceid = H5Dget_space(datasetid)) < 0) */

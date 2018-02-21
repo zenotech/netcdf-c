@@ -556,7 +556,7 @@ main(int argc, char **argv)
    /* Now run the tests formerly in tst_h_atts2.c. */
 #define REF_FILE_NAME "tst_xplatform2_3.nc"
 #define NUM_OBJ 3
-   
+
    printf("\n*** Checking HDF5 attribute functions some more.\n");
    printf("*** Opening tst_xplatform2_3.nc...");
    {
@@ -569,7 +569,7 @@ main(int argc, char **argv)
 
       /* Open one of the netCDF test files. */
       if ((fileid = H5Fopen(REF_FILE_NAME, H5F_ACC_RDWR, H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
       /* How many objects in this group? */
       if (H5Gget_num_objs(grpid, &num_obj) < 0) ERR;
@@ -623,7 +623,7 @@ main(int argc, char **argv)
 
       /* Open one of the netCDF test files. */
       if ((fileid = H5Fopen(REF_FILE_NAME, H5F_ACC_RDWR, H5P_DEFAULT)) < 0) ERR;
-      if ((grpid = H5Gopen(fileid, "/")) < 0) ERR;
+      if ((grpid = H5Gopen1(fileid, "/")) < 0) ERR;
 
       /* There is one att: open it by index. */
       if ((attid = H5Aopen_idx(grpid, 0)) < 0) ERR;
